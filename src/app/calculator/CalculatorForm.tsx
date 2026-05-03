@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { calcDeal, type TaxForm } from "@/lib/tax";
 import { fmtPLN, parseAmount } from "@/lib/format";
+import type { QuoteTemplate } from "@/lib/dao/quote_templates.types";
+import { saveQuoteTemplateAction, deleteQuoteTemplateAction } from "./actions";
 
 type JobOption = {
   id: string;
@@ -17,20 +19,52 @@ export default function CalculatorForm({
   defaultTaxForm,
   defaultVatRate,
   defaultIsVatPayer,
+  defaultYearIncome,
+  templates,
 }: {
   jobs: JobOption[];
   defaultTaxForm: TaxForm;
   defaultVatRate: number;
   defaultIsVatPayer: boolean;
+  defaultYearIncome: number;
+  templates: QuoteTemplate[];
 }) {
   const [amountStr, setAmountStr] = useState("");
   const [vatPct, setVatPct] = useState(String(Math.round(defaultVatRate * 100)));
   const [taxForm, setTaxForm] = useState<TaxForm>(defaultTaxForm);
   const [isVatPayer, setIsVatPayer] = useState<boolean>(defaultIsVatPayer);
-  const [yearIncomeStr, setYearIncomeStr] = useState("");
+  const [yearIncomeStr, setYearIncomeStr] = useState(
+    defaultYearIncome > 0 ? defaultYearIncome.toFixed(2) : ""
+  );
+  const [yearIncomeOverride, setYearIncomeOverride] = useState(false);
   const [costsGrossStr, setCostsGrossStr] = useState("");
   const [costsVatPct, setCostsVatPct] = useState("23");
   const [jobId, setJobId] = useState<string>("");
+  const [templateId, setTemplateId] = useState<string>("");
+  const [showSave, setShowSave] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [saveState, saveAction, savePending] = useActionState(saveQuoteTemplateAction, {
+    error: undefined as string | undefined,
+  });
+
+  function loadTemplate(id: string) {
+    setTemplateId(id);
+    if (!id) return;
+    const t = templates.find((x) => x.id === id);
+    if (!t) return;
+    setAmountStr(Number(t.amount_gross).toFixed(2));
+    setVatPct(String(Math.round(Number(t.vat_rate) * 100)));
+    setCostsGrossStr(Number(t.costs_gross).toFixed(2));
+    setCostsVatPct(String(Math.round(Number(t.costs_vat_rate) * 100)));
+    setTaxForm(t.tax_form);
+    setIsVatPayer(t.is_vat_payer);
+  }
+
+  async function deleteTemplate(id: string) {
+    if (!confirm("Usunąć ten szablon?")) return;
+    await deleteQuoteTemplateAction(id);
+    if (templateId === id) setTemplateId("");
+  }
 
   function onJobChange(id: string) {
     setJobId(id);
@@ -65,6 +99,83 @@ export default function CalculatorForm({
 
   return (
     <div className="flex flex-col gap-5">
+      <Section title="Szablony">
+        <div className="flex gap-2">
+          <select
+            value={templateId}
+            onChange={(e) => loadTemplate(e.target.value)}
+            className="input flex-1"
+          >
+            <option value="">— wybierz szablon —</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          {templateId && (
+            <button
+              type="button"
+              onClick={() => deleteTemplate(templateId)}
+              className="rounded-lg border border-red-200 text-red-600 text-xs px-3 active:bg-red-50"
+              aria-label="Usuń szablon"
+            >
+              Usuń
+            </button>
+          )}
+        </div>
+
+        {!showSave ? (
+          <button
+            type="button"
+            onClick={() => {
+              setShowSave(true);
+              setTemplateName("");
+            }}
+            className="rounded-lg border border-zinc-200 bg-white text-sm py-2 active:bg-zinc-50"
+          >
+            + Zapisz aktualne ustawienia jako szablon
+          </button>
+        ) : (
+          <form action={saveAction} className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-3">
+            <input type="hidden" name="amount_gross" value={amountStr || "0"} />
+            <input type="hidden" name="vat_rate" value={(Number(vatPct) / 100).toString()} />
+            <input type="hidden" name="costs_gross" value={costsGrossStr || "0"} />
+            <input type="hidden" name="costs_vat_rate" value={(Number(costsVatPct) / 100).toString()} />
+            <input type="hidden" name="tax_form" value={taxForm} />
+            <input type="hidden" name="is_vat_payer" value={isVatPayer ? "true" : "false"} />
+            <input
+              name="name"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="np. Szafa 3-drzwiowa dąb"
+              required
+              className="input"
+            />
+            {saveState.error && (
+              <p className="text-xs text-red-600">{saveState.error}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={savePending || !templateName.trim()}
+                onClick={() => setShowSave(false)}
+                className="flex-1 rounded-lg bg-[#282624] text-white text-sm py-2 font-medium active:opacity-80 disabled:opacity-50"
+              >
+                {savePending ? "Zapisuję..." : "Zapisz"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSave(false)}
+                className="rounded-lg border border-zinc-200 text-sm px-3 active:bg-zinc-50"
+              >
+                Anuluj
+              </button>
+            </div>
+          </form>
+        )}
+      </Section>
+
       <Section title="Kwota zlecenia">
         <Field label="Kwota brutto (PLN)">
           <input
@@ -170,18 +281,54 @@ export default function CalculatorForm({
             />
           </div>
         </Field>
-        <Field label="Dochód roczny do tej pory (PLN)">
-          <input
-            inputMode="decimal"
-            value={yearIncomeStr}
-            onChange={(e) => setYearIncomeStr(e.target.value)}
-            placeholder="0"
-            className="input"
-          />
-          <p className="text-[11px] text-zinc-500 mt-1">
-            Potrzebne tylko dla skali — żeby uwzględnić kwotę wolną i próg 120 000.
-          </p>
-        </Field>
+        {taxForm === "skala" && (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span>Dochód roczny dotychczas:</span>
+              <span className="font-medium tabular-nums text-zinc-900">
+                {fmtPLN(parseAmount(yearIncomeStr) ?? 0)}
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              {yearIncomeOverride
+                ? "Wartość ręczna."
+                : defaultYearIncome > 0
+                  ? "Pobrano automatycznie z dashboardu (YTD)."
+                  : "Brak danych w bazie — wpisz ręcznie, jeśli chcesz."}
+            </p>
+            {!yearIncomeOverride ? (
+              <button
+                type="button"
+                onClick={() => setYearIncomeOverride(true)}
+                className="text-[11px] text-zinc-700 underline-offset-2 hover:underline"
+              >
+                Nadpisz ręcznie
+              </button>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <input
+                  inputMode="decimal"
+                  value={yearIncomeStr}
+                  onChange={(e) => setYearIncomeStr(e.target.value)}
+                  placeholder="0"
+                  className="input flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setYearIncomeOverride(false);
+                    setYearIncomeStr(
+                      defaultYearIncome > 0 ? defaultYearIncome.toFixed(2) : ""
+                    );
+                  }}
+                  className="text-[11px] text-zinc-600 underline-offset-2 hover:underline"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </Section>
 
       <ResultPanel
@@ -276,53 +423,69 @@ function ResultPanel({
 }) {
   const { revenueNet, revenueVat, profit, vatToPay, pitDelta, netCash } = result;
   const taxTotal = vatToPay + pitDelta;
+  const empty = amountGross === 0 && costsGross === 0;
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-      <GroupHeader>Sprzedaż</GroupHeader>
-      <Row label="Brutto (z VAT)" value={fmtPLN(amountGross)} />
-      {isVatPayer && (
-        <Row label="− VAT należny" value={fmtPLN(revenueVat)} sub />
+    <section className="space-y-3">
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+          Na czysto (po VAT i PIT)
+        </p>
+        <p className="text-3xl font-bold tabular-nums text-emerald-900 mt-1">
+          {fmtPLN(netCash)}
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+            Razem podatki {isVatPayer ? "(VAT + PIT)" : "(PIT)"}
+          </p>
+          <p className="text-xl font-semibold tabular-nums text-amber-900">
+            {fmtPLN(taxTotal)}
+          </p>
+        </div>
+        <div className="mt-2 space-y-1 text-xs text-amber-900/80">
+          {isVatPayer && (
+            <div className="flex items-baseline justify-between">
+              <span>VAT do zapłaty</span>
+              <span className="tabular-nums">{fmtPLN(vatToPay)}</span>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between">
+            <span>PIT (przyrost roczny)</span>
+            <span className="tabular-nums">{fmtPLN(pitDelta)}</span>
+          </div>
+        </div>
+      </div>
+
+      {!empty && (
+        <details className="rounded-xl border border-zinc-200 bg-white overflow-hidden group">
+          <summary className="flex items-center justify-between px-4 py-3 text-sm text-zinc-700 cursor-pointer select-none active:bg-zinc-50 list-none">
+            <span className="font-medium">Pokaż szczegóły wyliczenia</span>
+            <span className="text-xs text-zinc-400 group-open:rotate-180 transition-transform">▾</span>
+          </summary>
+          <div className="border-t border-zinc-100">
+            <GroupHeader>Sprzedaż</GroupHeader>
+            <Row label="Brutto (z VAT)" value={fmtPLN(amountGross)} />
+            {isVatPayer && <Row label="− VAT należny" value={fmtPLN(revenueVat)} sub />}
+            <Row
+              label={isVatPayer ? "= Netto (po VAT)" : "Netto"}
+              value={fmtPLN(revenueNet)}
+            />
+            <GroupHeader>Koszty</GroupHeader>
+            <Row label="Brutto" value={fmtPLN(costsGross)} />
+            {isVatPayer && <Row label="− VAT naliczony" value={fmtPLN(costsVat)} sub />}
+            <Row
+              label={isVatPayer ? "= Netto (do PIT)" : "Netto"}
+              value={fmtPLN(costsNet)}
+            />
+            <GroupHeader>Zysk</GroupHeader>
+            <Row label="Zysk netto" value={fmtPLN(profit)} bold />
+            <Row label="Podstawa do PIT" value={fmtPLN(Math.max(0, profit))} sub />
+          </div>
+        </details>
       )}
-      <Row
-        label={isVatPayer ? "= Netto (po VAT)" : "Netto"}
-        value={fmtPLN(revenueNet)}
-      />
-
-      <GroupHeader>Koszty</GroupHeader>
-      <Row label="Brutto" value={fmtPLN(costsGross)} />
-      {isVatPayer && (
-        <Row label="− VAT naliczony" value={fmtPLN(costsVat)} sub />
-      )}
-      <Row
-        label={isVatPayer ? "= Netto (do PIT)" : "Netto"}
-        value={fmtPLN(costsNet)}
-      />
-
-      <GroupHeader>Zysk</GroupHeader>
-      <Row
-        label="Zysk netto (przychód netto − koszty netto)"
-        value={fmtPLN(profit)}
-        bold
-      />
-      <Row
-        label="Podstawa do PIT"
-        value={fmtPLN(Math.max(0, profit))}
-        sub
-      />
-
-      <GroupHeader>Podatki do zapłacenia</GroupHeader>
-      {isVatPayer && (
-        <Row label="VAT do zapłaty" value={fmtPLN(vatToPay)} />
-      )}
-      <Row label="PIT (przyrost roczny)" value={fmtPLN(pitDelta)} />
-      <Row label="Razem (VAT + PIT)" value={fmtPLN(taxTotal)} tax />
-
-      <Row
-        label="Na czysto (po VAT i PIT)"
-        value={fmtPLN(netCash)}
-        highlight
-      />
     </section>
   );
 }

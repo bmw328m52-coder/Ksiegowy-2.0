@@ -30,12 +30,7 @@ export default async function Home() {
           </form>
         </div>
 
-        <div className="text-center space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Manager Firmy</h1>
-          <p className="text-sm text-[#6b6661]">
-            Centrum zarządzania — faktury, klienci, koszty, podatki.
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">Manager Firmy</h1>
 
         <nav className="w-full grid grid-cols-2 gap-3">
           <Tile href="/clients" label="Klienci" hint="Lista i kontakty" icon={<UsersIcon />} />
@@ -45,10 +40,6 @@ export default async function Home() {
           <Tile href="/dashboard" label="Dashboard" hint="Podatki i VAT" icon={<ChartIcon />} />
           <Tile href="/settings" label="Ustawienia" hint="Forma, VAT, ZUS" icon={<GearIcon />} />
         </nav>
-
-        <p className="text-xs text-[#6b6661]/70 text-center">
-          Etap 5 ✓ Dashboard podatków. Wszystkie podstawowe moduły gotowe.
-        </p>
       </div>
     </main>
   );

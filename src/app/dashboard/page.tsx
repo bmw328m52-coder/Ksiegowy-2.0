@@ -1,6 +1,7 @@
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
-import { getDashboardData, MONTH_NAMES_PL } from "@/lib/dao/dashboard";
+import { getDashboardData, MONTH_NAMES_PL, type ReminderItem } from "@/lib/dao/dashboard";
+import { CATEGORY_COLORS } from "@/lib/dao/cost_lines.types";
 import { fmtPLN, fmtDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -11,14 +12,23 @@ export default async function DashboardPage() {
   const monthName = MONTH_NAMES_PL[d.month_index];
   const taxFormLabel = d.settings.tax_form === "skala" ? "skala 12%/32%" : "liniowy 19%";
 
+  const vatPeriodLabel = d.settings.is_vat_payer
+    ? d.settings.vat_period === "quarterly"
+      ? "kwartalny"
+      : "miesięczny"
+    : "zwolnienie";
+  const hasCashAlerts =
+    (d.uninvoicedMonth && d.uninvoicedMonth.count > 0) ||
+    d.pendingRevenueGross > 0 ||
+    d.openDepositsTotal > 0;
+  const hasYearData = d.ytd.revenueNet > 0 || d.ytd.costsNet > 0;
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <div className="w-full max-w-md mx-auto space-y-4">
         <PageHeader title="Dashboard" back={{ href: "/" }} />
 
-        <p className="text-xs text-zinc-500">
-          Forma: {taxFormLabel} · VAT: {d.settings.is_vat_payer ? d.settings.vat_period === "quarterly" ? "kwartalny" : "miesięczny" : "zwolnienie"}
-        </p>
+        <RemindersBanner reminders={d.reminders} />
 
         <section className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
@@ -54,83 +64,113 @@ export default async function DashboardPage() {
           />
         </section>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
-          <h2 className="text-sm font-medium text-zinc-600">{monthName} {d.year} — sprzedaż i koszty</h2>
-          <Row label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
-          <Row label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
-          <Divider />
-          <Row label="Dochód" value={fmtPLN(d.month.profit)} bold />
-        </section>
-
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
-          <h2 className="text-sm font-medium text-zinc-600">Trend miesięczny — {d.year}</h2>
-          {d.ytd.revenueNet === 0 && d.ytd.costsNet === 0 ? (
-            <p className="text-xs text-zinc-500 py-4 text-center">
-              Brak danych w {d.year}. Dodaj zlecenia (status „Opłacone”) i faktury kosztowe, aby zobaczyć trend.
-            </p>
-          ) : (
-            <TrendChart data={d.monthlyTrend} highlightMonth={d.month_index} />
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-zinc-700">
+            Bieżący miesiąc — {monthName}
+          </h2>
+          <div className="space-y-2">
+            <Row label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
+            <Row label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
+            <Divider />
+            <Row label="Dochód" value={fmtPLN(d.month.profit)} bold />
+          </div>
+          {d.costsByCategoryMonth.length > 0 && (
+            <div className="pt-3 border-t border-zinc-100 space-y-2">
+              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                Rozkład kosztów
+              </p>
+              <CategoryBars rows={d.costsByCategoryMonth} />
+            </div>
           )}
         </section>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
-          <h2 className="text-sm font-medium text-zinc-600">Rok {d.year} (YTD)</h2>
-          <Row label="Przychód netto" value={fmtPLN(d.ytd.revenueNet)} />
-          <Row label="Koszty netto" value={fmtPLN(d.ytd.costsNet)} />
-          <Divider />
-          <Row label="Dochód" value={fmtPLN(d.ytd.profit)} bold />
-          <Row label="Zaliczka PIT" value={fmtPLN(d.ytd.pit)} />
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-zinc-700">Rok {d.year}</h2>
+          {!hasYearData ? (
+            <p className="text-xs text-zinc-500 py-4 text-center">
+              Brak danych w {d.year}. Dodaj zlecenia (status „Opłacone”) i faktury kosztowe.
+            </p>
+          ) : (
+            <>
+              <TrendChart data={d.monthlyTrend} highlightMonth={d.month_index} />
+              <div className="space-y-2 pt-3 border-t border-zinc-100">
+                <Row label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />
+                <Row label="Koszty netto YTD" value={fmtPLN(d.ytd.costsNet)} />
+                <Row label="Dochód YTD" value={fmtPLN(d.ytd.profit)} bold />
+                <Row label="Zaliczka PIT YTD" value={fmtPLN(d.ytd.pit)} />
+              </div>
+            </>
+          )}
         </section>
 
-        {d.uninvoicedMonth && d.uninvoicedMonth.count > 0 && (
-          <section className="rounded-xl border border-zinc-300 bg-white p-4">
-            <p className="text-sm font-medium text-zinc-900">
-              Niefakturowane w {monthName} ({d.uninvoicedMonth.count})
-            </p>
-            <div className="mt-2 space-y-1">
-              <Row label="Brutto" value={fmtPLN(d.uninvoicedMonth.amountGross)} />
-              {d.settings.is_vat_payer && (
-                <>
-                  <Row label="Netto" value={fmtPLN(d.uninvoicedMonth.amountNet)} />
-                  <Row label="VAT (gdy zafakturujesz)" value={fmtPLN(d.uninvoicedMonth.amountVat)} />
-                </>
-              )}
-            </div>
-            <p className="text-xs text-zinc-500 mt-2">
-              Zlecenia ukończone/opłacone w tym miesiącu bez wystawionej faktury.
-            </p>
+        {hasCashAlerts && (
+          <section className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+            <h2 className="text-sm font-semibold text-zinc-700 px-4 pt-4 pb-2">
+              Alerty kasowe
+            </h2>
+            {d.uninvoicedMonth && d.uninvoicedMonth.count > 0 && (
+              <CashAlertRow
+                tone="neutral"
+                title={`Niefakturowane (${d.uninvoicedMonth.count})`}
+                amount={d.uninvoicedMonth.amountGross}
+                hint={`Zlecenia ukończone/opłacone w ${monthName} bez wystawionej faktury.`}
+              />
+            )}
+            {d.pendingRevenueGross > 0 && (
+              <CashAlertRow
+                tone="warn"
+                title="Oczekuje na zapłatę"
+                amount={d.pendingRevenueGross}
+                hint="Zlecenia „Zakończone”, jeszcze nieopłacone."
+              />
+            )}
+            {d.openDepositsTotal > 0 && (
+              <CashAlertRow
+                tone="info"
+                title="Zaliczki — otwarte zlecenia"
+                amount={d.openDepositsTotal}
+                hint="Otrzymane zaliczki — nie wchodzą jeszcze do przychodu."
+              />
+            )}
           </section>
         )}
 
-        {d.pendingRevenueGross > 0 && (
-          <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-medium text-amber-900">Oczekuje na zapłatę</p>
-            <p className="text-lg font-semibold text-amber-900 mt-1">
-              {fmtPLN(d.pendingRevenueGross)}
-            </p>
-            <p className="text-xs text-amber-800 mt-1">
-              Zlecenia ze statusem „Zakończone”, jeszcze nieopłacone.
-            </p>
-          </section>
-        )}
-
-        {d.openDepositsTotal > 0 && (
-          <section className="rounded-xl border border-sky-200 bg-sky-50 p-4">
-            <p className="text-sm font-medium text-sky-900">Zaliczki — otwarte zlecenia</p>
-            <p className="text-lg font-semibold text-sky-900 mt-1">
-              {fmtPLN(d.openDepositsTotal)}
-            </p>
-            <p className="text-xs text-sky-800 mt-1">
-              Zaliczki otrzymane na zlecenia jeszcze niezakończone — nie wchodzą do przychodu.
-            </p>
-          </section>
-        )}
-
-        <p className="text-xs text-zinc-400 text-center pt-2">
-          Przychód liczony z zleceń opłaconych (data zapłaty). Koszty z faktur kosztowych.
+        <p className="text-[11px] text-zinc-400 text-center pt-2">
+          Forma: {taxFormLabel} · VAT: {vatPeriodLabel}
+          <br />
+          Przychód z zleceń opłaconych. Koszty z faktur kosztowych.
         </p>
       </div>
     </main>
+  );
+}
+
+function CashAlertRow({
+  tone,
+  title,
+  amount,
+  hint,
+}: {
+  tone: "neutral" | "warn" | "info";
+  title: string;
+  amount: number;
+  hint: string;
+}) {
+  const accent = {
+    neutral: "text-zinc-900",
+    warn: "text-amber-800",
+    info: "text-sky-800",
+  }[tone];
+  return (
+    <div className="px-4 py-3 border-t border-zinc-100 first:border-t-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className={`text-sm font-medium ${accent}`}>{title}</p>
+        <p className={`text-base font-semibold tabular-nums ${accent}`}>
+          {fmtPLN(amount)}
+        </p>
+      </div>
+      <p className="text-[11px] text-zinc-500 mt-0.5">{hint}</p>
+    </div>
   );
 }
 
@@ -217,4 +257,99 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 
 function Divider() {
   return <div className="h-px bg-zinc-100" />;
+}
+
+function RemindersBanner({ reminders }: { reminders: ReminderItem[] }) {
+  const visible = reminders
+    .filter((r) => r.daysUntil <= 14)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+  if (visible.length === 0) return null;
+
+  const overdue = visible.filter((r) => r.daysUntil < 0);
+  const urgent = visible.filter((r) => r.daysUntil >= 0 && r.daysUntil <= 7);
+  const upcoming = visible.filter((r) => r.daysUntil > 7);
+
+  return (
+    <div className="space-y-2">
+      {overdue.map((r) => (
+        <ReminderRow key={r.kind} item={r} tone="overdue" />
+      ))}
+      {urgent.map((r) => (
+        <ReminderRow key={r.kind} item={r} tone="urgent" />
+      ))}
+      {upcoming.map((r) => (
+        <ReminderRow key={r.kind} item={r} tone="upcoming" />
+      ))}
+    </div>
+  );
+}
+
+function ReminderRow({
+  item,
+  tone,
+}: {
+  item: ReminderItem;
+  tone: "overdue" | "urgent" | "upcoming";
+}) {
+  const tones = {
+    overdue: "border-red-200 bg-red-50 text-red-900",
+    urgent: "border-amber-200 bg-amber-50 text-amber-900",
+    upcoming: "border-zinc-200 bg-white text-zinc-800",
+  } as const;
+  const days = item.daysUntil;
+  const suffix =
+    days < 0
+      ? `${Math.abs(days)} dni po terminie`
+      : days === 0
+        ? "dziś"
+        : days === 1
+          ? "jutro"
+          : `za ${days} dni`;
+  return (
+    <div className={`rounded-xl border ${tones[tone]} px-3 py-2 flex items-center justify-between gap-3`}>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold leading-tight">
+          {item.label} · {item.periodLabel}
+        </p>
+        <p className="text-[11px] opacity-80">do {fmtDate(new Date(item.deadline + "T00:00:00"))} · {suffix}</p>
+      </div>
+      {item.amount !== null && (
+        <span className="text-sm font-semibold tabular-nums shrink-0">
+          {fmtPLN(item.amount)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CategoryBars({
+  rows,
+}: {
+  rows: { category: string; amountNet: number; share: number }[];
+}) {
+  const max = rows[0]?.amountNet ?? 0;
+  return (
+    <ul className="space-y-2">
+      {rows.map((r) => {
+        const color = CATEGORY_COLORS[r.category] ?? "#71717a";
+        const widthPct = max > 0 ? Math.max(2, (r.amountNet / max) * 100) : 0;
+        return (
+          <li key={r.category} className="space-y-1">
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="text-zinc-700 capitalize">{r.category}</span>
+              <span className="tabular-nums text-zinc-600">
+                {fmtPLN(r.amountNet)} <span className="text-zinc-400">· {Math.round(r.share * 100)}%</span>
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${widthPct}%`, backgroundColor: color }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { getJob, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
+import { listCostLinesByJob } from "@/lib/dao/cost_lines";
+import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
+import { computeJobMargin } from "@/lib/jobMargin";
 import { fmtPLN, fmtDate } from "@/lib/format";
 import { deleteJobAction, markJobPaidAction } from "../actions";
 
@@ -9,6 +12,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const job = await getJob(id);
   if (!job) notFound();
+
+  const [costLines, settings] = await Promise.all([
+    listCostLinesByJob(id),
+    getUserSettingsOrDefault(),
+  ]);
+  const margin = computeJobMargin(job, costLines, settings.is_vat_payer);
 
   const vatPct = Math.round(Number(job.vat_rate) * 100);
   const gross = Number(job.amount_gross);
@@ -66,6 +75,44 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               <p className="text-base font-semibold">{fmtPLN(gross)}</p>
             </div>
           </div>
+        </section>
+
+        <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 space-y-2">
+          <div className="flex items-baseline justify-between gap-2 mb-1">
+            <h2 className="text-sm font-semibold text-zinc-700">Marża zlecenia</h2>
+            <span className="text-[11px] text-zinc-500">
+              {margin.costsCount} {margin.costsCount === 1 ? "pozycja" : margin.costsCount > 1 && margin.costsCount < 5 ? "pozycje" : "pozycji"} kosztu
+            </span>
+          </div>
+          <Row label="Przychód netto" value={fmtPLN(margin.revenueNet)} />
+          <Row label="Koszty przypisane" value={`− ${fmtPLN(margin.costsNet)}`} />
+          <div className="border-t border-zinc-100 pt-2 flex items-center justify-between gap-2">
+            <span className="text-sm font-medium text-zinc-900">Zysk</span>
+            <span className="flex items-baseline gap-2">
+              <span
+                className={`text-base font-semibold tabular-nums ${
+                  margin.profit >= 0 ? "text-emerald-700" : "text-red-700"
+                }`}
+              >
+                {fmtPLN(margin.profit)}
+              </span>
+              {margin.marginPct !== null && (
+                <span
+                  className={`text-xs tabular-nums ${
+                    margin.profit >= 0 ? "text-emerald-700" : "text-red-700"
+                  }`}
+                >
+                  {margin.profit >= 0 ? "+" : ""}
+                  {margin.marginPct.toFixed(1)}%
+                </span>
+              )}
+            </span>
+          </div>
+          {margin.costsCount === 0 && (
+            <p className="text-[11px] text-zinc-500 pt-1">
+              Przypisz pozycje z faktur kosztowych do tego zlecenia, aby śledzić rzeczywistą marżę.
+            </p>
+          )}
         </section>
 
         {deposit > 0 && (

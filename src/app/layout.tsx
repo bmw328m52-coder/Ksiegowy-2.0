@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import BottomNav from "@/components/BottomNav";
+import ToastContainer from "@/components/ToastContainer";
 
 export const metadata: Metadata = {
   title: {
@@ -34,8 +36,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pl" translate="no" className="notranslate h-full antialiased">
-      <body className="min-h-full flex flex-col text-[#282624]">
+      <body
+        className="min-h-full flex flex-col text-[#282624]"
+        style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom))" }}
+      >
         {children}
+        <ToastContainer />
+        <BottomNav />
       </body>
     </html>
   );

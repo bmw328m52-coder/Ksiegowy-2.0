@@ -2,6 +2,8 @@ import PageHeader from "@/components/PageHeader";
 import CalculatorForm from "./CalculatorForm";
 import { listJobs } from "@/lib/dao/jobs";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
+import { listQuoteTemplates } from "@/lib/dao/quote_templates";
+import { getDashboardData } from "@/lib/dao/dashboard";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +27,12 @@ async function getJobCostSummaries(): Promise<Map<string, { net: number; vat: nu
 }
 
 export default async function CalculatorPage() {
-  const [jobs, settings, costSummaries] = await Promise.all([
+  const [jobs, settings, costSummaries, templates, dashboard] = await Promise.all([
     listJobs(),
     getUserSettingsOrDefault(),
     getJobCostSummaries(),
+    listQuoteTemplates(),
+    getDashboardData(),
   ]);
 
   const jobOptions = jobs.map((j) => {
@@ -51,6 +55,8 @@ export default async function CalculatorPage() {
           defaultTaxForm={settings.tax_form}
           defaultVatRate={settings.default_vat_rate}
           defaultIsVatPayer={settings.is_vat_payer}
+          defaultYearIncome={Math.max(0, dashboard.pit.profitYtd)}
+          templates={templates}
         />
       </div>
     </main>

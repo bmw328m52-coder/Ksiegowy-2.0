@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { upsertUserSettings, type UserSettingsInput } from "@/lib/dao/user_settings";
 import type { TaxForm } from "@/lib/tax";
 import type { VatPeriod } from "@/lib/dao/user_settings.types";
+import { DEFAULT_MATERIAL_CATEGORIES } from "@/lib/dao/user_settings.types";
 
 type Result = { error?: string; ok?: boolean };
 
@@ -35,6 +36,32 @@ function readForm(formData: FormData): UserSettingsInput | string {
   const zus_monthly = zusRaw ? parseAmount(zusRaw) : 0;
   if (zus_monthly === null || zus_monthly < 0) return "Nieprawidłowa kwota ZUS.";
 
+  const parseZusRate = (key: string): number | string => {
+    const raw = String(formData.get(key) ?? "").trim();
+    if (!raw) return 0;
+    const n = parseAmount(raw);
+    if (n === null || n < 0) return `Nieprawidłowa stawka ${key}.`;
+    return n;
+  };
+  const ulga = parseZusRate("zus_ulga");
+  if (typeof ulga === "string") return ulga;
+  const maly = parseZusRate("zus_maly");
+  if (typeof maly === "string") return maly;
+  const pelny = parseZusRate("zus_pelny");
+  if (typeof pelny === "string") return pelny;
+
+  const catsRaw = String(formData.get("material_categories") ?? "").trim();
+  const material_categories = catsRaw
+    ? Array.from(
+        new Set(
+          catsRaw
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+        ),
+      )
+    : [...DEFAULT_MATERIAL_CATEGORIES];
+
   const business_name = String(formData.get("business_name") ?? "").trim() || null;
   const business_nip = String(formData.get("business_nip") ?? "").trim() || null;
 
@@ -46,6 +73,10 @@ function readForm(formData: FormData): UserSettingsInput | string {
     is_vat_payer,
     default_vat_rate,
     zus_monthly,
+    zus_ulga: ulga,
+    zus_maly: maly,
+    zus_pelny: pelny,
+    material_categories,
     health_insurance_min: null,
   };
 }

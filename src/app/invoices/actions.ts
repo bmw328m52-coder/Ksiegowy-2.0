@@ -128,7 +128,7 @@ export async function uploadAndOcrInvoice(_prev: Result, formData: FormData): Pr
   }
 
   revalidatePath("/invoices");
-  redirect(`/invoices/${invoiceId}`);
+  redirect(`/invoices/${invoiceId}?fresh=1`);
 }
 
 export async function updateInvoiceAction(

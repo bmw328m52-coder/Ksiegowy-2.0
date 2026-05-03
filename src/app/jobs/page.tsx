@@ -1,6 +1,8 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { listJobs, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
+import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
+import { computeJobMargin, getJobMarginsMap } from "@/lib/jobMargin";
 import { fmtPLN, fmtDate } from "@/lib/format";
 
 export const metadata = { title: "Zlecenia" };
@@ -16,12 +18,14 @@ export default async function JobsPage({
   const filter: Filter =
     rawFilter === "invoiced" || rawFilter === "not_invoiced" ? rawFilter : "all";
 
-  const all = await listJobs();
+  const [all, settings] = await Promise.all([listJobs(), getUserSettingsOrDefault()]);
   const jobs = all.filter((j) => {
     if (filter === "invoiced") return j.invoiced === true;
     if (filter === "not_invoiced") return j.invoiced !== true;
     return true;
   });
+
+  const marginsMap = await getJobMarginsMap(jobs.map((j) => j.id));
 
   const counts = {
     all: all.length,
@@ -56,28 +60,39 @@ export default async function JobsPage({
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
-            {jobs.map((j) => (
-              <li key={j.id}>
-                <Link
-                  href={`/jobs/${j.id}`}
-                  className="block rounded-xl border border-zinc-200 bg-white p-4 active:bg-zinc-50"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{j.title}</p>
-                      <p className="text-xs text-zinc-500 truncate">{j.client_name}</p>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        {fmtPLN(j.amount_gross)} • {fmtDate(j.due_date ?? j.start_date)}
-                      </p>
+            {jobs.map((j) => {
+              const agg = marginsMap.get(j.id);
+              const lines = agg
+                ? [{ amount_net: agg.costsNet, amount_gross: agg.costsGross }]
+                : [];
+              const m = computeJobMargin(j, lines, settings.is_vat_payer);
+              const showMargin = (agg?.count ?? 0) > 0;
+              return (
+                <li key={j.id}>
+                  <Link
+                    href={`/jobs/${j.id}`}
+                    className="block rounded-xl border border-zinc-200 bg-white p-4 active:bg-zinc-50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{j.title}</p>
+                        <p className="text-xs text-zinc-500 truncate">{j.client_name}</p>
+                        <p className="text-xs text-zinc-500 mt-1">
+                          {fmtPLN(j.amount_gross)} • {fmtDate(j.due_date ?? j.start_date)}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <StatusBadge status={j.status} />
+                        <InvoicedBadge invoiced={Boolean(j.invoiced)} />
+                        {showMargin && m.marginPct !== null && (
+                          <MarginPill profit={m.profit} pct={m.marginPct} />
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <StatusBadge status={j.status} />
-                      <InvoicedBadge invoiced={Boolean(j.invoiced)} />
-                    </div>
-                  </div>
-                </Link>
-              </li>
-            ))}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -131,6 +146,22 @@ function StatusBadge({ status }: { status: keyof typeof JOB_STATUS_LABELS }) {
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs ${colors[status]}`}>
       {JOB_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+function MarginPill({ profit, pct }: { profit: number; pct: number }) {
+  const pos = profit >= 0;
+  const cls = pos
+    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+    : "bg-red-50 text-red-700 border-red-200";
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[10px] border tabular-nums ${cls}`}
+      title={`Zysk: ${profit.toFixed(2)} zł`}
+    >
+      {pos ? "+" : ""}
+      {pct.toFixed(0)}%
     </span>
   );
 }

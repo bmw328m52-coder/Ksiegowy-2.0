@@ -56,6 +56,16 @@ export function pitMonthlyDeadline(year: number, monthIdx: number): PitDeadline 
   };
 }
 
+export function zusDeadline(year: number, monthIdx: number): PitDeadline {
+  const dueYear = monthIdx === 11 ? year + 1 : year;
+  const dueMonth = monthIdx === 11 ? 0 : monthIdx + 1;
+  return {
+    due: clampDay(dueYear, dueMonth, 20),
+    label: "ZUS",
+    periodLabel: monthLabel(year, monthIdx),
+  };
+}
+
 const MONTH_NAMES_PL = [
   "styczeń",
   "luty",

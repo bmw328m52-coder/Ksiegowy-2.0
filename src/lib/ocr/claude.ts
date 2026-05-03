@@ -40,7 +40,7 @@ Schema:
   "amount_vat": number | null,
   "amount_gross": number | null,
   "vat_rate": number | null,
-  "category": "materiały" | "usługi" | "transport" | "narzędzia" | "biuro" | "paliwo" | "inne" | null,
+  "category": "płyty/drewno" | "okucia" | "materiały" | "narzędzia" | "usługi" | "transport" | "paliwo" | "biuro" | "inne" | null,
   "line_items": [
     { "description": string, "amount_net": number | null, "amount_vat": number | null, "amount_gross": number, "vat_rate": number | null }
   ]
@@ -52,7 +52,16 @@ Reguły:
 - vat_rate jako ułamek: 23% = 0.23, 8% = 0.08, 5% = 0.05, 0% = 0, "zw"/"np" = 0.
 - supplier_nip: same cyfry, bez "PL" i myślników.
 - Jeśli pole nieczytelne lub nieobecne — null.
-- category: dobierz po treści ("materiały" dla płyt/okuć/akcesoriów, "narzędzia" dla elektronarzędzi, "transport" dla kurierów/przewozu, "paliwo" dla stacji, "biuro" dla papieru/druku, "usługi" dla podwykonawców).
+- category: dobierz po treści dokumentu (kontekst: produkcja mebli):
+  · "płyty/drewno" — płyty MDF/HDF/wiórowe, sklejka, fornir, lite drewno, deski, listwy, lakiery, kleje, bejce, oleje, fronty.
+  · "okucia" — zawiasy, prowadnice, uchwyty, śruby, kołki, łączniki, magnesy, blumy.
+  · "narzędzia" — elektronarzędzia, ostrza, frezy, tarcze, akcesoria warsztatowe.
+  · "transport" — kurier, przewóz, dostawa.
+  · "paliwo" — stacje benzynowe (Orlen/Shell/BP/Lotos/Circle K).
+  · "biuro" — papier, druk, internet, telefon, kasy fiskalne, oprogramowanie.
+  · "usługi" — podwykonawcy, lakiernia zewnętrzna, cięcie na CNC, montaż.
+  · "materiały" — używaj wyłącznie gdy nie pasuje "płyty/drewno" ani "okucia" (np. taśmy, śrutowanie, materiały eksploatacyjne).
+  · "inne" — gdy żadna z powyższych nie pasuje.
 - line_items: każda istotna pozycja faktury. Jeśli faktura jest prosta — jedna pozycja sumująca.`;
 
 const USER_PROMPT = "Wyciągnij dane z tej faktury i zwróć WYŁĄCZNIE JSON zgodny ze schemą.";

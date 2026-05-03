@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserSettingsOrDefault } from "./user_settings";
 import { pitFor, type TaxForm } from "@/lib/tax";
-import { pitMonthlyDeadline, vatDeadline } from "@/lib/taxDeadlines";
+import { pitMonthlyDeadline, vatDeadline, zusDeadline } from "@/lib/taxDeadlines";
 
 export type PeriodTotals = {
   revenueNet: number;
@@ -55,6 +55,8 @@ export type DashboardData = {
   openDepositsTotal: number;
   uninvoicedMonth: UninvoicedSummary | null;
   monthlyTrend: MonthlyPoint[];
+  costsByCategoryMonth: CategoryBreakdownRow[];
+  reminders: ReminderItem[];
   settings: {
     tax_form: TaxForm;
     vat_period: "monthly" | "quarterly";
@@ -81,6 +83,23 @@ type CostRow = {
   amount_vat: string | number;
   amount_gross: string | number;
   cost_date: string;
+  category?: string | null;
+};
+
+export type CategoryBreakdownRow = {
+  category: string;
+  amountNet: number;
+  amountGross: number;
+  share: number;
+};
+
+export type ReminderItem = {
+  kind: "vat" | "pit" | "zus";
+  label: string;
+  periodLabel: string;
+  deadline: string;
+  daysUntil: number;
+  amount: number | null;
 };
 
 function toNum(v: string | number | null | undefined): number {
@@ -190,7 +209,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       .lte("deposit_date", yearEnd),
     supabase
       .from("cost_lines")
-      .select("amount_net, amount_vat, amount_gross, cost_date")
+      .select("amount_net, amount_vat, amount_gross, cost_date, category")
       .gte("cost_date", yearStart)
       .lte("cost_date", yearEnd),
   ]);
@@ -267,14 +286,33 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     if (inRange(d, monthStart, monthEnd)) addJobRevenue(month, j, settings.is_vat_payer);
   }
 
+  const categoryAgg = new Map<string, { net: number; gross: number }>();
   for (const c of costs) {
     addCost(ytd, c, settings.is_vat_payer);
     const m = Number(c.cost_date.slice(5, 7)) - 1;
     if (m >= 0 && m < 12) addCost(trend[m], c, settings.is_vat_payer);
     if (inRange(c.cost_date, monthStart, monthEnd)) {
       addCost(month, c, settings.is_vat_payer);
+      const key = (c.category && c.category.trim()) || "inne";
+      const net = toNum(c.amount_net);
+      const gross = toNum(c.amount_gross);
+      const eff = settings.is_vat_payer ? net : gross;
+      const cur = categoryAgg.get(key) ?? { net: 0, gross: 0 };
+      cur.net += eff;
+      cur.gross += gross;
+      categoryAgg.set(key, cur);
     }
   }
+
+  const totalCatNet = Array.from(categoryAgg.values()).reduce((a, v) => a + v.net, 0);
+  const costsByCategoryMonth: CategoryBreakdownRow[] = Array.from(categoryAgg.entries())
+    .map(([category, v]) => ({
+      category,
+      amountNet: v.net,
+      amountGross: v.gross,
+      share: totalCatNet > 0 ? v.net / totalCatNet : 0,
+    }))
+    .sort((a, b) => b.amountNet - a.amountNet);
 
   const monthlyTrend: MonthlyPoint[] = trend.map((t, i) => ({
     month: i,
@@ -347,6 +385,41 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     };
   }
 
+  const reminders: ReminderItem[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysFrom = (iso: string) => {
+    const d = new Date(iso + "T00:00:00");
+    return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+  if (vat) {
+    reminders.push({
+      kind: "vat",
+      label: "VAT",
+      periodLabel: vat.label,
+      deadline: vat.deadline,
+      daysUntil: daysFrom(vat.deadline),
+      amount: vat.vatToPay,
+    });
+  }
+  reminders.push({
+    kind: "pit",
+    label: "Zaliczka PIT",
+    periodLabel: pitInfo.monthLabel,
+    deadline: pitInfo.deadline,
+    daysUntil: daysFrom(pitInfo.deadline),
+    amount: pitInfo.pitMonth,
+  });
+  const zusDl = zusDeadline(year, monthIdx);
+  reminders.push({
+    kind: "zus",
+    label: "ZUS",
+    periodLabel: `${MONTH_NAMES_PL[monthIdx]} ${year}`,
+    deadline: isoDate(zusDl.due),
+    daysUntil: daysFrom(isoDate(zusDl.due)),
+    amount: settings.zus_monthly && Number(settings.zus_monthly) > 0 ? Number(settings.zus_monthly) : null,
+  });
+
   return {
     ytd: { ...ytd, pit },
     month,
@@ -356,6 +429,8 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     openDepositsTotal,
     uninvoicedMonth,
     monthlyTrend,
+    costsByCategoryMonth,
+    reminders,
     settings: {
       tax_form: settings.tax_form,
       vat_period: settings.vat_period,

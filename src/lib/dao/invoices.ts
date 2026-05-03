@@ -83,11 +83,68 @@ export async function deleteInvoice(id: string): Promise<void> {
   }
 }
 
+export type DuplicateMatch = {
+  id: string;
+  supplier_name: string | null;
+  invoice_number: string | null;
+  issue_date: string | null;
+  amount_gross: string | null;
+  reason: "nip_number" | "supplier_amount_date";
+};
+
+export async function findInvoiceDuplicates(invoice: Invoice): Promise<DuplicateMatch[]> {
+  const supabase = await createClient();
+  const found = new Map<string, DuplicateMatch>();
+
+  if (invoice.supplier_nip && invoice.invoice_number) {
+    const { data } = await supabase
+      .from("invoices")
+      .select("id, supplier_name, invoice_number, issue_date, amount_gross")
+      .eq("supplier_nip", invoice.supplier_nip)
+      .eq("invoice_number", invoice.invoice_number)
+      .neq("id", invoice.id);
+    for (const row of (data ?? []) as Omit<DuplicateMatch, "reason">[]) {
+      found.set(row.id, { ...row, reason: "nip_number" });
+    }
+  }
+
+  if (invoice.supplier_name && invoice.amount_gross && invoice.issue_date) {
+    const { data } = await supabase
+      .from("invoices")
+      .select("id, supplier_name, invoice_number, issue_date, amount_gross")
+      .eq("supplier_name", invoice.supplier_name)
+      .eq("amount_gross", invoice.amount_gross)
+      .eq("issue_date", invoice.issue_date)
+      .neq("id", invoice.id);
+    for (const row of (data ?? []) as Omit<DuplicateMatch, "reason">[]) {
+      if (!found.has(row.id)) {
+        found.set(row.id, { ...row, reason: "supplier_amount_date" });
+      }
+    }
+  }
+
+  return Array.from(found.values());
+}
+
 export async function getSignedFileUrl(filePath: string, expiresIn = 60 * 30): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.storage
     .from("invoices")
     .createSignedUrl(filePath, expiresIn);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export async function getSignedThumbnailUrl(
+  filePath: string,
+  expiresIn = 60 * 30
+): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage
+    .from("invoices")
+    .createSignedUrl(filePath, expiresIn, {
+      transform: { width: 160, height: 160, resize: "cover" },
+    });
   if (error) return null;
   return data?.signedUrl ?? null;
 }

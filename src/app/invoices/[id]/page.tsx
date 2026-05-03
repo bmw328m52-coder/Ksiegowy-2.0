@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
-import { getInvoice, getSignedFileUrl, OCR_STATUS_LABELS } from "@/lib/dao/invoices";
+import {
+  findInvoiceDuplicates,
+  getInvoice,
+  getSignedFileUrl,
+  OCR_STATUS_LABELS,
+} from "@/lib/dao/invoices";
 import { listCostLinesByInvoice } from "@/lib/dao/cost_lines";
 import { listJobs } from "@/lib/dao/jobs";
-import { fmtPLN } from "@/lib/format";
+import { fmtDate, fmtPLN } from "@/lib/format";
 import InvoiceEditForm from "../InvoiceEditForm";
 import CostLineCard from "../CostLineCard";
 import { deleteInvoiceAction } from "../actions";
@@ -14,10 +19,14 @@ export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ fresh?: string }>;
 }) {
   const { id } = await params;
+  const { fresh } = await searchParams;
+  const justAdded = fresh === "1";
   const [invoice, costLines, jobs] = await Promise.all([
     getInvoice(id),
     listCostLinesByInvoice(id),
@@ -26,7 +35,10 @@ export default async function InvoiceDetailPage({
 
   if (!invoice) notFound();
 
-  const fileUrl = await getSignedFileUrl(invoice.file_path);
+  const [fileUrl, duplicates] = await Promise.all([
+    getSignedFileUrl(invoice.file_path),
+    findInvoiceDuplicates(invoice),
+  ]);
   const isImage = (invoice.file_mime ?? "").startsWith("image/");
   const totalLines = costLines.reduce(
     (acc, l) => ({
@@ -56,10 +68,75 @@ export default async function InvoiceDetailPage({
           }
         />
 
+        {justAdded && (
+          <section className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+            <p className="text-sm font-semibold text-emerald-900">
+              ✓ Faktura zapisana
+            </p>
+            <p className="text-xs text-emerald-800">
+              {invoice.ocr_status === "failed"
+                ? "OCR nie zadziałał — uzupełnij dane ręcznie poniżej."
+                : "Sprawdź dane poniżej. Jeśli masz kolejne — skanuj dalej."}
+            </p>
+            <div className="flex gap-2">
+              <Link
+                href="/invoices/new"
+                className="flex-1 rounded-md bg-[#282624] text-white text-sm py-2 text-center font-medium active:opacity-80"
+              >
+                + Skanuj kolejną
+              </Link>
+              <Link
+                href={`/invoices/${invoice.id}`}
+                replace
+                scroll={false}
+                className="flex-1 rounded-md bg-white border border-emerald-200 text-emerald-900 text-sm py-2 text-center font-medium active:bg-emerald-100"
+              >
+                OK
+              </Link>
+            </div>
+          </section>
+        )}
+
         {invoice.ocr_status === "failed" && (
           <p className="mb-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
             Nie udało się odczytać faktury automatycznie. Wpisz dane ręcznie poniżej.
           </p>
+        )}
+
+        {duplicates.length > 0 && (
+          <section className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+            <p className="text-sm font-semibold text-amber-900">
+              ⚠️ Możliwy duplikat ({duplicates.length})
+            </p>
+            <ul className="space-y-1.5">
+              {duplicates.map((d) => (
+                <li key={d.id}>
+                  <Link
+                    href={`/invoices/${d.id}`}
+                    className="block rounded-md bg-white border border-amber-200 px-2 py-1.5 active:bg-amber-100"
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-medium text-zinc-900 truncate">
+                        {d.supplier_name ?? "—"} · {d.invoice_number ?? "bez nr"}
+                      </span>
+                      <span className="text-xs tabular-nums text-zinc-700 shrink-0">
+                        {fmtPLN(d.amount_gross)}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-amber-800">
+                      {fmtDate(d.issue_date)} ·{" "}
+                      {d.reason === "nip_number"
+                        ? "ten sam NIP + numer"
+                        : "ten sam dostawca + kwota + data"}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-amber-800">
+              Sprawdź czy to rzeczywiście ta sama faktura. Jeśli tak — usuń jedną z kopii.
+            </p>
+          </section>
         )}
 
         {fileUrl && (

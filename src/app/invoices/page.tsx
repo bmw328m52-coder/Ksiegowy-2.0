@@ -1,7 +1,9 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
-import { listInvoices, OCR_STATUS_LABELS } from "@/lib/dao/invoices";
-import { fmtDate, fmtPLN } from "@/lib/format";
+import { listInvoices, getSignedThumbnailUrl } from "@/lib/dao/invoices";
+import { listInvoiceCategoriesMap, COST_CATEGORIES } from "@/lib/dao/cost_lines";
+import ExportMonthCard from "./ExportMonthCard";
+import InvoicesListClient from "./InvoicesListClient";
 
 export const dynamic = "force-dynamic";
 
@@ -16,23 +18,54 @@ function needsReview(inv: { ocr_status: string; supplier_name: string | null; am
 export default async function InvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; cat?: string }>;
 }) {
-  const { filter: rawFilter } = await searchParams;
+  const { filter: rawFilter, cat: rawCat } = await searchParams;
   const filter: Filter =
     rawFilter === "todo" || rawFilter === "done" ? rawFilter : "all";
+  const cat =
+    rawCat && (COST_CATEGORIES as readonly string[]).includes(rawCat) ? rawCat : null;
 
-  const all = await listInvoices();
-  const invoices = all.filter((inv) => {
+  const [all, categoriesMap] = await Promise.all([listInvoices(), listInvoiceCategoriesMap()]);
+
+  const byStatus = all.filter((inv) => {
     if (filter === "todo") return needsReview(inv);
-    if (filter === "done") return !needsReview(inv) && inv.ocr_status !== "pending" && inv.ocr_status !== "processing";
+    if (filter === "done")
+      return !needsReview(inv) && inv.ocr_status !== "pending" && inv.ocr_status !== "processing";
     return true;
   });
+
+  const invoices = cat
+    ? byStatus.filter((inv) => categoriesMap[inv.id]?.includes(cat))
+    : byStatus;
+
+  const thumbEntries = await Promise.all(
+    invoices.map(async (inv): Promise<readonly [string, string | null]> => {
+      if (!inv.file_mime?.startsWith("image/")) return [inv.id, null] as const;
+      const url = await getSignedThumbnailUrl(inv.file_path);
+      return [inv.id, url] as const;
+    })
+  );
+  const thumbsMap: Record<string, string | null> = Object.fromEntries(thumbEntries);
 
   const counts = {
     all: all.length,
     todo: all.filter(needsReview).length,
     done: all.filter((inv) => !needsReview(inv) && inv.ocr_status !== "pending" && inv.ocr_status !== "processing").length,
+  };
+
+  const usedCategories = new Set<string>();
+  for (const list of Object.values(categoriesMap)) for (const c of list) usedCategories.add(c);
+  const availableCats = (COST_CATEGORIES as readonly string[]).filter((c) => usedCategories.has(c));
+
+  const buildHref = (next: { filter?: Filter; cat?: string | null }) => {
+    const f = next.filter ?? filter;
+    const c = next.cat === undefined ? cat : next.cat;
+    const params = new URLSearchParams();
+    if (f !== "all") params.set("filter", f);
+    if (c) params.set("cat", c);
+    const qs = params.toString();
+    return qs ? `/invoices?${qs}` : "/invoices";
   };
 
   return (
@@ -51,7 +84,19 @@ export default async function InvoicesPage({
           }
         />
 
-        {all.length > 0 && <FilterTabs current={filter} counts={counts} />}
+        {all.length > 0 && (
+          <>
+            <ExportMonthCard />
+            <FilterTabs current={filter} counts={counts} buildHref={buildHref} />
+            {availableCats.length > 0 && (
+              <CategoryPills
+                current={cat}
+                available={availableCats}
+                buildHref={buildHref}
+              />
+            )}
+          </>
+        )}
 
         {all.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 p-6 text-center">
@@ -66,9 +111,11 @@ export default async function InvoicesPage({
         ) : invoices.length === 0 ? (
           <div className="text-center py-12 text-zinc-500 space-y-3">
             <p>
-              {filter === "todo"
-                ? "Brak faktur do uzupełnienia."
-                : "Brak gotowych faktur."}
+              {cat
+                ? `Brak faktur w kategorii "${cat}".`
+                : filter === "todo"
+                  ? "Brak faktur do uzupełnienia."
+                  : "Brak gotowych faktur."}
             </p>
             <Link
               href="/invoices"
@@ -78,31 +125,7 @@ export default async function InvoicesPage({
             </Link>
           </div>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {invoices.map((inv) => (
-              <li key={inv.id}>
-                <Link
-                  href={`/invoices/${inv.id}`}
-                  className="block rounded-xl border border-zinc-200 bg-white p-3 active:bg-zinc-50"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">
-                        {inv.supplier_name ?? "—"}
-                      </p>
-                      <p className="text-xs text-zinc-500 truncate">
-                        {inv.invoice_number ?? "bez numeru"} • {fmtDate(inv.issue_date)}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className="font-medium text-sm">{fmtPLN(inv.amount_gross)}</span>
-                      <StatusBadge status={inv.ocr_status} />
-                    </div>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <InvoicesListClient invoices={invoices} categoriesMap={categoriesMap} thumbsMap={thumbsMap} />
         )}
       </div>
     </main>
@@ -112,9 +135,11 @@ export default async function InvoicesPage({
 function FilterTabs({
   current,
   counts,
+  buildHref,
 }: {
   current: Filter;
   counts: { all: number; todo: number; done: number };
+  buildHref: (next: { filter?: Filter; cat?: string | null }) => string;
 }) {
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: "Wszystkie", count: counts.all },
@@ -125,11 +150,10 @@ function FilterTabs({
     <nav className="flex gap-1 mb-3 p-1 rounded-lg bg-zinc-100">
       {tabs.map((t) => {
         const active = t.key === current;
-        const href = t.key === "all" ? "/invoices" : `/invoices?filter=${t.key}`;
         return (
           <Link
             key={t.key}
-            href={href}
+            href={buildHref({ filter: t.key })}
             className={`flex-1 text-center text-xs py-2 px-2 rounded-md font-medium transition-colors ${
               active
                 ? "bg-white text-[#282624] shadow-sm"
@@ -144,17 +168,45 @@ function FilterTabs({
   );
 }
 
-function StatusBadge({ status }: { status: keyof typeof OCR_STATUS_LABELS }) {
-  const cls: Record<string, string> = {
-    pending: "bg-zinc-100 text-zinc-600",
-    processing: "bg-blue-50 text-blue-700",
-    done: "bg-emerald-50 text-emerald-700",
-    failed: "bg-red-50 text-red-700",
-    manual: "bg-amber-50 text-amber-700",
-  };
+function CategoryPills({
+  current,
+  available,
+  buildHref,
+}: {
+  current: string | null;
+  available: string[];
+  buildHref: (next: { filter?: Filter; cat?: string | null }) => string;
+}) {
+  const allActive = current === null;
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full ${cls[status] ?? cls.pending}`}>
-      {OCR_STATUS_LABELS[status]}
-    </span>
+    <div className="mb-3 -mx-6 px-6 overflow-x-auto">
+      <div className="flex gap-1.5 w-max pb-1">
+        <Link
+          href={buildHref({ cat: null })}
+          className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+            allActive ? "bg-[#282624] text-white" : "bg-white border border-zinc-200 text-zinc-600 active:bg-zinc-50"
+          }`}
+        >
+          Wszystkie kategorie
+        </Link>
+        {available.map((c) => {
+          const active = c === current;
+          return (
+            <Link
+              key={c}
+              href={buildHref({ cat: c })}
+              className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
+                active
+                  ? "bg-[#282624] text-white"
+                  : "bg-white border border-zinc-200 text-zinc-600 active:bg-zinc-50"
+              }`}
+            >
+              {c}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
+
