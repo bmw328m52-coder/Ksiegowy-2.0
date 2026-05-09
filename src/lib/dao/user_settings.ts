@@ -50,6 +50,7 @@ export async function getUserSettingsOrDefault(): Promise<{
   zus_ulga: number;
   zus_maly: number;
   zus_pelny: number;
+  default_hourly_rate: number;
   material_categories: string[];
 }> {
   const s = await getUserSettings();
@@ -63,6 +64,7 @@ export async function getUserSettingsOrDefault(): Promise<{
       zus_ulga: DEFAULT_SETTINGS.zus_ulga ?? 0,
       zus_maly: DEFAULT_SETTINGS.zus_maly ?? 0,
       zus_pelny: DEFAULT_SETTINGS.zus_pelny ?? 0,
+      default_hourly_rate: DEFAULT_SETTINGS.default_hourly_rate ?? 50,
       material_categories: [...DEFAULT_MATERIAL_CATEGORIES],
     };
   }
@@ -75,6 +77,7 @@ export async function getUserSettingsOrDefault(): Promise<{
     zus_ulga: s.zus_ulga == null ? 0 : Number(s.zus_ulga),
     zus_maly: s.zus_maly == null ? 0 : Number(s.zus_maly),
     zus_pelny: s.zus_pelny == null ? 0 : Number(s.zus_pelny),
+    default_hourly_rate: s.default_hourly_rate == null ? 50 : Number(s.default_hourly_rate),
     material_categories:
       s.material_categories && s.material_categories.length > 0
         ? s.material_categories

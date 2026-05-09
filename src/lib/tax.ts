@@ -30,6 +30,8 @@ export type CalcInput = {
   taxForm: TaxForm;
   isVatPayer: boolean;
   yearIncomeBefore: number;
+  // true → ignoruj kwotę wolną i progi, licz płaską stawkę (12% skala / 19% liniowy) od pierwszej złotówki
+  pitFlat?: boolean;
 };
 
 export type CalcResult = {
@@ -42,7 +44,7 @@ export type CalcResult = {
 };
 
 export function calcDeal(input: CalcInput): CalcResult {
-  const { amountGross, vatRate, costsNet, costsVat, taxForm, isVatPayer, yearIncomeBefore } = input;
+  const { amountGross, vatRate, costsNet, costsVat, taxForm, isVatPayer, yearIncomeBefore, pitFlat } = input;
 
   const revenueNet = isVatPayer ? amountGross / (1 + vatRate) : amountGross;
   const revenueVat = isVatPayer ? amountGross - revenueNet : 0;
@@ -52,9 +54,13 @@ export function calcDeal(input: CalcInput): CalcResult {
 
   const vatToPay = isVatPayer ? Math.max(0, revenueVat - costsVat) : 0;
 
-  const pitBefore = pitFor(taxForm, Math.max(0, yearIncomeBefore));
-  const pitAfter = pitFor(taxForm, Math.max(0, yearIncomeBefore + Math.max(0, profit)));
-  const pitDelta = Math.max(0, pitAfter - pitBefore);
+  const pitDelta = pitFlat
+    ? Math.max(0, profit) * (taxForm === "skala" ? PIT_RATE_LOW : PIT_RATE_LINEAR)
+    : Math.max(
+        0,
+        pitFor(taxForm, Math.max(0, yearIncomeBefore + Math.max(0, profit))) -
+          pitFor(taxForm, Math.max(0, yearIncomeBefore))
+      );
 
   const netCash = profit - pitDelta;
 

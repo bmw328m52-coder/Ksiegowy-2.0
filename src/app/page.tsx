@@ -37,6 +37,7 @@ export default async function Home() {
           <Tile href="/jobs" label="Zlecenia" hint="Wszystkie zlecenia" icon={<BriefcaseIcon />} />
           <Tile href="/invoices" label="Faktury" hint="OCR + koszty" icon={<ReceiptIcon />} />
           <Tile href="/calculator" label="Kalkulator" hint="Wycena na czysto" icon={<CalcIcon />} />
+          <Tile href="/usluga" label="Stawka usługi" hint="Robocizna /h + koszty" icon={<WrenchIcon />} />
           <Tile href="/dashboard" label="Dashboard" hint="Podatki i VAT" icon={<ChartIcon />} />
           <Tile href="/settings" label="Ustawienia" hint="Forma, VAT, ZUS" icon={<GearIcon />} />
         </nav>
@@ -121,6 +122,14 @@ function ChartIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 3v18h18" />
       <path d="M7 14l4-4 4 4 5-5" />
+    </svg>
+  );
+}
+
+function WrenchIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5 2.5-2.5z" />
     </svg>
   );
 }

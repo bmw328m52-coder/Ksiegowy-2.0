@@ -23,6 +23,8 @@ export default async function SettingsPage({
         is_vat_payer: current.is_vat_payer,
         default_vat_rate: Number(current.default_vat_rate),
         zus_monthly: current.zus_monthly == null ? null : Number(current.zus_monthly),
+        default_hourly_rate:
+          current.default_hourly_rate == null ? null : Number(current.default_hourly_rate),
       }
     : {
         business_name: "LUVIANO",
@@ -32,6 +34,7 @@ export default async function SettingsPage({
         is_vat_payer: DEFAULT_SETTINGS.is_vat_payer,
         default_vat_rate: DEFAULT_SETTINGS.default_vat_rate,
         zus_monthly: DEFAULT_SETTINGS.zus_monthly,
+        default_hourly_rate: DEFAULT_SETTINGS.default_hourly_rate,
       };
 
   return (

@@ -64,10 +64,13 @@ export default function CalculatorForm({
   const [bomLines, setBomLines] = useState<BomLine[]>([makeBomLine()]);
   const [templateId, setTemplateId] = useState<string>("");
   const [showSave, setShowSave] = useState(false);
+  const [pitFlat, setPitFlat] = useState(false);
   const [hoursStr, setHoursStr] = useState("");
   const [zusStr, setZusStr] = useState(defaultZusPelny.toFixed(2));
   const [hoursPerMonthStr, setHoursPerMonthStr] = useState("160");
   const [withInvoice, setWithInvoice] = useState(true);
+  const [reserveVacation, setReserveVacation] = useState(false);
+  const [reserveSick, setReserveSick] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [saveState, saveAction, savePending] = useActionState(saveQuoteTemplateAction, {
     error: undefined as string | undefined,
@@ -122,8 +125,9 @@ export default function CalculatorForm({
         taxForm,
         isVatPayer,
         yearIncomeBefore: yearIncome,
+        pitFlat,
       }),
-    [amount, vatRate, extraCosts, extraCostsVat, taxForm, isVatPayer, yearIncome]
+    [amount, vatRate, extraCosts, extraCostsVat, taxForm, isVatPayer, yearIncome, pitFlat]
   );
 
   const hours = Math.max(0, parseAmount(hoursStr) ?? 0);
@@ -132,7 +136,11 @@ export default function CalculatorForm({
   const zusForJob = withInvoice ? (zusMonthly / hoursPerMonth) * hours : 0;
   const profitNoInvoice = amount - costsGross;
   const netCashAfterZus = withInvoice ? result.netCash - zusForJob : profitNoInvoice;
-  const ratePerHour = hours > 0 ? netCashAfterZus / hours : 0;
+  // Rezerwa: 26 dni urlopu × 8 h = 208 h, 10 dni L4 × 8 h = 80 h, na rok 1728 h produktywnych
+  const reserveRatio = ((reserveVacation ? 208 : 0) + (reserveSick ? 80 : 0)) / 1728;
+  const reserveAmount = netCashAfterZus * reserveRatio;
+  const netCashAfterReserves = netCashAfterZus - reserveAmount;
+  const ratePerHour = hours > 0 ? netCashAfterReserves / hours : 0;
   const ratePerHourBeforeTaxes = hours > 0
     ? (withInvoice ? result.profit : profitNoInvoice) / hours
     : 0;
@@ -214,6 +222,23 @@ export default function CalculatorForm({
             </div>
           </form>
         )}
+      </Section>
+
+      <Section title="Tryb rozliczenia">
+        <div className="grid grid-cols-2 gap-2">
+          <RadioCard
+            checked={withInvoice}
+            onChange={() => setWithInvoice(true)}
+            label="Z fakturą"
+            hint="VAT, PIT, ZUS"
+          />
+          <RadioCard
+            checked={!withInvoice}
+            onChange={() => setWithInvoice(false)}
+            label="Bez faktury"
+            hint="kasa do ręki"
+          />
+        </div>
       </Section>
 
       <Section title="Kwota zlecenia">
@@ -398,7 +423,23 @@ export default function CalculatorForm({
             />
           </div>
         </Field>
-        {taxForm === "skala" && (
+        <Field label="Sposób liczenia PIT">
+          <div className="grid grid-cols-2 gap-2">
+            <RadioCard
+              checked={!pitFlat}
+              onChange={() => setPitFlat(false)}
+              label="Z kwotą wolną"
+              hint={taxForm === "skala" ? "30k wolne, próg 120k" : "Liniowy bez kwoty wolnej"}
+            />
+            <RadioCard
+              checked={pitFlat}
+              onChange={() => setPitFlat(true)}
+              label="Bezpiecznie"
+              hint={taxForm === "skala" ? "12% od 0 zł" : "19% od 0 zł"}
+            />
+          </div>
+        </Field>
+        {taxForm === "skala" && !pitFlat && (
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <span>Dochód roczny dotychczas:</span>
@@ -449,23 +490,6 @@ export default function CalculatorForm({
       </Section>
 
       <Section title="Stawka godzinowa (opcjonalnie)">
-        <Field label="Tryb rozliczenia">
-          <div className="grid grid-cols-2 gap-2">
-            <RadioCard
-              checked={withInvoice}
-              onChange={() => setWithInvoice(true)}
-              label="Z fakturą"
-              hint="VAT, PIT, ZUS"
-            />
-            <RadioCard
-              checked={!withInvoice}
-              onChange={() => setWithInvoice(false)}
-              label="Bez faktury"
-              hint="kasa do ręki"
-            />
-          </div>
-        </Field>
-
         <Field label="Liczba godzin na zlecenie">
           <input
             inputMode="decimal"
@@ -475,6 +499,26 @@ export default function CalculatorForm({
             className="input"
           />
         </Field>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-zinc-600">Rezerwa wolnego (odejmowana od stawki)</span>
+          <label className="flex items-center gap-2 text-sm text-zinc-700 select-none">
+            <input
+              type="checkbox"
+              checked={reserveVacation}
+              onChange={(e) => setReserveVacation(e.target.checked)}
+            />
+            <span>Urlop (26 dni × 8 h / rok)</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-zinc-700 select-none">
+            <input
+              type="checkbox"
+              checked={reserveSick}
+              onChange={(e) => setReserveSick(e.target.checked)}
+            />
+            <span>L4 (10 dni × 8 h / rok)</span>
+          </label>
+        </div>
 
         {withInvoice && (
           <>
@@ -515,6 +559,10 @@ export default function CalculatorForm({
             hoursPerMonth={hoursPerMonth}
             netCash={result.netCash}
             netCashAfterZus={netCashAfterZus}
+            netCashAfterReserves={netCashAfterReserves}
+            reserveAmount={reserveAmount}
+            reserveVacation={reserveVacation}
+            reserveSick={reserveSick}
             ratePerHour={ratePerHour}
             ratePerHourBeforeTaxes={ratePerHourBeforeTaxes}
             amountGross={amount}
@@ -530,6 +578,8 @@ export default function CalculatorForm({
         costsNet={extraCosts}
         costsVat={extraCostsVat}
         isVatPayer={isVatPayer}
+        withInvoice={withInvoice}
+        profitNoInvoice={profitNoInvoice}
       />
 
       <p className="text-[11px] text-zinc-500 text-center">
@@ -601,6 +651,10 @@ function HourlyRatePanel({
   hoursPerMonth,
   netCash,
   netCashAfterZus,
+  netCashAfterReserves,
+  reserveAmount,
+  reserveVacation,
+  reserveSick,
   ratePerHour,
   ratePerHourBeforeTaxes,
   amountGross,
@@ -613,12 +667,21 @@ function HourlyRatePanel({
   hoursPerMonth: number;
   netCash: number;
   netCashAfterZus: number;
+  netCashAfterReserves: number;
+  reserveAmount: number;
+  reserveVacation: boolean;
+  reserveSick: boolean;
   ratePerHour: number;
   ratePerHourBeforeTaxes: number;
   amountGross: number;
   costsGross: number;
 }) {
   const positive = ratePerHour >= 0;
+  const reserveActive = reserveVacation || reserveSick;
+  const reserveLabel = [reserveVacation ? "urlop" : null, reserveSick ? "L4" : null]
+    .filter(Boolean)
+    .join(" + ");
+  const tagBase = withInvoice ? "po VAT, PIT i ZUS" : "kwota − koszty (gotówka)";
   return (
     <div className="space-y-2">
       <div
@@ -645,7 +708,7 @@ function HourlyRatePanel({
             positive ? "text-emerald-700/80" : "text-red-700/80"
           }`}
         >
-          {hours} h · {withInvoice ? "po VAT, PIT i ZUS" : "kwota − koszty (gotówka)"}
+          {hours} h · {reserveActive ? `${tagBase}, po rezerwie ${reserveLabel}` : tagBase}
         </p>
       </div>
 
@@ -664,6 +727,16 @@ function HourlyRatePanel({
                 sub
               />
               <Row label="= Na rękę po ZUS" value={fmtPLN(netCashAfterZus)} bold />
+              {reserveActive && (
+                <Row
+                  label={`− Rezerwa ${reserveLabel}`}
+                  value={`− ${fmtPLN(reserveAmount)}`}
+                  sub
+                />
+              )}
+              {reserveActive && (
+                <Row label="= Po rezerwie" value={fmtPLN(netCashAfterReserves)} bold />
+              )}
               <Row label="Stawka brutto/h (przed PIT)" value={fmtPLN(ratePerHourBeforeTaxes)} sub />
               <Row label="Stawka na rękę/h" value={fmtPLN(ratePerHour)} highlight />
             </>
@@ -672,6 +745,16 @@ function HourlyRatePanel({
               <Row label="Kwota od klienta (gotówka)" value={fmtPLN(amountGross)} />
               <Row label="− Koszty brutto" value={`− ${fmtPLN(costsGross)}`} sub />
               <Row label="= Do kieszeni" value={fmtPLN(netCashAfterZus)} bold />
+              {reserveActive && (
+                <Row
+                  label={`− Rezerwa ${reserveLabel}`}
+                  value={`− ${fmtPLN(reserveAmount)}`}
+                  sub
+                />
+              )}
+              {reserveActive && (
+                <Row label="= Po rezerwie" value={fmtPLN(netCashAfterReserves)} bold />
+              )}
               <Row label="Stawka na rękę/h" value={fmtPLN(ratePerHour)} highlight />
             </>
           )}
@@ -713,6 +796,8 @@ function ResultPanel({
   costsNet,
   costsVat,
   isVatPayer,
+  withInvoice,
+  profitNoInvoice,
 }: {
   result: ReturnType<typeof calcDeal>;
   amountGross: number;
@@ -720,44 +805,54 @@ function ResultPanel({
   costsNet: number;
   costsVat: number;
   isVatPayer: boolean;
+  withInvoice: boolean;
+  profitNoInvoice: number;
 }) {
   const { revenueNet, revenueVat, profit, vatToPay, pitDelta, netCash } = result;
   const taxTotal = vatToPay + pitDelta;
   const empty = amountGross === 0 && costsGross === 0;
+  const displayCash = withInvoice ? netCash : profitNoInvoice;
 
   return (
     <section className="space-y-3">
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
         <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-          Na czysto (po VAT i PIT)
+          {withInvoice ? "Na czysto (po VAT i PIT)" : "Na czysto (gotówka, bez faktury)"}
         </p>
         <p className="text-3xl font-bold tabular-nums text-emerald-900 mt-1">
-          {fmtPLN(netCash)}
+          {fmtPLN(displayCash)}
         </p>
+        {!withInvoice && (
+          <p className="text-[11px] text-emerald-700/80 mt-1">
+            kwota − koszty · brak VAT i PIT
+          </p>
+        )}
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
-            Razem podatki {isVatPayer ? "(VAT + PIT)" : "(PIT)"}
-          </p>
-          <p className="text-xl font-semibold tabular-nums text-amber-900">
-            {fmtPLN(taxTotal)}
-          </p>
-        </div>
-        <div className="mt-2 space-y-1 text-xs text-amber-900/80">
-          {isVatPayer && (
+      {withInvoice && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+              Razem podatki {isVatPayer ? "(VAT + PIT)" : "(PIT)"}
+            </p>
+            <p className="text-xl font-semibold tabular-nums text-amber-900">
+              {fmtPLN(taxTotal)}
+            </p>
+          </div>
+          <div className="mt-2 space-y-1 text-xs text-amber-900/80">
+            {isVatPayer && (
+              <div className="flex items-baseline justify-between">
+                <span>VAT do zapłaty</span>
+                <span className="tabular-nums">{fmtPLN(vatToPay)}</span>
+              </div>
+            )}
             <div className="flex items-baseline justify-between">
-              <span>VAT do zapłaty</span>
-              <span className="tabular-nums">{fmtPLN(vatToPay)}</span>
+              <span>PIT (przyrost roczny)</span>
+              <span className="tabular-nums">{fmtPLN(pitDelta)}</span>
             </div>
-          )}
-          <div className="flex items-baseline justify-between">
-            <span>PIT (przyrost roczny)</span>
-            <span className="tabular-nums">{fmtPLN(pitDelta)}</span>
           </div>
         </div>
-      </div>
+      )}
 
       {!empty && (
         <details className="rounded-xl border border-zinc-200 bg-white overflow-hidden group">
@@ -766,23 +861,34 @@ function ResultPanel({
             <span className="text-xs text-zinc-400 group-open:rotate-180 transition-transform">▾</span>
           </summary>
           <div className="border-t border-zinc-100">
-            <GroupHeader>Sprzedaż</GroupHeader>
-            <Row label="Brutto (z VAT)" value={fmtPLN(amountGross)} />
-            {isVatPayer && <Row label="− VAT należny" value={fmtPLN(revenueVat)} sub />}
-            <Row
-              label={isVatPayer ? "= Netto (po VAT)" : "Netto"}
-              value={fmtPLN(revenueNet)}
-            />
-            <GroupHeader>Koszty</GroupHeader>
-            <Row label="Brutto" value={fmtPLN(costsGross)} />
-            {isVatPayer && <Row label="− VAT naliczony" value={fmtPLN(costsVat)} sub />}
-            <Row
-              label={isVatPayer ? "= Netto (do PIT)" : "Netto"}
-              value={fmtPLN(costsNet)}
-            />
-            <GroupHeader>Zysk</GroupHeader>
-            <Row label="Zysk netto" value={fmtPLN(profit)} bold />
-            <Row label="Podstawa do PIT" value={fmtPLN(Math.max(0, profit))} sub />
+            {withInvoice ? (
+              <>
+                <GroupHeader>Sprzedaż</GroupHeader>
+                <Row label="Brutto (z VAT)" value={fmtPLN(amountGross)} />
+                {isVatPayer && <Row label="− VAT należny" value={fmtPLN(revenueVat)} sub />}
+                <Row
+                  label={isVatPayer ? "= Netto (po VAT)" : "Netto"}
+                  value={fmtPLN(revenueNet)}
+                />
+                <GroupHeader>Koszty</GroupHeader>
+                <Row label="Brutto" value={fmtPLN(costsGross)} />
+                {isVatPayer && <Row label="− VAT naliczony" value={fmtPLN(costsVat)} sub />}
+                <Row
+                  label={isVatPayer ? "= Netto (do PIT)" : "Netto"}
+                  value={fmtPLN(costsNet)}
+                />
+                <GroupHeader>Zysk</GroupHeader>
+                <Row label="Zysk netto" value={fmtPLN(profit)} bold />
+                <Row label="Podstawa do PIT" value={fmtPLN(Math.max(0, profit))} sub />
+              </>
+            ) : (
+              <>
+                <GroupHeader>Gotówka</GroupHeader>
+                <Row label="Kwota od klienta" value={fmtPLN(amountGross)} />
+                <Row label="− Koszty brutto" value={`− ${fmtPLN(costsGross)}`} sub />
+                <Row label="= Do kieszeni" value={fmtPLN(profitNoInvoice)} bold />
+              </>
+            )}
           </div>
         </details>
       )}

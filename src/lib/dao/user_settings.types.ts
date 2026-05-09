@@ -35,6 +35,7 @@ export type UserSettings = {
   health_insurance_min: number | null;
   is_vat_payer: boolean;
   default_vat_rate: number;
+  default_hourly_rate: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -52,6 +53,7 @@ export type UserSettingsInput = {
   health_insurance_min: number | null;
   is_vat_payer: boolean;
   default_vat_rate: number;
+  default_hourly_rate: number | null;
 };
 
 export const DEFAULT_SETTINGS: Pick<
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: Pick<
   | "zus_ulga"
   | "zus_maly"
   | "zus_pelny"
+  | "default_hourly_rate"
 > & { material_categories: string[] } = {
   tax_form: "skala",
   vat_period: "monthly",
@@ -73,5 +76,6 @@ export const DEFAULT_SETTINGS: Pick<
   zus_ulga: 397.16,
   zus_maly: 891.34,
   zus_pelny: 1900.0,
+  default_hourly_rate: 50,
   material_categories: [...DEFAULT_MATERIAL_CATEGORIES],
 };

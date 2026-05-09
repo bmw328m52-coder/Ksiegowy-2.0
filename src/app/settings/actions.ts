@@ -50,6 +50,12 @@ function readForm(formData: FormData): UserSettingsInput | string {
   const pelny = parseZusRate("zus_pelny");
   if (typeof pelny === "string") return pelny;
 
+  const hourlyRaw = String(formData.get("default_hourly_rate") ?? "").trim();
+  const default_hourly_rate = hourlyRaw ? parseAmount(hourlyRaw) : 50;
+  if (default_hourly_rate === null || default_hourly_rate < 0) {
+    return "Nieprawidłowa stawka godzinowa.";
+  }
+
   const catsRaw = String(formData.get("material_categories") ?? "").trim();
   const material_categories = catsRaw
     ? Array.from(
@@ -76,6 +82,7 @@ function readForm(formData: FormData): UserSettingsInput | string {
     zus_ulga: ulga,
     zus_maly: maly,
     zus_pelny: pelny,
+    default_hourly_rate,
     material_categories,
     health_insurance_min: null,
   };
@@ -89,6 +96,7 @@ export async function saveSettings(_prev: Result, formData: FormData): Promise<R
     revalidatePath("/settings");
     revalidatePath("/dashboard");
     revalidatePath("/calculator");
+    revalidatePath("/usluga");
     redirect("/settings?saved=1");
   } catch (e) {
     if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;

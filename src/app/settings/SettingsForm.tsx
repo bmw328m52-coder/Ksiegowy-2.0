@@ -14,6 +14,7 @@ export type SettingsInitial = {
   is_vat_payer: boolean;
   default_vat_rate: number;
   zus_monthly: number | null;
+  default_hourly_rate: number | null;
 };
 
 export default function SettingsForm({
@@ -30,6 +31,7 @@ export default function SettingsForm({
 
   const vatPctDefault = (initial.default_vat_rate * 100).toFixed(0);
   const zusDefault = initial.zus_monthly != null ? String(initial.zus_monthly) : "";
+  const hourlyDefault = initial.default_hourly_rate != null ? String(initial.default_hourly_rate) : "50";
 
   return (
     <form action={formAction} className="w-full flex flex-col gap-5">
@@ -106,6 +108,21 @@ export default function SettingsForm({
             className={inputCls}
           />
         </Field>
+      </Section>
+
+      <Section title="Stawka godzinowa">
+        <Field label="Stawka „na rękę” (PLN/h)">
+          <input
+            name="default_hourly_rate"
+            inputMode="decimal"
+            defaultValue={hourlyDefault}
+            placeholder="50"
+            className={inputCls}
+          />
+        </Field>
+        <p className="text-xs text-zinc-500">
+          Ile chcesz zarabiać netto za 1 h pracy. Używana w kalkulatorze stawki za usługę.
+        </p>
       </Section>
 
       {state.error && <p className={errorCls}>{state.error}</p>}
