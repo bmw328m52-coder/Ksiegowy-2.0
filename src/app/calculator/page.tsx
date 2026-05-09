@@ -57,6 +57,10 @@ export default async function CalculatorPage() {
           defaultIsVatPayer={settings.is_vat_payer}
           defaultYearIncome={Math.max(0, dashboard.pit.profitYtd)}
           templates={templates}
+          materialCategories={settings.material_categories}
+          defaultZusPelny={settings.zus_pelny ?? 1900}
+          defaultZusMaly={settings.zus_maly ?? 891.34}
+          defaultZusUlga={settings.zus_ulga ?? 397.16}
         />
       </div>
     </main>

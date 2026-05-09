@@ -31,3 +31,17 @@ export function parseAmount(input: string | null | undefined): number | null {
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 }
+
+export function fmtMinutes(min: number | null | undefined): string {
+  if (min === null || min === undefined || !Number.isFinite(min)) return "—";
+  const total = Math.max(0, Math.round(min));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${h}:${m.toString().padStart(2, "0")}`;
+}
+
+export function fmtHours(min: number | null | undefined): string {
+  if (min === null || min === undefined || !Number.isFinite(min)) return "—";
+  const h = min / 60;
+  return `${h.toFixed(2).replace(".", ",")} h`;
+}

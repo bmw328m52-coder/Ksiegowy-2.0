@@ -9,21 +9,36 @@ export const metadata = { title: "Zlecenia" };
 
 type Filter = "all" | "invoiced" | "not_invoiced";
 
+function normalize(s: string): string {
+  return s.toLowerCase().trim();
+}
+
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; q?: string }>;
 }) {
-  const { filter: rawFilter } = await searchParams;
+  const { filter: rawFilter, q: rawQ } = await searchParams;
   const filter: Filter =
     rawFilter === "invoiced" || rawFilter === "not_invoiced" ? rawFilter : "all";
+  const q = (rawQ ?? "").trim();
+  const needle = normalize(q);
 
   const [all, settings] = await Promise.all([listJobs(), getUserSettingsOrDefault()]);
-  const jobs = all.filter((j) => {
+  const filteredByTab = all.filter((j) => {
     if (filter === "invoiced") return j.invoiced === true;
     if (filter === "not_invoiced") return j.invoiced !== true;
     return true;
   });
+  const jobs = needle
+    ? filteredByTab.filter((j) => {
+        const hay = [j.title, j.client_name, j.invoice_number]
+          .filter(Boolean)
+          .map((v) => normalize(String(v)))
+          .join(" ");
+        return hay.includes(needle);
+      })
+    : filteredByTab;
 
   const marginsMap = await getJobMarginsMap(jobs.map((j) => j.id));
 
@@ -33,31 +48,80 @@ export default async function JobsPage({
     not_invoiced: all.filter((j) => j.invoiced !== true).length,
   };
 
+  const qsForTab = q ? `&q=${encodeURIComponent(q)}` : "";
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <div className="w-full max-w-md mx-auto">
         <PageHeader title="Zlecenia" back={{ href: "/" }} />
 
-        <FilterTabs current={filter} counts={counts} />
+        <FilterTabs current={filter} counts={counts} qSuffix={qsForTab} />
+
+        {all.length > 0 && (
+          <form method="GET" action="/jobs" className="mb-3 flex gap-2">
+            {filter !== "all" && <input type="hidden" name="filter" value={filter} />}
+            <input
+              type="search"
+              name="q"
+              defaultValue={q}
+              placeholder="Szukaj: tytuł, klient, nr FV"
+              autoComplete="off"
+              className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#282624]/20"
+            />
+            {q ? (
+              <Link
+                href={filter === "all" ? "/jobs" : `/jobs?filter=${filter}`}
+                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 active:bg-zinc-50"
+              >
+                Wyczyść
+              </Link>
+            ) : (
+              <button
+                type="submit"
+                className="rounded-lg bg-[#282624] text-white px-3 py-2 text-sm font-medium active:opacity-80"
+              >
+                Szukaj
+              </button>
+            )}
+          </form>
+        )}
+
+        {q && (
+          <p className="text-xs text-zinc-500 mb-2">
+            Wynik dla „{q}”: {jobs.length} z {filteredByTab.length}
+          </p>
+        )}
 
         {jobs.length === 0 ? (
-          <div className="text-center py-16 text-zinc-500 space-y-4">
-            <p>
-              {filter === "all"
-                ? "Brak zleceń. Dodaj zlecenie z poziomu klienta."
-                : filter === "invoiced"
-                  ? "Brak fakturowanych zleceń."
-                  : "Brak niefakturowanych zleceń."}
-            </p>
-            {filter === "all" && (
+          q ? (
+            <div className="text-center py-12 text-zinc-500 space-y-3">
+              <p>Brak wyników dla „{q}”.</p>
               <Link
-                href="/clients"
-                className="inline-block rounded-lg bg-[#282624] text-white px-4 py-3 text-sm font-medium"
+                href={filter === "all" ? "/jobs" : `/jobs?filter=${filter}`}
+                className="inline-block text-sm text-zinc-600 underline-offset-2 hover:underline"
               >
-                Przejdź do klientów
+                Wyczyść filtr
               </Link>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="text-center py-16 text-zinc-500 space-y-4">
+              <p>
+                {filter === "all"
+                  ? "Brak zleceń. Dodaj zlecenie z poziomu klienta."
+                  : filter === "invoiced"
+                    ? "Brak fakturowanych zleceń."
+                    : "Brak niefakturowanych zleceń."}
+              </p>
+              {filter === "all" && (
+                <Link
+                  href="/clients"
+                  className="inline-block rounded-lg bg-[#282624] text-white px-4 py-3 text-sm font-medium"
+                >
+                  Przejdź do klientów
+                </Link>
+              )}
+            </div>
+          )
         ) : (
           <ul className="flex flex-col gap-2">
             {jobs.map((j) => {
@@ -103,9 +167,11 @@ export default async function JobsPage({
 function FilterTabs({
   current,
   counts,
+  qSuffix,
 }: {
   current: Filter;
   counts: { all: number; invoiced: number; not_invoiced: number };
+  qSuffix: string;
 }) {
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: "Wszystkie", count: counts.all },
@@ -116,7 +182,11 @@ function FilterTabs({
     <nav className="flex gap-1 mb-3 p-1 rounded-lg bg-zinc-100">
       {tabs.map((t) => {
         const active = t.key === current;
-        const href = t.key === "all" ? "/jobs" : `/jobs?filter=${t.key}`;
+        const base = t.key === "all" ? "/jobs" : `/jobs?filter=${t.key}`;
+        const href =
+          t.key === "all" && qSuffix
+            ? `/jobs?${qSuffix.slice(1)}`
+            : `${base}${qSuffix}`;
         return (
           <Link
             key={t.key}

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   createInvoiceRow,
   deleteInvoice as daoDeleteInvoice,
+  getInvoice,
   updateInvoice,
 } from "@/lib/dao/invoices";
 import {
@@ -145,10 +146,26 @@ export async function updateInvoiceAction(
   const amount_vat = parseAmount(String(formData.get("amount_vat") ?? ""));
   const amount_gross = parseAmount(String(formData.get("amount_gross") ?? ""));
   const vat_pct = String(formData.get("vat_rate") ?? "").trim();
-  const vat_rate = vat_pct === "" ? null : Number(vat_pct) / 100;
+  const vat_rate_raw = vat_pct === "" ? null : Number(vat_pct) / 100;
+  const vat_rate = Number.isFinite(vat_rate_raw as number) ? (vat_rate_raw as number) : null;
   const notes = strOrNull(formData.get("notes"));
 
   try {
+    const current = await getInvoice(id);
+    if (!current) return { error: "Faktura nie istnieje." };
+
+    const changed =
+      strChanged(current.supplier_name, supplier_name) ||
+      strChanged(current.supplier_nip, supplier_nip) ||
+      strChanged(current.invoice_number, invoice_number) ||
+      strChanged(current.issue_date, issue_date) ||
+      strChanged(current.payment_due, payment_due) ||
+      strChanged(current.notes, notes) ||
+      numChanged(current.amount_net, amount_net) ||
+      numChanged(current.amount_vat, amount_vat) ||
+      numChanged(current.amount_gross, amount_gross) ||
+      numChanged(current.vat_rate, vat_rate);
+
     await updateInvoice(id, {
       supplier_name,
       supplier_nip,
@@ -158,9 +175,9 @@ export async function updateInvoiceAction(
       amount_net,
       amount_vat,
       amount_gross,
-      vat_rate: Number.isFinite(vat_rate as number) ? (vat_rate as number) : null,
+      vat_rate,
       notes,
-      ocr_status: "manual",
+      ...(changed ? { ocr_status: "manual" as const } : {}),
     });
     revalidatePath(`/invoices/${id}`);
     revalidatePath("/invoices");
@@ -228,4 +245,16 @@ function strOrNull(v: FormDataEntryValue | null): string | null {
   if (v === null) return null;
   const s = String(v).trim();
   return s ? s : null;
+}
+
+function strChanged(a: string | null, b: string | null): boolean {
+  return (a ?? "") !== (b ?? "");
+}
+
+function numChanged(a: string | number | null, b: number | null): boolean {
+  const aN = a === null || a === "" ? null : Number(a);
+  const bN = b === null ? null : Number(b);
+  if (aN === null && bN === null) return false;
+  if (aN === null || bN === null) return true;
+  return Math.abs(aN - bN) > 1e-6;
 }

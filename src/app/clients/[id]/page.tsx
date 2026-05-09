@@ -4,6 +4,8 @@ import PageHeader from "@/components/PageHeader";
 import { getClient } from "@/lib/dao/clients";
 import { listJobsByClient, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
 import { listMaterialCostsByClient } from "@/lib/dao/cost_lines";
+import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
+import { computeJobMargin, getJobMarginsMap } from "@/lib/jobMargin";
 import { fmtPLN, fmtDate } from "@/lib/format";
 import { deleteClientAction } from "../actions";
 
@@ -13,10 +15,11 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [client, jobs, materials] = await Promise.all([
+  const [client, jobs, materials, settings] = await Promise.all([
     getClient(id),
     listJobsByClient(id),
     listMaterialCostsByClient(id),
+    getUserSettingsOrDefault(),
   ]);
   if (!client) notFound();
 
@@ -29,6 +32,25 @@ export default async function ClientDetailPage({
     (acc, m) => acc + Number(m.amount_gross),
     0
   );
+
+  const billableJobs = jobs.filter((j) => j.status !== "cancelled");
+  const costsByJob = await getJobMarginsMap(billableJobs.map((j) => j.id));
+
+  let revenueNetSum = 0;
+  let costsNetSum = 0;
+  const marginByJob = new Map<string, { profit: number; marginPct: number | null }>();
+  for (const j of billableJobs) {
+    const c = costsByJob.get(j.id);
+    const fakeLines = c
+      ? [{ amount_net: c.costsNet, amount_gross: c.costsGross }]
+      : [];
+    const m = computeJobMargin(j, fakeLines, settings.is_vat_payer);
+    revenueNetSum += m.revenueNet;
+    costsNetSum += m.costsNet;
+    marginByJob.set(j.id, { profit: m.profit, marginPct: m.marginPct });
+  }
+  const profitSum = revenueNetSum - costsNetSum;
+  const marginPctSum = revenueNetSum > 0 ? (profitSum / revenueNetSum) * 100 : null;
 
   const deleteWithId = deleteClientAction.bind(null, id);
 
@@ -96,40 +118,104 @@ export default async function ClientDetailPage({
           </div>
 
           {jobs.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-              <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-2">
-                <p className="text-zinc-500">Suma zleceń</p>
-                <p className="font-medium text-sm">{fmtPLN(totalGross)}</p>
+            <>
+              <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
+                <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-2">
+                  <p className="text-zinc-500">Suma zleceń (brutto)</p>
+                  <p className="font-medium text-sm tabular-nums">{fmtPLN(totalGross)}</p>
+                </div>
+                <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-2">
+                  <p className="text-zinc-500">Opłacone</p>
+                  <p className="font-medium text-sm tabular-nums">{fmtPLN(paidGross)}</p>
+                </div>
               </div>
-              <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-2">
-                <p className="text-zinc-500">Opłacone</p>
-                <p className="font-medium text-sm">{fmtPLN(paidGross)}</p>
-              </div>
-            </div>
+              {billableJobs.length > 0 && (
+                <div className="rounded-xl border border-zinc-200 bg-white p-3 mb-3">
+                  <p className="text-xs text-zinc-500 mb-2">
+                    Marża {settings.is_vat_payer ? "(netto)" : "(brutto, bez VAT)"}
+                    {jobs.length !== billableJobs.length && " · pomija anulowane"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-zinc-500">Przychód</p>
+                      <p className="font-medium text-sm tabular-nums">{fmtPLN(revenueNetSum)}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-500">Koszty zleceń</p>
+                      <p className="font-medium text-sm tabular-nums">{fmtPLN(costsNetSum)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-zinc-100 flex items-baseline justify-between">
+                    <div>
+                      <p className="text-zinc-500 text-xs">Zysk</p>
+                      <p
+                        className={`font-semibold text-base tabular-nums ${
+                          profitSum >= 0 ? "text-green-700" : "text-red-700"
+                        }`}
+                      >
+                        {fmtPLN(profitSum)}
+                      </p>
+                    </div>
+                    {marginPctSum !== null && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          marginPctSum >= 20
+                            ? "bg-green-100 text-green-700"
+                            : marginPctSum >= 0
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {marginPctSum.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {jobs.length === 0 ? (
             <p className="text-sm text-zinc-500 text-center py-6">Brak zleceń.</p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {jobs.map((j) => (
-                <li key={j.id}>
-                  <Link
-                    href={`/jobs/${j.id}`}
-                    className="block rounded-xl border border-zinc-200 bg-white p-3 active:bg-zinc-50"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{j.title}</p>
-                        <p className="text-xs text-zinc-500">
-                          {fmtPLN(j.amount_gross)} • {fmtDate(j.due_date ?? j.start_date)}
-                        </p>
+              {jobs.map((j) => {
+                const m = marginByJob.get(j.id);
+                return (
+                  <li key={j.id}>
+                    <Link
+                      href={`/jobs/${j.id}`}
+                      className="block rounded-xl border border-zinc-200 bg-white p-3 active:bg-zinc-50"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{j.title}</p>
+                          <p className="text-xs text-zinc-500">
+                            {fmtPLN(j.amount_gross)} • {fmtDate(j.due_date ?? j.start_date)}
+                          </p>
+                        </div>
+                        <StatusBadge status={j.status} />
                       </div>
-                      <StatusBadge status={j.status} />
-                    </div>
-                  </Link>
-                </li>
-              ))}
+                      {m && (
+                        <div className="mt-1 flex items-center gap-2 text-xs">
+                          <span
+                            className={`tabular-nums ${
+                              m.profit >= 0 ? "text-green-700" : "text-red-700"
+                            }`}
+                          >
+                            zysk {fmtPLN(m.profit)}
+                          </span>
+                          {m.marginPct !== null && (
+                            <span className="text-zinc-500 tabular-nums">
+                              · {m.marginPct.toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

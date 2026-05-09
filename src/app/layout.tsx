@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import ActiveTimerBar from "@/components/ActiveTimerBar";
 import ToastContainer from "@/components/ToastContainer";
 
 export const metadata: Metadata = {
@@ -42,6 +43,7 @@ export default function RootLayout({
       >
         {children}
         <ToastContainer />
+        <ActiveTimerBar />
         <BottomNav />
       </body>
     </html>

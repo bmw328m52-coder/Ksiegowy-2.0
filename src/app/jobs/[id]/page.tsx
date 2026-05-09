@@ -4,20 +4,40 @@ import PageHeader from "@/components/PageHeader";
 import { getJob, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
 import { listCostLinesByJob } from "@/lib/dao/cost_lines";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
+import {
+  getActiveTimer,
+  listEntriesByJob,
+  sumByPhase,
+} from "@/lib/dao/time_entries";
 import { computeJobMargin } from "@/lib/jobMargin";
-import { fmtPLN, fmtDate } from "@/lib/format";
+import { pitFor } from "@/lib/tax";
+import { fmtPLN, fmtDate, fmtMinutes } from "@/lib/format";
 import { deleteJobAction, markJobPaidAction } from "../actions";
+import TimeTracker from "./TimeTracker";
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const job = await getJob(id);
   if (!job) notFound();
 
-  const [costLines, settings] = await Promise.all([
+  const [costLines, settings, timeEntries, activeTimer] = await Promise.all([
     listCostLinesByJob(id),
     getUserSettingsOrDefault(),
+    listEntriesByJob(id),
+    getActiveTimer(),
   ]);
   const margin = computeJobMargin(job, costLines, settings.is_vat_payer);
+  const phaseSums = sumByPhase(timeEntries);
+
+  const totalMin = timeEntries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0);
+  const totalHours = totalMin / 60;
+  const profitForTaxes = Math.max(0, margin.profit);
+  const pitForJob = pitFor(settings.tax_form, profitForTaxes);
+  const zusMonthly = Number(settings.zus_pelny ?? 0);
+  const hoursPerMonth = 160;
+  const zusForJob = (zusMonthly / hoursPerMonth) * totalHours;
+  const netCashAfterTax = margin.profit - pitForJob - zusForJob;
+  const ratePerHour = totalHours > 0 ? netCashAfterTax / totalHours : 0;
 
   const vatPct = Math.round(Number(job.vat_rate) * 100);
   const gross = Number(job.amount_gross);
@@ -114,6 +134,79 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </p>
           )}
         </section>
+
+        <TimeTracker
+          jobId={id}
+          entries={timeEntries}
+          active={activeTimer}
+          phaseSums={phaseSums}
+        />
+
+        {totalMin > 0 && (
+          <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 space-y-2">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-semibold text-zinc-700">Rzeczywista stawka</h2>
+              <span className="text-[11px] text-zinc-500">
+                {fmtMinutes(totalMin)} ({totalHours.toFixed(2).replace(".", ",")} h)
+              </span>
+            </div>
+
+            <div
+              className={`rounded-xl border p-3 ${
+                ratePerHour >= 0 ? "border-emerald-300 bg-emerald-50" : "border-red-300 bg-red-50"
+              }`}
+            >
+              <p
+                className={`text-[11px] uppercase tracking-wide font-semibold ${
+                  ratePerHour >= 0 ? "text-emerald-700" : "text-red-700"
+                }`}
+              >
+                Na rękę / godzinę
+              </p>
+              <p
+                className={`text-2xl font-bold tabular-nums ${
+                  ratePerHour >= 0 ? "text-emerald-900" : "text-red-900"
+                }`}
+              >
+                {fmtPLN(ratePerHour)}
+              </p>
+              <p
+                className={`text-[11px] mt-0.5 ${
+                  ratePerHour >= 0 ? "text-emerald-700/80" : "text-red-700/80"
+                }`}
+              >
+                po PIT i ZUS proporcjonalnym
+              </p>
+            </div>
+
+            <div className="text-xs space-y-1.5 pt-1">
+              <Row label="Zysk netto (przychód − koszty)" value={fmtPLN(margin.profit)} />
+              <Row
+                label={`PIT (${settings.tax_form === "skala" ? "skala" : "liniowy"})`}
+                value={`− ${fmtPLN(pitForJob)}`}
+              />
+              <Row
+                label={`ZUS proporcjonalny (${fmtPLN(zusMonthly)}/mies. × ${totalHours.toFixed(1).replace(".", ",")}h ÷ ${hoursPerMonth}h)`}
+                value={`− ${fmtPLN(zusForJob)}`}
+              />
+              <div className="border-t border-zinc-100 pt-1.5 flex items-center justify-between">
+                <span className="text-zinc-900 font-medium">Na rękę</span>
+                <span
+                  className={`font-semibold tabular-nums ${
+                    netCashAfterTax >= 0 ? "text-emerald-700" : "text-red-700"
+                  }`}
+                >
+                  {fmtPLN(netCashAfterTax)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-zinc-500 pt-1">
+              PIT liczony od zysku tego zlecenia (orientacyjnie). VAT pomija się — pass-through dla
+              VATowca.
+            </p>
+          </section>
+        )}
 
         {deposit > 0 && (
           <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm space-y-2">
