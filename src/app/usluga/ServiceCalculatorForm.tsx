@@ -57,13 +57,17 @@ export default function ServiceCalculatorForm({
   const [includeVacation, setIncludeVacation] = useState(true);
   const [includeSick, setIncludeSick] = useState(true);
   const [extras, setExtras] = useState<ExtraLine[]>([]);
+  const [deductCostsVat, setDeductCostsVat] = useState(false);
+  const [costsVatPctStr, setCostsVatPctStr] = useState("23");
 
   const hours = Math.max(0, parseAmount(hoursStr) ?? 0);
   const rate = Math.max(0, parseAmount(rateStr) ?? 0);
   const zusMonthly = Math.max(0, parseAmount(zusStr) ?? 0);
   const vatRate = Math.max(0, (Number(vatPctStr) || 0) / 100);
+  const costsVatRate = Math.max(0, (Number(costsVatPctStr) || 0) / 100);
   const pitRateFlat = Math.max(0, Math.min(0.99, (Number(pitPctStr) || 0) / 100));
   const yearIncomeBefore = Math.max(0, parseAmount(yearIncomeStr) ?? 0);
+  const canDeductVat = !withInvoice && defaultIsVatPayer && deductCostsVat;
 
   const result = useMemo(() => {
     const vacationPerH = includeVacation ? (VACATION_HOURS * rate) / PRODUCTIVE_HOURS_YEAR : 0;
@@ -80,6 +84,10 @@ export default function ServiceCalculatorForm({
     if (!withInvoice) {
       const totalLabor = baseAmount + vacationAmount + sickAmount + zusAmount;
       const total = totalLabor + extrasAmount;
+      const recoveredVat =
+        canDeductVat && costsVatRate > 0
+          ? extrasAmount - extrasAmount / (1 + costsVatRate)
+          : 0;
       return {
         baseAmount,
         vacationAmount,
@@ -92,6 +100,8 @@ export default function ServiceCalculatorForm({
         brutto: 0,
         totalLabor,
         total,
+        recoveredVat,
+        effectiveProfit: total + recoveredVat,
         rateEffectivePerH: hours > 0 ? total / hours : 0,
         takeHomePerH,
       };
@@ -139,6 +149,8 @@ export default function ServiceCalculatorForm({
       brutto,
       totalLabor: baseAmount + vacationAmount + sickAmount + zusAmount + pitAmount,
       total: brutto,
+      recoveredVat: 0,
+      effectiveProfit: brutto,
       rateEffectivePerH: hours > 0 ? brutto / hours : 0,
       takeHomePerH,
     };
@@ -155,6 +167,8 @@ export default function ServiceCalculatorForm({
     defaultTaxForm,
     includeVacation,
     includeSick,
+    canDeductVat,
+    costsVatRate,
   ]);
 
   const empty = hours === 0;
@@ -201,6 +215,31 @@ export default function ServiceCalculatorForm({
             hint="VAT + PIT od dochodu"
           />
         </div>
+        {!withInvoice && defaultIsVatPayer && (
+          <>
+            <label className="flex items-center gap-2 text-xs text-zinc-700 select-none mt-1">
+              <input
+                type="checkbox"
+                checked={deductCostsVat}
+                onChange={(e) => setDeductCostsVat(e.target.checked)}
+              />
+              <span>Odlicz VAT od materiałów (faktury kosztowe trafiają do JPK)</span>
+            </label>
+            {deductCostsVat && (
+              <Field label="VAT na materiały (%)">
+                <input
+                  inputMode="decimal"
+                  value={costsVatPctStr}
+                  onChange={(e) => setCostsVatPctStr(e.target.value)}
+                  className="input"
+                />
+                <span className="text-[11px] text-zinc-500">
+                  Pozycje „Materiały / dodatkowe” traktujemy jako brutto. VAT odzyskasz z JPK.
+                </span>
+              </Field>
+            )}
+          </>
+        )}
       </Section>
 
       <Section title="ZUS i rezerwy">
@@ -398,6 +437,20 @@ export default function ServiceCalculatorForm({
               value={result.total}
               big
             />
+            {result.recoveredVat > 0 && (
+              <>
+                <Row
+                  label="+ VAT do odzyskania (z JPK)"
+                  value={result.recoveredVat}
+                  muted
+                />
+                <Row
+                  label="Twój efektywny zysk"
+                  value={result.effectiveProfit}
+                  bold
+                />
+              </>
+            )}
             {hours > 0 && (
               <Row
                 label="Efektywna stawka /h dla klienta"

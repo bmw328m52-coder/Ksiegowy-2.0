@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getClient } from "@/lib/dao/clients";
 import { listJobsByClient, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
 import { listMaterialCostsByClient } from "@/lib/dao/cost_lines";
@@ -8,6 +9,12 @@ import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { computeJobMargin, getJobMarginsMap } from "@/lib/jobMargin";
 import { fmtPLN, fmtDate } from "@/lib/format";
 import { deleteClientAction } from "../actions";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const client = await getClient(id);
+  return { title: client?.name ?? "Klient" };
+}
 
 export default async function ClientDetailPage({
   params,
@@ -272,13 +279,13 @@ export default async function ClientDetailPage({
         </section>
 
         <form action={deleteWithId} className="mt-10">
-          <button
-            type="submit"
-            className="w-full text-sm text-red-600 py-3 active:underline"
+          <ConfirmSubmitButton
+            message="Na pewno usunąć tego klienta? Wszystkie powiązane zlecenia i koszty zostaną odpięte."
             formNoValidate
+            className="w-full text-sm text-red-600 py-3 active:underline"
           >
             Usuń klienta
-          </button>
+          </ConfirmSubmitButton>
         </form>
       </div>
     </main>

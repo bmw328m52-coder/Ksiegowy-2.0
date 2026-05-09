@@ -6,6 +6,7 @@ import ExportMonthCard from "./ExportMonthCard";
 import InvoicesListClient from "./InvoicesListClient";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Faktury" };
 
 type Filter = "all" | "todo" | "done";
 

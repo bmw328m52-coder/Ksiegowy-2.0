@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import {
   findInvoiceDuplicates,
   getInvoice,
@@ -16,6 +17,13 @@ import { deleteInvoiceAction } from "../actions";
 import InvoicePhotoViewer from "./InvoicePhotoViewer";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const inv = await getInvoice(id);
+  const label = inv?.invoice_number || inv?.supplier_name || "Faktura";
+  return { title: label };
+}
 
 export default async function InvoiceDetailPage({
   params,
@@ -198,12 +206,12 @@ export default async function InvoiceDetailPage({
         </section>
 
         <form action={deleteThisInvoice}>
-          <button
-            type="submit"
+          <ConfirmSubmitButton
+            message="Na pewno usunąć tę fakturę? Plik i wszystkie pozycje kosztowe zostaną usunięte."
             className="w-full rounded-lg border border-red-200 text-red-700 py-2.5 text-sm font-medium active:bg-red-50"
           >
             Usuń fakturę
-          </button>
+          </ConfirmSubmitButton>
         </form>
       </div>
     </main>

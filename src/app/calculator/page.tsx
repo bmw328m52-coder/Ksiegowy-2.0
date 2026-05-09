@@ -7,6 +7,7 @@ import { getDashboardData } from "@/lib/dao/dashboard";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Kalkulator" };
 
 async function getJobCostSummaries(): Promise<Map<string, { net: number; vat: number }>> {
   const supabase = await createClient();

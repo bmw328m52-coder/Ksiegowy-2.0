@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getJob, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
 import { listCostLinesByJob } from "@/lib/dao/cost_lines";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
+import { getDashboardData } from "@/lib/dao/dashboard";
 import {
   getActiveTimer,
   listEntriesByJob,
@@ -15,16 +17,23 @@ import { fmtPLN, fmtDate, fmtMinutes } from "@/lib/format";
 import { deleteJobAction, markJobPaidAction } from "../actions";
 import TimeTracker from "./TimeTracker";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const job = await getJob(id);
+  return { title: job?.title ?? "Zlecenie" };
+}
+
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const job = await getJob(id);
   if (!job) notFound();
 
-  const [costLines, settings, timeEntries, activeTimer] = await Promise.all([
+  const [costLines, settings, timeEntries, activeTimer, dashboard] = await Promise.all([
     listCostLinesByJob(id),
     getUserSettingsOrDefault(),
     listEntriesByJob(id),
     getActiveTimer(),
+    getDashboardData(),
   ]);
   const margin = computeJobMargin(job, costLines, settings.is_vat_payer);
   const phaseSums = sumByPhase(timeEntries);
@@ -32,7 +41,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const totalMin = timeEntries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0);
   const totalHours = totalMin / 60;
   const profitForTaxes = Math.max(0, margin.profit);
-  const pitForJob = pitFor(settings.tax_form, profitForTaxes);
+  // YTD nie wlicza tego zlecenia, jeśli jeszcze nie opłacone — odejmujemy żeby uniknąć podwójnego liczenia
+  const baselineYearIncome = Math.max(
+    0,
+    dashboard.pit.profitYtd - (job.status === "paid" ? profitForTaxes : 0)
+  );
+  const pitForJob =
+    pitFor(settings.tax_form, baselineYearIncome + profitForTaxes) -
+    pitFor(settings.tax_form, baselineYearIncome);
   const zusMonthly = Number(settings.zus_pelny ?? 0);
   const hoursPerMonth = 160;
   const zusForJob = (zusMonthly / hoursPerMonth) * totalHours;
@@ -182,7 +198,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <div className="text-xs space-y-1.5 pt-1">
               <Row label="Zysk netto (przychód − koszty)" value={fmtPLN(margin.profit)} />
               <Row
-                label={`PIT (${settings.tax_form === "skala" ? "skala" : "liniowy"})`}
+                label={`PIT (${settings.tax_form === "skala" ? "skala" : "liniowy"}, przyrost roczny)`}
                 value={`− ${fmtPLN(pitForJob)}`}
               />
               <Row
@@ -202,8 +218,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </div>
 
             <p className="text-[11px] text-zinc-500 pt-1">
-              PIT liczony od zysku tego zlecenia (orientacyjnie). VAT pomija się — pass-through dla
-              VATowca.
+              PIT jako przyrost względem dochodu YTD (uwzględnia kwotę wolną i progi). VAT
+              pomija się — pass-through dla VATowca.
             </p>
           </section>
         )}
@@ -251,13 +267,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         )}
 
         <form action={deleteWithIds} className="mt-10">
-          <button
-            type="submit"
-            className="w-full text-sm text-red-600 py-3 active:underline"
+          <ConfirmSubmitButton
+            message="Na pewno usunąć to zlecenie? Tej operacji nie da się cofnąć."
             formNoValidate
+            className="w-full text-sm text-red-600 py-3 active:underline"
           >
             Usuń zlecenie
-          </button>
+          </ConfirmSubmitButton>
         </form>
       </div>
     </main>

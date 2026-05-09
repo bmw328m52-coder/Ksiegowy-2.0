@@ -69,6 +69,7 @@ export default function CalculatorForm({
   const [zusStr, setZusStr] = useState(defaultZusPelny.toFixed(2));
   const [hoursPerMonthStr, setHoursPerMonthStr] = useState("160");
   const [withInvoice, setWithInvoice] = useState(true);
+  const [deductCostsVat, setDeductCostsVat] = useState(false);
   const [reserveVacation, setReserveVacation] = useState(false);
   const [reserveSick, setReserveSick] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -134,7 +135,10 @@ export default function CalculatorForm({
   const zusMonthly = Math.max(0, parseAmount(zusStr) ?? 0);
   const hoursPerMonth = Math.max(1, parseAmount(hoursPerMonthStr) ?? 160);
   const zusForJob = withInvoice ? (zusMonthly / hoursPerMonth) * hours : 0;
-  const profitNoInvoice = amount - costsGross;
+  // Bez faktury: koszt = brutto. Jeśli VATowiec może odliczyć VAT od kosztów, efektywny koszt = netto.
+  const canDeductVat = !withInvoice && isVatPayer && deductCostsVat;
+  const recoveredVat = canDeductVat ? extraCostsVat : 0;
+  const profitNoInvoice = amount - costsGross + recoveredVat;
   const netCashAfterZus = withInvoice ? result.netCash - zusForJob : profitNoInvoice;
   // Rezerwa: 26 dni urlopu × 8 h = 208 h, 10 dni L4 × 8 h = 80 h, na rok 1728 h produktywnych
   const reserveRatio = ((reserveVacation ? 208 : 0) + (reserveSick ? 80 : 0)) / 1728;
@@ -239,6 +243,18 @@ export default function CalculatorForm({
             hint="kasa do ręki"
           />
         </div>
+        {!withInvoice && isVatPayer && (
+          <label className="flex items-center gap-2 text-xs text-zinc-700 select-none mt-1">
+            <input
+              type="checkbox"
+              checked={deductCostsVat}
+              onChange={(e) => setDeductCostsVat(e.target.checked)}
+            />
+            <span>
+              Odlicz VAT od kosztów (faktury kosztowe trafiają do JPK)
+            </span>
+          </label>
+        )}
       </Section>
 
       <Section title="Kwota zlecenia">
@@ -567,6 +583,7 @@ export default function CalculatorForm({
             ratePerHourBeforeTaxes={ratePerHourBeforeTaxes}
             amountGross={amount}
             costsGross={costsGross}
+            recoveredVat={recoveredVat}
           />
         )}
       </Section>
@@ -580,6 +597,7 @@ export default function CalculatorForm({
         isVatPayer={isVatPayer}
         withInvoice={withInvoice}
         profitNoInvoice={profitNoInvoice}
+        recoveredVat={recoveredVat}
       />
 
       <p className="text-[11px] text-zinc-500 text-center">
@@ -659,6 +677,7 @@ function HourlyRatePanel({
   ratePerHourBeforeTaxes,
   amountGross,
   costsGross,
+  recoveredVat,
 }: {
   withInvoice: boolean;
   hours: number;
@@ -675,6 +694,7 @@ function HourlyRatePanel({
   ratePerHourBeforeTaxes: number;
   amountGross: number;
   costsGross: number;
+  recoveredVat: number;
 }) {
   const positive = ratePerHour >= 0;
   const reserveActive = reserveVacation || reserveSick;
@@ -744,6 +764,13 @@ function HourlyRatePanel({
             <>
               <Row label="Kwota od klienta (gotówka)" value={fmtPLN(amountGross)} />
               <Row label="− Koszty brutto" value={`− ${fmtPLN(costsGross)}`} sub />
+              {recoveredVat > 0 && (
+                <Row
+                  label="+ VAT do odzyskania (z JPK)"
+                  value={`+ ${fmtPLN(recoveredVat)}`}
+                  sub
+                />
+              )}
               <Row label="= Do kieszeni" value={fmtPLN(netCashAfterZus)} bold />
               {reserveActive && (
                 <Row
@@ -798,6 +825,7 @@ function ResultPanel({
   isVatPayer,
   withInvoice,
   profitNoInvoice,
+  recoveredVat,
 }: {
   result: ReturnType<typeof calcDeal>;
   amountGross: number;
@@ -807,11 +835,13 @@ function ResultPanel({
   isVatPayer: boolean;
   withInvoice: boolean;
   profitNoInvoice: number;
+  recoveredVat: number;
 }) {
   const { revenueNet, revenueVat, profit, vatToPay, pitDelta, netCash } = result;
   const taxTotal = vatToPay + pitDelta;
   const empty = amountGross === 0 && costsGross === 0;
   const displayCash = withInvoice ? netCash : profitNoInvoice;
+  const recovered = recoveredVat > 0;
 
   return (
     <section className="space-y-3">
@@ -824,7 +854,9 @@ function ResultPanel({
         </p>
         {!withInvoice && (
           <p className="text-[11px] text-emerald-700/80 mt-1">
-            kwota − koszty · brak VAT i PIT
+            {recovered
+              ? "kwota − koszty + zwrot VAT · brak PIT"
+              : "kwota − koszty · brak VAT i PIT"}
           </p>
         )}
       </div>
@@ -886,6 +918,13 @@ function ResultPanel({
                 <GroupHeader>Gotówka</GroupHeader>
                 <Row label="Kwota od klienta" value={fmtPLN(amountGross)} />
                 <Row label="− Koszty brutto" value={`− ${fmtPLN(costsGross)}`} sub />
+                {recovered && (
+                  <Row
+                    label="+ VAT do odzyskania (z JPK)"
+                    value={`+ ${fmtPLN(recoveredVat)}`}
+                    sub
+                  />
+                )}
                 <Row label="= Do kieszeni" value={fmtPLN(profitNoInvoice)} bold />
               </>
             )}

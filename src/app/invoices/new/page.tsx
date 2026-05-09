@@ -1,6 +1,8 @@
 import PageHeader from "@/components/PageHeader";
 import UploadForm from "../UploadForm";
 
+export const metadata = { title: "Nowa faktura" };
+
 export default function NewInvoicePage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-6">
