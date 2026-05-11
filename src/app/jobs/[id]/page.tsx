@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getJob, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
 import { listCostLinesByJob } from "@/lib/dao/cost_lines";
+import { listChecklistByJob } from "@/lib/dao/job_checklist";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { getDashboardData } from "@/lib/dao/dashboard";
 import {
@@ -16,6 +17,7 @@ import { pitFor } from "@/lib/tax";
 import { fmtPLN, fmtDate, fmtMinutes } from "@/lib/format";
 import { deleteJobAction, markJobPaidAction } from "../actions";
 import TimeTracker from "./TimeTracker";
+import JobChecklist from "./JobChecklist";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,12 +30,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const job = await getJob(id);
   if (!job) notFound();
 
-  const [costLines, settings, timeEntries, activeTimer, dashboard] = await Promise.all([
+  const [costLines, settings, timeEntries, activeTimer, dashboard, checklist] = await Promise.all([
     listCostLinesByJob(id),
     getUserSettingsOrDefault(),
     listEntriesByJob(id),
     getActiveTimer(),
     getDashboardData(),
+    listChecklistByJob(id),
   ]);
   const margin = computeJobMargin(job, costLines, settings.is_vat_payer);
   const phaseSums = sumByPhase(timeEntries);
@@ -150,6 +153,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </p>
           )}
         </section>
+
+        <JobChecklist jobId={id} projectType={job.project_type} items={checklist} />
 
         <TimeTracker
           jobId={id}

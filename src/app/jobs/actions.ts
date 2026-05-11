@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createJob, updateJob, deleteJob, getJob, type JobInput, type JobStatus } from "@/lib/dao/jobs";
 import { parseAmount } from "@/lib/format";
+import {
+  countChecklistByJob,
+  seedChecklistFromTemplate,
+} from "@/lib/dao/job_checklist";
+import { PROJECT_TYPES, type ProjectType } from "@/lib/dao/job_checklist.types";
 
 type Result = { error?: string };
 
@@ -49,6 +54,14 @@ function readJobForm(formData: FormData): JobInput | string {
 
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
+  const projectTypeRaw = String(formData.get("project_type") ?? "").trim();
+  let project_type: ProjectType | null = null;
+  if (projectTypeRaw) {
+    if (!PROJECT_TYPES.includes(projectTypeRaw as ProjectType))
+      return "Nieznany typ projektu.";
+    project_type = projectTypeRaw as ProjectType;
+  }
+
   return {
     client_id,
     title,
@@ -64,8 +77,16 @@ function readJobForm(formData: FormData): JobInput | string {
     invoiced,
     invoice_number,
     invoice_date,
+    project_type,
     notes,
   };
+}
+
+async function maybeSeedChecklist(jobId: string, type: ProjectType | null | undefined) {
+  if (!type) return;
+  const existing = await countChecklistByJob(jobId);
+  if (existing > 0) return;
+  await seedChecklistFromTemplate(jobId, type);
 }
 
 export async function createJobAction(_prev: Result, formData: FormData): Promise<Result> {
@@ -73,6 +94,7 @@ export async function createJobAction(_prev: Result, formData: FormData): Promis
   if (typeof parsed === "string") return { error: parsed };
   try {
     const created = await createJob(parsed);
+    await maybeSeedChecklist(created.id, parsed.project_type);
     revalidatePath("/jobs");
     revalidatePath(`/clients/${parsed.client_id}`);
     redirect(`/jobs/${created.id}`);
@@ -92,6 +114,7 @@ export async function updateJobAction(
   if (typeof parsed === "string") return { error: parsed };
   try {
     await updateJob(id, parsed);
+    await maybeSeedChecklist(id, parsed.project_type);
     revalidatePath("/jobs");
     revalidatePath(`/jobs/${id}`);
     revalidatePath(`/clients/${parsed.client_id}`);

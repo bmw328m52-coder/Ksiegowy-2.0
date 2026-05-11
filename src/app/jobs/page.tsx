@@ -3,6 +3,7 @@ import PageHeader from "@/components/PageHeader";
 import { listJobs, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { computeJobMargin, getJobMarginsMap } from "@/lib/jobMargin";
+import { getChecklistProgressMap, type ChecklistProgress } from "@/lib/dao/job_checklist";
 import { fmtPLN, fmtDate } from "@/lib/format";
 
 export const metadata = { title: "Zlecenia" };
@@ -40,7 +41,11 @@ export default async function JobsPage({
       })
     : filteredByTab;
 
-  const marginsMap = await getJobMarginsMap(jobs.map((j) => j.id));
+  const jobIds = jobs.map((j) => j.id);
+  const [marginsMap, checklistMap] = await Promise.all([
+    getJobMarginsMap(jobIds),
+    getChecklistProgressMap(jobIds),
+  ]);
 
   const counts = {
     all: all.length,
@@ -151,6 +156,7 @@ export default async function JobsPage({
                         {showMargin && m.marginPct !== null && (
                           <MarginPill profit={m.profit} pct={m.marginPct} />
                         )}
+                        <ChecklistPill progress={checklistMap.get(j.id)} />
                       </div>
                     </div>
                   </Link>
@@ -232,6 +238,27 @@ function MarginPill({ profit, pct }: { profit: number; pct: number }) {
     >
       {pos ? "+" : ""}
       {pct.toFixed(0)}%
+    </span>
+  );
+}
+
+function ChecklistPill({ progress }: { progress: ChecklistProgress | undefined }) {
+  if (!progress || progress.total === 0) return null;
+  const { total, installed, active } = progress;
+  const done = installed === total;
+  const started = active > 0;
+  const cls = done
+    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+    : started
+      ? "bg-amber-50 text-amber-700 border-amber-200"
+      : "bg-zinc-50 text-zinc-600 border-zinc-200";
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[10px] border tabular-nums ${cls}`}
+      title={`Checklist: ${installed} zamontowane, ${active} w toku, ${total} łącznie`}
+    >
+      {done ? "✓ " : ""}
+      {installed}/{total}
     </span>
   );
 }

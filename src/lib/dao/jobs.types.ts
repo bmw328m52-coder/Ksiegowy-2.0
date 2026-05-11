@@ -1,3 +1,5 @@
+import type { ProjectType } from "./job_checklist.types";
+
 export type JobStatus = "planned" | "in_progress" | "completed" | "paid" | "cancelled";
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
@@ -25,6 +27,7 @@ export type Job = {
   invoiced: boolean;
   invoice_number: string | null;
   invoice_date: string | null;
+  project_type: ProjectType | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -45,5 +48,6 @@ export type JobInput = {
   invoiced?: boolean;
   invoice_number?: string | null;
   invoice_date?: string | null;
+  project_type?: ProjectType | null;
   notes?: string | null;
 };

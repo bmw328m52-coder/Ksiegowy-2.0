@@ -3,6 +3,11 @@
 import { useActionState, useState } from "react";
 import type { Job, JobStatus } from "@/lib/dao/jobs.types";
 import { JOB_STATUS_LABELS } from "@/lib/dao/jobs.types";
+import {
+  PROJECT_TYPES,
+  PROJECT_TYPE_LABELS,
+  type ProjectType,
+} from "@/lib/dao/job_checklist.types";
 
 type Action = (prev: { error?: string }, formData: FormData) => Promise<{ error?: string }>;
 
@@ -76,6 +81,24 @@ export default function JobForm({
             </option>
           ))}
         </select>
+      </Field>
+
+      <Field label="Typ projektu (checklist)">
+        <select
+          name="project_type"
+          defaultValue={(initial?.project_type as ProjectType) ?? ""}
+          className={inputCls}
+        >
+          <option value="">— brak —</option>
+          {PROJECT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {PROJECT_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+        <span className="text-[11px] text-zinc-500">
+          Po wyborze typu zlecenie dostanie automatycznie checklist startowy do edycji.
+        </span>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
