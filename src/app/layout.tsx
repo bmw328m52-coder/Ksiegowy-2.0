@@ -1,8 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import Sidebar from "@/components/Sidebar";
+import RightPanel from "@/components/RightPanel";
 import ActiveTimerBar from "@/components/ActiveTimerBar";
 import ToastContainer from "@/components/ToastContainer";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import { PrivateModeProvider } from "@/components/PrivateModeProvider";
+import PrivateModeFab from "@/components/PrivateModeFab";
+
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -36,15 +48,22 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pl" translate="no" className="notranslate h-full antialiased">
-      <body
-        className="min-h-full flex flex-col text-[#282624]"
-        style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom))" }}
-      >
-        {children}
-        <ToastContainer />
-        <ActiveTimerBar />
-        <BottomNav />
+    <html lang="pl" translate="no" className={`notranslate h-full antialiased ${inter.variable}`}>
+      <body className="min-h-full text-[#282624] pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 bg-[#ebe3d2]">
+        <PrivateModeProvider>
+          <PrivateModeFab />
+          <div className="flex flex-col min-h-full md:max-w-[1500px] md:mx-auto md:p-[18px] md:grid md:gap-[18px] md:items-start md:[grid-template-columns:240px_minmax(0,1fr)] lg:[grid-template-columns:240px_minmax(0,1fr)_300px]">
+            <Sidebar />
+            <div className="flex flex-col min-w-0 md:rounded-[18px] md:bg-[#faf7f2] md:border md:border-[#e6dcc7] md:overflow-hidden">
+              {children}
+            </div>
+            <RightPanel />
+          </div>
+          <ToastContainer />
+          <ActiveTimerBar />
+          <BottomNav />
+          <ServiceWorkerRegistrar />
+        </PrivateModeProvider>
       </body>
     </html>
   );

@@ -3,45 +3,31 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+type Tone = "info" | "ok" | "warn" | "accent" | "neutral";
+
 type Tab = {
   href: string;
   label: string;
   match: (p: string) => boolean;
   icon: (props: { active: boolean }) => React.ReactNode;
+  tone: Tone;
 };
 
 const TABS: Tab[] = [
-  {
-    href: "/",
-    label: "Start",
-    match: (p) => p === "/",
-    icon: HomeIcon,
-  },
-  {
-    href: "/clients",
-    label: "Klienci",
-    match: (p) => p.startsWith("/clients"),
-    icon: UsersIcon,
-  },
-  {
-    href: "/jobs",
-    label: "Zlecenia",
-    match: (p) => p.startsWith("/jobs"),
-    icon: BriefcaseIcon,
-  },
-  {
-    href: "/invoices",
-    label: "Faktury",
-    match: (p) => p.startsWith("/invoices"),
-    icon: ReceiptIcon,
-  },
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    match: (p) => p.startsWith("/dashboard"),
-    icon: ChartIcon,
-  },
+  { href: "/", label: "Start", match: (p) => p === "/", icon: HomeIcon, tone: "accent" },
+  { href: "/clients", label: "Klienci", match: (p) => p.startsWith("/clients"), icon: UsersIcon, tone: "ok" },
+  { href: "/jobs", label: "Zlecenia", match: (p) => p.startsWith("/jobs"), icon: ClipboardListIcon, tone: "info" },
+  { href: "/invoices", label: "Faktury", match: (p) => p.startsWith("/invoices"), icon: ReceiptIcon, tone: "warn" },
+  { href: "/dashboard", label: "Dashboard", match: (p) => p.startsWith("/dashboard"), icon: ChartIcon, tone: "info" },
 ];
+
+const TONE_BG: Record<Tone, string> = {
+  info: "bg-[#dde5ef] text-[#5a7898]",
+  ok: "bg-[#e3efe5] text-[#4f8a64]",
+  warn: "bg-[#f4e0d9] text-[#b8523a]",
+  accent: "bg-[#ebe8e3] text-[#57534e]",
+  neutral: "bg-[#f5f3ef] text-[#6f6457]",
+};
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -50,7 +36,7 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="Główna nawigacja"
-      className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-[#e8e4dd]"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-[#e8e4dd] md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="w-full max-w-md mx-auto flex">
@@ -62,11 +48,24 @@ export default function BottomNav() {
               key={tab.href}
               href={tab.href}
               aria-current={active ? "page" : undefined}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 active:bg-[#faf7f2] ${
-                active ? "text-[#282624]" : "text-[#9ea29c]"
+              className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 active:bg-[#faf7f2] ${
+                active ? "text-[#282624]" : "text-[#6f6457]"
               }`}
             >
-              <Icon active={active} />
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-[#282624]"
+                />
+              )}
+              <span
+                className={[
+                  "inline-flex w-9 h-9 rounded-lg items-center justify-center",
+                  active ? "bg-[#282624] text-white" : TONE_BG[tab.tone],
+                ].join(" ")}
+              >
+                <Icon active={active} />
+              </span>
               <span className={`text-[10px] tracking-tight ${active ? "font-semibold" : ""}`}>
                 {tab.label}
               </span>
@@ -115,7 +114,7 @@ function ReceiptIcon({ active }: { active: boolean }) {
   );
 }
 
-function BriefcaseIcon({ active }: { active: boolean }) {
+function ClipboardListIcon({ active }: { active: boolean }) {
   return (
     <svg
       width="22"
@@ -127,8 +126,9 @@ function BriefcaseIcon({ active }: { active: boolean }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="2.5" y="7" width="19" height="13" rx="2" />
-      <path d="M16 20V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v15" stroke={active ? "#fff" : "currentColor"} />
+      <rect x="4" y="4" width="16" height="18" rx="2" />
+      <path d="M9 2h6a1 1 0 0 1 1 1v3H8V3a1 1 0 0 1 1-1z" stroke={active ? "#fff" : "currentColor"} />
+      <path d="M8 12h8M8 16h5" stroke={active ? "#fff" : "currentColor"} strokeWidth="1.7" />
     </svg>
   );
 }

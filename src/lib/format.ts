@@ -45,3 +45,14 @@ export function fmtHours(min: number | null | undefined): string {
   const h = min / 60;
   return `${h.toFixed(2).replace(".", ",")} h`;
 }
+
+export function fmtDuration(min: number | null | undefined): string {
+  if (min === null || min === undefined || !Number.isFinite(min)) return "—";
+  const total = Math.max(0, Math.round(min));
+  if (total === 0) return "0 min";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
