@@ -2,22 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
-import { getJob, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
-import { listCostLinesByJob } from "@/lib/dao/cost_lines";
-import { listChecklistByJob } from "@/lib/dao/job_checklist";
-import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
-import { getDashboardData } from "@/lib/dao/dashboard";
-import {
-  getActiveTimer,
-  listEntriesByJob,
-  sumByPhase,
-} from "@/lib/dao/time_entries";
-import { computeJobMargin } from "@/lib/jobMargin";
-import { pitFor } from "@/lib/tax";
-import { fmtPLN, fmtDate, fmtMinutes } from "@/lib/format";
-import { deleteJobAction, markJobPaidAction } from "../actions";
-import TimeTracker from "./TimeTracker";
-import JobChecklist from "./JobChecklist";
+import { getJob } from "@/lib/dao/jobs";
+import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus } from "@/lib/dao/jobs.types";
+import { fmtDate } from "@/lib/format";
+import { deleteJobAction } from "../actions";
+import PomiarSection from "./PomiarSection";
+import { getBriefByJob } from "@/lib/dao/quote_briefs";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,245 +20,84 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const job = await getJob(id);
   if (!job) notFound();
 
-  const [costLines, settings, timeEntries, activeTimer, dashboard, checklist] = await Promise.all([
-    listCostLinesByJob(id),
-    getUserSettingsOrDefault(),
-    listEntriesByJob(id),
-    getActiveTimer(),
-    getDashboardData(),
-    listChecklistByJob(id),
-  ]);
-  const margin = computeJobMargin(job, costLines, settings.is_vat_payer);
-  const phaseSums = sumByPhase(timeEntries);
-
-  const totalMin = timeEntries.reduce((s, e) => s + (e.duration_minutes ?? 0), 0);
-  const totalHours = totalMin / 60;
-  const profitForTaxes = Math.max(0, margin.profit);
-  // YTD nie wlicza tego zlecenia, jeśli jeszcze nie opłacone — odejmujemy żeby uniknąć podwójnego liczenia
-  const baselineYearIncome = Math.max(
-    0,
-    dashboard.pit.profitYtd - (job.status === "paid" ? profitForTaxes : 0)
-  );
-  const pitForJob =
-    pitFor(settings.tax_form, baselineYearIncome + profitForTaxes) -
-    pitFor(settings.tax_form, baselineYearIncome);
-  const zusMonthly = Number(settings.zus_pelny ?? 0);
-  const hoursPerMonth = 160;
-  const zusForJob = (zusMonthly / hoursPerMonth) * totalHours;
-  const netCashAfterTax = margin.profit - pitForJob - zusForJob;
-  const ratePerHour = totalHours > 0 ? netCashAfterTax / totalHours : 0;
-
-  const vatPct = Math.round(Number(job.vat_rate) * 100);
-  const gross = Number(job.amount_gross);
-  const net = vatPct > 0 ? gross / (1 + Number(job.vat_rate)) : gross;
-  const vat = gross - net;
-  const deposit = Number(job.deposit_amount ?? 0);
-  const balanceDue = Math.max(0, gross - deposit);
+  const brief = await getBriefByJob(id);
+  const stages = buildStages(job);
 
   const deleteWithIds = deleteJobAction.bind(null, id, job.client_id);
-  const markPaid = markJobPaidAction.bind(null, id);
 
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md mx-auto">
+      <div className="w-full max-w-md sm:max-w-lg mx-auto">
         <PageHeader
           title={job.title}
           back={{ href: `/clients/${job.client_id}` }}
           action={
             <Link
               href={`/jobs/${id}/edit`}
-              className="text-sm text-zinc-600 underline-offset-2 hover:underline"
+              className="text-sm text-[#6b6661] underline-offset-2 hover:underline"
             >
               Edytuj
             </Link>
           }
         />
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
+        <section className="rounded-xl border border-[#e8e4dd] bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-500">Klient</span>
+            <span className="text-sm text-[#9c9081]">Klient</span>
             <Link
               href={`/clients/${job.client_id}`}
-              className="text-sm font-medium underline-offset-2 hover:underline"
+              className="text-sm font-medium text-[#282624] underline-offset-2 hover:underline"
             >
               {job.client_name}
             </Link>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-500">Status</span>
-            <span className="text-sm font-medium">{JOB_STATUS_LABELS[job.status]}</span>
-          </div>
-
-          <div className="border-t border-zinc-100 pt-3 grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-xs text-zinc-500">Netto</p>
-              <p className="text-sm font-medium">{fmtPLN(net)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-500">VAT {vatPct}%</p>
-              <p className="text-sm font-medium">{fmtPLN(vat)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-500">Brutto</p>
-              <p className="text-base font-semibold">{fmtPLN(gross)}</p>
-            </div>
+            <span className="text-sm text-[#9c9081]">Etap</span>
+            <StatusPill status={job.status} />
           </div>
         </section>
 
-        <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 space-y-2">
-          <div className="flex items-baseline justify-between gap-2 mb-1">
-            <h2 className="text-sm font-semibold text-zinc-700">Marża zlecenia</h2>
-            <span className="text-[11px] text-zinc-500">
-              {margin.costsCount} {margin.costsCount === 1 ? "pozycja" : margin.costsCount > 1 && margin.costsCount < 5 ? "pozycje" : "pozycji"} kosztu
-            </span>
-          </div>
-          <Row label="Przychód netto" value={fmtPLN(margin.revenueNet)} />
-          <Row label="Koszty przypisane" value={`− ${fmtPLN(margin.costsNet)}`} />
-          <div className="border-t border-zinc-100 pt-2 flex items-center justify-between gap-2">
-            <span className="text-sm font-medium text-zinc-900">Zysk</span>
-            <span className="flex items-baseline gap-2">
-              <span
-                className={`text-base font-semibold tabular-nums ${
-                  margin.profit >= 0 ? "text-emerald-700" : "text-red-700"
-                }`}
-              >
-                {fmtPLN(margin.profit)}
-              </span>
-              {margin.marginPct !== null && (
-                <span
-                  className={`text-xs tabular-nums ${
-                    margin.profit >= 0 ? "text-emerald-700" : "text-red-700"
-                  }`}
-                >
-                  {margin.profit >= 0 ? "+" : ""}
-                  {margin.marginPct.toFixed(1)}%
-                </span>
-              )}
-            </span>
-          </div>
-          {margin.costsCount === 0 && (
-            <p className="text-[11px] text-zinc-500 pt-1">
-              Przypisz pozycje z faktur kosztowych do tego zlecenia, aby śledzić rzeczywistą marżę.
+        <StageTimeline stages={stages} />
+
+        <PomiarSection jobId={id} brief={brief} projectType={job.project_type} />
+
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <Link
+            href={`/jobs/${id}/wycena`}
+            className="block rounded-xl border border-[#e8e4dd] bg-white p-4 text-sm font-medium text-[#282624] active:bg-[#faf7f2] hover:border-[#d8d2c8] transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span>Wycena pozycji</span>
+              <span className="text-[#9c9081]">→</span>
+            </div>
+            <p className="text-xs text-[#9c9081] mt-1">
+              Lista pozycji i materiały
             </p>
-          )}
-        </section>
-
-        <JobChecklist jobId={id} projectType={job.project_type} items={checklist} />
-
-        <TimeTracker
-          jobId={id}
-          entries={timeEntries}
-          active={activeTimer}
-          phaseSums={phaseSums}
-        />
-
-        {totalMin > 0 && (
-          <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 space-y-2">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold text-zinc-700">Rzeczywista stawka</h2>
-              <span className="text-[11px] text-zinc-500">
-                {fmtMinutes(totalMin)} ({totalHours.toFixed(2).replace(".", ",")} h)
-              </span>
+          </Link>
+          <Link
+            href={`/calculator?job=${id}`}
+            className="block rounded-xl border border-[#e8e4dd] bg-white p-4 text-sm font-medium text-[#282624] active:bg-[#faf7f2] hover:border-[#d8d2c8] transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span>Kalkulator wyceny</span>
+              <span className="text-[#9c9081]">→</span>
             </div>
-
-            <div
-              className={`rounded-xl border p-3 ${
-                ratePerHour >= 0 ? "border-emerald-300 bg-emerald-50" : "border-red-300 bg-red-50"
-              }`}
-            >
-              <p
-                className={`text-[11px] uppercase tracking-wide font-semibold ${
-                  ratePerHour >= 0 ? "text-emerald-700" : "text-red-700"
-                }`}
-              >
-                Na rękę / godzinę
-              </p>
-              <p
-                className={`text-2xl font-bold tabular-nums ${
-                  ratePerHour >= 0 ? "text-emerald-900" : "text-red-900"
-                }`}
-              >
-                {fmtPLN(ratePerHour)}
-              </p>
-              <p
-                className={`text-[11px] mt-0.5 ${
-                  ratePerHour >= 0 ? "text-emerald-700/80" : "text-red-700/80"
-                }`}
-              >
-                po PIT i ZUS proporcjonalnym
-              </p>
-            </div>
-
-            <div className="text-xs space-y-1.5 pt-1">
-              <Row label="Zysk netto (przychód − koszty)" value={fmtPLN(margin.profit)} />
-              <Row
-                label={`PIT (${settings.tax_form === "skala" ? "skala" : "liniowy"}, przyrost roczny)`}
-                value={`− ${fmtPLN(pitForJob)}`}
-              />
-              <Row
-                label={`ZUS proporcjonalny (${fmtPLN(zusMonthly)}/mies. × ${totalHours.toFixed(1).replace(".", ",")}h ÷ ${hoursPerMonth}h)`}
-                value={`− ${fmtPLN(zusForJob)}`}
-              />
-              <div className="border-t border-zinc-100 pt-1.5 flex items-center justify-between">
-                <span className="text-zinc-900 font-medium">Na rękę</span>
-                <span
-                  className={`font-semibold tabular-nums ${
-                    netCashAfterTax >= 0 ? "text-emerald-700" : "text-red-700"
-                  }`}
-                >
-                  {fmtPLN(netCashAfterTax)}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-zinc-500 pt-1">
-              PIT jako przyrost względem dochodu YTD (uwzględnia kwotę wolną i progi). VAT
-              pomija się — pass-through dla VATowca.
+            <p className="text-xs text-[#9c9081] mt-1">
+              Marża, VAT, PIT, ZUS — na czysto
             </p>
-          </section>
-        )}
+          </Link>
+        </div>
 
-        {deposit > 0 && (
-          <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm space-y-2">
-            <Row label="Zaliczka / zadatek" value={fmtPLN(deposit)} />
-            {job.deposit_date && (
-              <Row label="Data zaliczki" value={fmtDate(job.deposit_date)} />
-            )}
-            <div className="border-t border-zinc-100 pt-2">
-              <Row label="Pozostało do zapłaty" value={fmtPLN(balanceDue)} />
-            </div>
-          </section>
-        )}
-
-        <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 text-sm space-y-2">
-          {job.start_date && (
-            <Row label="Data startu" value={fmtDate(job.start_date)} />
-          )}
-          {job.due_date && <Row label="Termin" value={fmtDate(job.due_date)} />}
-          {job.completed_date && (
-            <Row label="Zakończono" value={fmtDate(job.completed_date)} />
-          )}
-          {job.paid_date && <Row label="Zapłacono" value={fmtDate(job.paid_date)} />}
-          {!job.start_date && !job.due_date && !job.completed_date && !job.paid_date && (
-            <p className="text-zinc-400 text-center">Brak ustawionych dat.</p>
-          )}
-          {job.notes && (
-            <p className="whitespace-pre-wrap pt-2 border-t border-zinc-100 text-zinc-700">
+        {job.notes && (
+          <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4">
+            <p className="text-[11px] uppercase tracking-wide font-semibold text-[#9c9081] mb-2">
+              Notatki
+            </p>
+            <p className="whitespace-pre-wrap text-sm text-[#524d48]">
               {job.notes}
             </p>
-          )}
-        </section>
-
-        {job.status !== "paid" && (
-          <form action={markPaid} className="mt-4">
-            <button
-              type="submit"
-              className="w-full rounded-lg bg-green-600 text-white py-3 font-medium active:opacity-80"
-            >
-              Oznacz jako opłacone
-            </button>
-          </form>
+          </section>
         )}
 
         <form action={deleteWithIds} className="mt-10">
@@ -285,11 +114,168 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+type StageState = "done" | "current" | "upcoming" | "skipped";
+
+type Stage = {
+  key: string;
+  label: string;
+  date: string | null;
+  state: StageState;
+  hint?: string;
+};
+
+// Mapowanie etapu workflow na opcjonalną datę i hint z rekordu zlecenia
+function stageDate(
+  status: JobStatus,
+  job: Awaited<ReturnType<typeof getJob>> & object,
+): { date: string | null; hint?: string } {
+  switch (status) {
+    case "to_measure":
+      return { date: job.start_date, hint: job.start_date ? "pomiar zaplanowany" : undefined };
+    case "accepted":
+      return {
+        date: job.deposit_date,
+        hint:
+          Number(job.deposit_amount) > 0
+            ? `zaliczka ${Number(job.deposit_amount).toFixed(2)} zł`
+            : undefined,
+      };
+    case "in_production":
+      return { date: job.due_date, hint: job.due_date ? `termin ${fmtDate(job.due_date)}` : undefined };
+    case "installed":
+      return { date: job.completed_date };
+    case "settled":
+      return {
+        date: job.paid_date ?? job.invoice_date,
+        hint: job.invoice_number ? `FV ${job.invoice_number}` : undefined,
+      };
+    default:
+      return { date: null };
+  }
+}
+
+function buildStages(job: Awaited<ReturnType<typeof getJob>> & object): Stage[] {
+  if (job.status === "cancelled") {
+    return [
+      {
+        key: "created",
+        label: "Utworzono",
+        date: job.created_at.slice(0, 10),
+        state: "done",
+      },
+      { key: "cancelled", label: "Anulowane", date: null, state: "done" },
+    ];
+  }
+
+  const currentIdx = JOB_STATUS_WORKFLOW.indexOf(job.status);
+
+  return JOB_STATUS_WORKFLOW.map((s, i) => {
+    const { date, hint } = stageDate(s, job);
+    const state: StageState =
+      i < currentIdx ? "done" : i === currentIdx ? "current" : "upcoming";
+    return {
+      key: s,
+      label: JOB_STATUS_LABELS[s],
+      date,
+      state,
+      hint,
+    };
+  });
+}
+
+function StageTimeline({ stages }: { stages: Stage[] }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-zinc-500">{label}</span>
-      <span>{value}</span>
-    </div>
+    <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4">
+      <p className="text-[11px] uppercase tracking-wide font-semibold text-[#9c9081] mb-3">
+        Etapy zlecenia
+      </p>
+      <ol className="relative pl-2">
+        {stages.map((s, i) => {
+          const last = i === stages.length - 1;
+          return (
+            <li key={s.key} className="relative flex gap-3 pb-3 last:pb-0">
+              <div className="relative flex flex-col items-center shrink-0">
+                <StageDot state={s.state} />
+                {!last && <StageConnector state={s.state} />}
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p
+                    className={[
+                      "text-sm font-medium truncate",
+                      s.state === "done"
+                        ? "text-[#282624]"
+                        : s.state === "current"
+                          ? "text-[#282624]"
+                          : s.state === "upcoming"
+                            ? "text-[#6b6661]"
+                            : "text-[#c4bbac] line-through",
+                    ].join(" ")}
+                  >
+                    {s.label}
+                    {s.state === "current" && (
+                      <span className="ml-2 inline-block text-[10px] uppercase tracking-wide font-semibold text-[#5a7898] bg-[#dde5ef] rounded-full px-1.5 py-0.5 align-middle">
+                        teraz
+                      </span>
+                    )}
+                  </p>
+                  {s.date && (
+                    <span className="text-[11px] tabular-nums text-[#9c9081] shrink-0">
+                      {fmtDate(s.date)}
+                    </span>
+                  )}
+                </div>
+                {s.hint && (
+                  <p className="text-[11px] text-[#9c9081] mt-0.5">{s.hint}</p>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function StageDot({ state }: { state: StageState }) {
+  const cls = {
+    done: "bg-[#4f8a64] border-[#4f8a64]",
+    current: "bg-white border-[#5a7898] ring-2 ring-[#dde5ef]",
+    upcoming: "bg-white border-[#e8e4dd]",
+    skipped: "bg-[#f5f3ef] border-[#e8e4dd]",
+  }[state];
+  return (
+    <span
+      aria-hidden
+      className={`w-3 h-3 rounded-full border-2 ${cls}`}
+    />
+  );
+}
+
+function StageConnector({ state }: { state: StageState }) {
+  const cls = state === "done" ? "bg-[#4f8a64]" : "bg-[#e8e4dd]";
+  return <span aria-hidden className={`mt-0.5 w-0.5 flex-1 min-h-[14px] ${cls}`} />;
+}
+
+function StatusPill({ status }: { status: JobStatus }) {
+  const styles: Record<JobStatus, string> = {
+    new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
+    to_measure: "bg-[#ebe8e3] text-[#524d48]",
+    after_measure: "bg-[#ebe8e3] text-[#524d48]",
+    to_quote: "bg-[#faf5e9] text-[#a18653]",
+    quote_sent: "bg-[#faf5e9] text-[#a18653]",
+    accepted: "bg-[#dde5ef] text-[#5a7898]",
+    materials_ordered: "bg-[#dde5ef] text-[#5a7898]",
+    in_production: "bg-[#dde5ef] text-[#5a7898]",
+    ready_to_install: "bg-[#e3efe5] text-[#4f8a64]",
+    installed: "bg-[#e3efe5] text-[#4f8a64]",
+    settled: "bg-[#e3efe5] text-[#3a6b4d]",
+    archived: "bg-[#f5f3ef] text-[#9c9081]",
+    cancelled: "bg-[#f5f3ef] text-[#9c9081] line-through",
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
+      {JOB_STATUS_LABELS[status]}
+    </span>
   );
 }

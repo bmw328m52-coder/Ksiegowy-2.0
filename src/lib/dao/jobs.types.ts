@@ -1,14 +1,57 @@
 import type { ProjectType } from "./job_checklist.types";
 
-export type JobStatus = "planned" | "in_progress" | "completed" | "paid" | "cancelled";
+export type JobStatus =
+  | "new_inquiry"
+  | "to_measure"
+  | "after_measure"
+  | "to_quote"
+  | "quote_sent"
+  | "accepted"
+  | "materials_ordered"
+  | "in_production"
+  | "ready_to_install"
+  | "installed"
+  | "settled"
+  | "archived"
+  | "cancelled";
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
-  planned: "Planowane",
-  in_progress: "W trakcie",
-  completed: "Zakończone",
-  paid: "Opłacone",
+  new_inquiry: "Nowe zapytanie",
+  to_measure: "Do pomiaru",
+  after_measure: "Po pomiarze",
+  to_quote: "Do wyceny",
+  quote_sent: "Wycena wysłana",
+  accepted: "Zaakceptowane",
+  materials_ordered: "Materiały zamówione",
+  in_production: "W produkcji",
+  ready_to_install: "Gotowe do montażu",
+  installed: "Zamontowane",
+  settled: "Rozliczone",
+  archived: "Archiwum",
   cancelled: "Anulowane",
 };
+
+// Kolejność workflow (bez 'cancelled' — wyświetlane osobno)
+export const JOB_STATUS_WORKFLOW: JobStatus[] = [
+  "new_inquiry",
+  "to_measure",
+  "after_measure",
+  "to_quote",
+  "quote_sent",
+  "accepted",
+  "materials_ordered",
+  "in_production",
+  "ready_to_install",
+  "installed",
+  "settled",
+  "archived",
+];
+
+// Statusy zlecenia traktowane jako "wykonane" (przychód księgowany)
+export const JOB_STATUS_DONE: JobStatus[] = ["installed", "settled", "archived"];
+
+// Statusy zamknięte (nie pojawiają się jako aktywne)
+export const JOB_STATUS_CLOSED: JobStatus[] = ["settled", "archived", "cancelled"];
 
 export type Job = {
   id: string;

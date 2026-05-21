@@ -199,11 +199,11 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     supabase
       .from("jobs")
       .select("amount_gross, vat_rate, status, paid_date, completed_date, invoiced")
-      .in("status", ["paid", "completed"]),
+      .in("status", ["installed", "settled", "archived"]),
     supabase
       .from("jobs")
       .select("amount_gross, vat_rate, status, paid_date, completed_date, deposit_amount, deposit_date")
-      .not("status", "in", "(paid,completed,cancelled)")
+      .not("status", "in", "(settled,archived,cancelled)")
       .not("deposit_date", "is", null)
       .gte("deposit_date", yearStart)
       .lte("deposit_date", yearEnd),
@@ -220,7 +220,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       const retry = await supabase
         .from("jobs")
         .select("amount_gross, vat_rate, status, paid_date, completed_date")
-        .in("status", ["paid", "completed"]);
+        .in("status", ["installed", "settled", "archived"]);
       if (retry.error) throw retry.error;
       jobsData = retry.data ?? [];
     } else {
@@ -272,7 +272,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
   let pendingRevenueGross = 0;
 
   for (const j of jobs) {
-    if (j.status === "completed" && !j.paid_date) {
+    if (j.status === "installed" && !j.paid_date) {
       pendingRevenueGross += toNum(j.amount_gross);
       continue;
     }
@@ -365,7 +365,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
 
     const vatPeriod = emptyTotals();
     for (const j of jobs) {
-      if (j.status === "completed" && !j.paid_date) continue;
+      if (j.status === "installed" && !j.paid_date) continue;
       const d = jobRevenueDate(j);
       if (inRange(d, from, to)) addJobRevenue(vatPeriod, j, true);
     }

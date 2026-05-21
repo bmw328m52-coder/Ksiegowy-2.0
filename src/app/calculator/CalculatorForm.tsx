@@ -37,6 +37,7 @@ export default function CalculatorForm({
   defaultZusPelny,
   defaultZusMaly,
   defaultZusUlga,
+  initialJobId,
 }: {
   jobs: JobOption[];
   defaultTaxForm: TaxForm;
@@ -48,7 +49,13 @@ export default function CalculatorForm({
   defaultZusPelny: number;
   defaultZusMaly: number;
   defaultZusUlga: number;
+  initialJobId?: string;
 }) {
+  const presetJob = initialJobId ? jobs.find((j) => j.id === initialJobId) : undefined;
+  const presetCostsGross = presetJob
+    ? presetJob.costs_net + presetJob.costs_vat
+    : 0;
+
   const [amountStr, setAmountStr] = useState("");
   const [vatPct, setVatPct] = useState(String(Math.round(defaultVatRate * 100)));
   const [taxForm, setTaxForm] = useState<TaxForm>(defaultTaxForm);
@@ -57,9 +64,11 @@ export default function CalculatorForm({
     defaultYearIncome > 0 ? defaultYearIncome.toFixed(2) : ""
   );
   const [yearIncomeOverride, setYearIncomeOverride] = useState(false);
-  const [costsGrossStr, setCostsGrossStr] = useState("");
+  const [costsGrossStr, setCostsGrossStr] = useState(
+    presetCostsGross > 0 ? presetCostsGross.toFixed(2) : "",
+  );
   const [costsVatPct, setCostsVatPct] = useState("23");
-  const [jobId, setJobId] = useState<string>("");
+  const [jobId, setJobId] = useState<string>(presetJob ? presetJob.id : "");
   const [useBom, setUseBom] = useState(false);
   const [bomLines, setBomLines] = useState<BomLine[]>([makeBomLine()]);
   const [templateId, setTemplateId] = useState<string>("");
@@ -212,7 +221,7 @@ export default function CalculatorForm({
                 type="submit"
                 disabled={savePending || !templateName.trim()}
                 onClick={() => setShowSave(false)}
-                className="flex-1 rounded-lg bg-[#282624] text-white text-sm py-2 font-medium active:opacity-80 disabled:opacity-50"
+                className="flex-1 rounded-lg bg-accent text-white text-sm py-2 font-medium active:opacity-80 disabled:opacity-50"
               >
                 {savePending ? "Zapisuję..." : "Zapisz"}
               </button>
@@ -807,7 +816,7 @@ function RadioCard({
       type="button"
       onClick={onChange}
       className={`rounded-lg border p-3 text-left active:bg-zinc-50 ${
-        checked ? "border-[#282624] bg-zinc-50" : "border-zinc-200 bg-white"
+        checked ? "border-accent bg-zinc-50" : "border-zinc-200 bg-white"
       }`}
     >
       <div className="text-sm font-medium">{label}</div>

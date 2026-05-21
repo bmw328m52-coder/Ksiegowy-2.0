@@ -48,40 +48,44 @@ export default function JobForm({
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Kwota brutto (PLN)" required>
-          <input
-            name="amount_gross"
-            inputMode="decimal"
-            required
-            placeholder="12500"
-            defaultValue={initial?.amount_gross ?? ""}
-            className={inputCls}
-          />
-        </Field>
-        <Field label="VAT (%)">
-          <select name="vat_rate" defaultValue={vatPctInitial} className={inputCls}>
-            <option value="23">23%</option>
-            <option value="8">8%</option>
-            <option value="5">5%</option>
-            <option value="0">0%</option>
-          </select>
-        </Field>
-      </div>
+      {initial && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Kwota brutto (PLN)" required>
+              <input
+                name="amount_gross"
+                inputMode="decimal"
+                required
+                placeholder="12500"
+                defaultValue={initial?.amount_gross ?? ""}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="VAT (%)">
+              <select name="vat_rate" defaultValue={vatPctInitial} className={inputCls}>
+                <option value="23">23%</option>
+                <option value="8">8%</option>
+                <option value="5">5%</option>
+                <option value="0">0%</option>
+              </select>
+            </Field>
+          </div>
 
-      <Field label="Status">
-        <select
-          name="status"
-          defaultValue={(initial?.status as JobStatus) ?? "planned"}
-          className={inputCls}
-        >
-          {(Object.keys(JOB_STATUS_LABELS) as JobStatus[]).map((s) => (
-            <option key={s} value={s}>
-              {JOB_STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-      </Field>
+          <Field label="Status">
+            <select
+              name="status"
+              defaultValue={(initial?.status as JobStatus) ?? "to_measure"}
+              className={inputCls}
+            >
+              {(Object.keys(JOB_STATUS_LABELS) as JobStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {JOB_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </>
+      )}
 
       <Field label="Typ projektu (checklist)">
         <select
@@ -178,7 +182,7 @@ export default function JobForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-[#282624] text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
+        className="rounded-lg bg-accent text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
       >
         {pending ? "Zapisuję..." : submitLabel}
       </button>
@@ -187,7 +191,7 @@ export default function JobForm({
 }
 
 const inputCls =
-  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-[#282624] w-full";
+  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-accent w-full";
 
 function Field({
   label,
