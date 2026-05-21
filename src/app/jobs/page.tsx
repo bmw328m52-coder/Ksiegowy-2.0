@@ -303,6 +303,22 @@ export default async function JobsPage({
   );
 }
 
+const STAGE_GROUP_ACCENT: Record<JobStatus, string> = {
+  new_inquiry: "#c4bbac",
+  to_measure: "#a06f3f",
+  after_measure: "#a06f3f",
+  to_quote: "#a18653",
+  quote_sent: "#a18653",
+  accepted: "#5a7898",
+  materials_ordered: "#5a7898",
+  in_production: "#5a7898",
+  ready_to_install: "#4f8a64",
+  installed: "#4f8a64",
+  settled: "#3a6b4d",
+  archived: "#c4bbac",
+  cancelled: "#c4bbac",
+};
+
 function JobItem({
   job,
   overdue,
@@ -313,11 +329,17 @@ function JobItem({
   const dateStr = fmtDate(job.due_date ?? job.start_date);
   const stageIdx = JOB_STATUS_WORKFLOW.indexOf(job.status);
   const tone = avatarTone(job.client_name);
+  const accent = STAGE_GROUP_ACCENT[job.status];
+  const totalStages = JOB_STATUS_WORKFLOW.length - 1;
+  const completedStages = stageIdx >= 0 ? stageIdx + 1 : 0;
+  const showProgress =
+    stageIdx >= 0 && job.status !== "cancelled" && job.status !== "archived";
   return (
     <li>
       <Link
         href={`/jobs/${job.id}`}
-        className="flex items-start gap-3 rounded-xl border border-[#e6dcc7] bg-white p-3.5 active:bg-[#faf7f2] hover:border-[#c4bbac] transition-colors"
+        className="flex items-start gap-3 rounded-xl border border-[#e6dcc7] bg-white p-3.5 pl-3 active:bg-[#faf7f2] hover:border-[#c4bbac] transition-colors border-l-4"
+        style={{ borderLeftColor: accent }}
       >
         <span
           className="inline-flex w-10 h-10 rounded-full items-center justify-center text-[13px] font-bold shrink-0"
@@ -332,10 +354,23 @@ function JobItem({
             {job.client_name}
             {dateStr && ` · ${dateStr}`}
           </p>
-          {stageIdx >= 0 && stageIdx < JOB_STATUS_WORKFLOW.length - 1 && (
-            <p className="text-[10px] text-[#c4bbac] tabular-nums mt-1">
-              etap {stageIdx + 1}/{JOB_STATUS_WORKFLOW.length}
-            </p>
+          {showProgress && (
+            <div className="flex items-center gap-1.5 mt-2">
+              <div className="flex items-center gap-[3px]" aria-hidden>
+                {Array.from({ length: totalStages }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{
+                      backgroundColor: i < completedStages ? accent : "#ece6d8",
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-[10px] text-[#9c9081] tabular-nums">
+                {completedStages}/{totalStages}
+              </span>
+            </div>
           )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
