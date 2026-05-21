@@ -260,8 +260,8 @@ function StageConnector({ state }: { state: StageState }) {
 function StatusPill({ status }: { status: JobStatus }) {
   const styles: Record<JobStatus, string> = {
     new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
-    to_measure: "bg-[#ebe8e3] text-[#524d48]",
-    after_measure: "bg-[#ebe8e3] text-[#524d48]",
+    to_measure: "bg-[#f1e5d2] text-[#7d5530]",
+    after_measure: "bg-[#f1e5d2] text-[#7d5530]",
     to_quote: "bg-[#faf5e9] text-[#a18653]",
     quote_sent: "bg-[#faf5e9] text-[#a18653]",
     accepted: "bg-[#dde5ef] text-[#5a7898]",

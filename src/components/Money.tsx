@@ -7,7 +7,7 @@ export function Money({
 }: {
   children: ReactNode;
   className?: string;
-  as?: "span" | "div" | "strong" | "b";
+  as?: "span" | "div" | "strong" | "b" | "p";
 }) {
   return <As className={`money ${className}`.trim()}>{children}</As>;
 }

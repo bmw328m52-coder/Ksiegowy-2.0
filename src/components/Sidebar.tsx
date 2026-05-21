@@ -47,7 +47,7 @@ const TONE_BG: Record<Tone, string> = {
   info: "bg-[#dde5ef] text-[#5a7898]",
   ok: "bg-[#e3efe5] text-[#4f8a64]",
   warn: "bg-[#f4e0d9] text-[#b8523a]",
-  accent: "bg-[#ebe8e3] text-[#57534e]",
+  accent: "bg-[#f1e5d2] text-[#a06f3f]",
   neutral: "bg-[#f5f3ef] text-[#6f6457]",
 };
 
@@ -68,8 +68,8 @@ export default function Sidebar() {
 
       <Link
         href="/jobs/new"
-        className="mx-1 mb-3 flex items-center gap-2 rounded-xl px-3.5 py-3 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(40,38,36,.25)]"
-        style={{ background: "linear-gradient(160deg, #57534e, #3a3633)" }}
+        className="mx-1 mb-3 flex items-center gap-2 rounded-xl px-3.5 py-3 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(160,111,63,.25)]"
+        style={{ background: "linear-gradient(160deg, #a06f3f, #7d5530)" }}
       >
         <span className="text-[18px] leading-none">+</span>
         Nowe zlecenie
@@ -93,14 +93,14 @@ export default function Sidebar() {
                     className={[
                       "flex items-center gap-2.5 rounded-[10px] px-2 py-2 text-[14px] transition-colors",
                       active
-                        ? "bg-[#ebe8e3] text-[#282624] font-semibold"
+                        ? "bg-[#f1e5d2] text-[#a06f3f] font-semibold"
                         : "text-[#524d48] hover:bg-[#f5f3ef] hover:text-[#282624]",
                     ].join(" ")}
                   >
                     <span
                       className={[
                         "inline-flex w-7 h-7 rounded-lg items-center justify-center shrink-0",
-                        active ? "bg-white text-[#282624]" : TONE_BG[it.tone],
+                        active ? "bg-white text-[#a06f3f]" : TONE_BG[it.tone],
                       ].join(" ")}
                     >
                       <Icon active={active} />
@@ -121,14 +121,14 @@ export default function Sidebar() {
         className={[
           "mx-1 mt-3 mb-1 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors",
           priv
-            ? "border-[#282624] bg-[#ebe8e3]"
+            ? "border-[#a06f3f] bg-[#f1e5d2]"
             : "border-[#e8e4dd] bg-white hover:bg-[#f5f3ef]",
         ].join(" ")}
       >
         <span
           className={[
             "w-8 h-8 rounded-lg flex items-center justify-center text-[14px]",
-            priv ? "bg-[#ebe8e3] text-[#282624]" : "bg-[#f5f3ef] text-[#6f6457]",
+            priv ? "bg-white text-[#a06f3f]" : "bg-[#f5f3ef] text-[#6f6457]",
           ].join(" ")}
         >
           {priv ? "🔒" : "👁"}
@@ -142,7 +142,7 @@ export default function Sidebar() {
         <span
           className={[
             "relative w-9 h-5 rounded-full border transition-colors",
-            priv ? "bg-[#282624] border-[#282624]" : "bg-[#f5f3ef] border-[#e8e4dd]",
+            priv ? "bg-[#a06f3f] border-[#a06f3f]" : "bg-[#f5f3ef] border-[#e8e4dd]",
           ].join(" ")}
         >
           <span
@@ -157,7 +157,7 @@ export default function Sidebar() {
       <div className="border-t border-[#e8e4dd] mt-2 pt-3 px-2 flex items-center gap-2.5">
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold"
-          style={{ background: "linear-gradient(160deg, #57534e, #3a3633)" }}
+          style={{ background: "linear-gradient(160deg, #a06f3f, #7d5530)" }}
         >
           A
         </div>

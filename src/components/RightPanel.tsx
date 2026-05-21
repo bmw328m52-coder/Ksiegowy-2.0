@@ -75,14 +75,14 @@ export default async function RightPanel() {
           label="Wycena na czysto"
           name="Kalkulator"
           icon={<CalcIcon />}
-          tone="info"
+          tone="accent"
         />
         <ToolRow
           href="/usluga"
           label="Robocizna /h"
           name="Stawka usługi"
           icon={<ClockIcon />}
-          tone="ok"
+          tone="accent"
         />
       </div>
 
@@ -103,7 +103,7 @@ export default async function RightPanel() {
 
       <Link
         href="/jobs"
-        className="mt-5 text-center text-[12px] font-semibold text-[#57534e] py-2 rounded-lg border border-[#e8e4dd] bg-white active:bg-[#faf7f2] hover:border-[#d8d2c8]"
+        className="mt-5 text-center text-[12px] font-semibold text-[#a06f3f] py-2 rounded-lg border border-[#e8e4dd] bg-white active:bg-[#faf7f2] hover:border-[#a06f3f]"
       >
         Wszystkie zlecenia →
       </Link>
@@ -138,7 +138,7 @@ function ToolRow({
     info: "bg-[#dde5ef] text-[#5a7898]",
     ok: "bg-[#e3efe5] text-[#4f8a64]",
     warn: "bg-[#f4e0d9] text-[#b8523a]",
-    accent: "bg-[#ebe8e3] text-[#57534e]",
+    accent: "bg-[#f1e5d2] text-[#a06f3f]",
   }[tone];
   return (
     <Link

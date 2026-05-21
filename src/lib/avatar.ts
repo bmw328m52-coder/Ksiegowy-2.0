@@ -5,7 +5,7 @@ const PALETTE: { bg: string; fg: string }[] = [
   { bg: "#dde5ef", fg: "#5a7898" }, // info
   { bg: "#e3efe5", fg: "#4f8a64" }, // ok
   { bg: "#f4e0d9", fg: "#b8523a" }, // warn
-  { bg: "#ebe8e3", fg: "#57534e" }, // accent
+  { bg: "#f1e5d2", fg: "#a06f3f" }, // accent (gold)
   { bg: "#efe3dd", fg: "#8a5a44" }, // brąz
   { bg: "#e8e3ef", fg: "#6a548f" }, // fiolet
   { bg: "#e3efed", fg: "#3f7a72" }, // teal

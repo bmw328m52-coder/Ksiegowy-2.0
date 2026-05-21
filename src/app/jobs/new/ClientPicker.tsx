@@ -23,8 +23,8 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
     <div className="flex flex-col gap-3">
       <Link
         href="/clients/new?next=job"
-        className="flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(40,38,36,.25)]"
-        style={{ background: "linear-gradient(160deg, #57534e, #3a3633)" }}
+        className="flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(160,111,63,.25)]"
+        style={{ background: "linear-gradient(160deg, #a06f3f, #7d5530)" }}
       >
         <span className="flex items-center gap-2">
           <span className="text-[18px] leading-none">+</span>
@@ -39,7 +39,7 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Szukaj istniejącego klienta…"
-          className="w-full rounded-xl border border-[#e6dcc7] bg-white pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-[#57534e]"
+          className="w-full rounded-xl border border-[#e6dcc7] bg-white pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-[#a06f3f]"
           autoFocus
         />
         <span aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9c9081]">

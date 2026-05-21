@@ -66,7 +66,7 @@ export default async function CalculatorPage({
       <div className="w-full max-w-md sm:max-w-2xl mx-auto">
         <PageHeader title="Kalkulator" back={{ href: backHref }} />
         {presetJob && (
-          <div className="mb-3 rounded-xl border border-[#ebe8e3] bg-[#faf5e9] px-3.5 py-2.5 flex items-baseline justify-between gap-3">
+          <div className="mb-3 rounded-xl border border-[#f1e5d2] bg-[#faf5e9] px-3.5 py-2.5 flex items-baseline justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
                 Wycena dla zlecenia
@@ -80,7 +80,7 @@ export default async function CalculatorPage({
             </div>
             <Link
               href={`/jobs/${presetJob.id}`}
-              className="shrink-0 text-[11px] font-medium text-[#57534e] underline-offset-2 hover:underline"
+              className="shrink-0 text-[11px] font-medium text-[#a06f3f] underline-offset-2 hover:underline"
             >
               ← do zlecenia
             </Link>

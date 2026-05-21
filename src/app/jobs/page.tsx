@@ -203,7 +203,7 @@ export default async function JobsPage({
                     className={[
                       "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors shadow-[0_1px_2px_rgba(40,38,36,0.04)]",
                       active
-                        ? "border-[#282624] bg-[#282624] text-white shadow-[0_2px_6px_rgba(40,38,36,0.18)]"
+                        ? "border-[#a06f3f] bg-[#a06f3f] text-white shadow-[0_2px_6px_rgba(160,111,63,0.28)]"
                         : k === "overdue"
                           ? "border-[#e8c5b6] bg-[#f4e0d9] text-[#9c3a22] hover:bg-[#eed3c8]"
                           : "border-[#d8d2c8] bg-[#faf7f2] text-[#282624] hover:bg-white hover:border-[#c4bbac]",
@@ -217,7 +217,7 @@ export default async function JobsPage({
                           ? "bg-white/25 text-white"
                           : k === "overdue"
                             ? "bg-white/70 text-[#9c3a22]"
-                            : "bg-white text-[#57534e]",
+                            : "bg-white text-[#a06f3f]",
                       ].join(" ")}
                     >
                       {count}
@@ -354,8 +354,8 @@ function JobItem({
 function StageChip({ status }: { status: JobStatus }) {
   const styles: Record<JobStatus, string> = {
     new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
-    to_measure: "bg-[#ebe8e3] text-[#524d48]",
-    after_measure: "bg-[#ebe8e3] text-[#524d48]",
+    to_measure: "bg-[#f1e5d2] text-[#7d5530]",
+    after_measure: "bg-[#f1e5d2] text-[#7d5530]",
     to_quote: "bg-[#faf5e9] text-[#a18653]",
     quote_sent: "bg-[#faf5e9] text-[#a18653]",
     accepted: "bg-[#dde5ef] text-[#5a7898]",

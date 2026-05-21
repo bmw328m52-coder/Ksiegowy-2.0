@@ -246,7 +246,7 @@ export default async function Home() {
                       isOverdue
                         ? "border-[#e8c5b6] bg-[#f4e0d9] text-[#9c3a22] hover:bg-[#eed3c8]"
                         : isActive
-                          ? "border-[#282624] bg-[#282624] text-white hover:bg-[#3a3633]"
+                          ? "border-[#a06f3f] bg-[#a06f3f] text-white hover:bg-[#7d5530]"
                           : "border-[#e6dcc7] bg-white text-[#524d48] hover:border-[#c4bbac] hover:text-[#282624]",
                     ].join(" ")}
                   >
@@ -276,7 +276,7 @@ export default async function Home() {
               <SectionLabel>Co dziś</SectionLabel>
               <Link
                 href="/jobs"
-                className="text-[11px] font-medium text-[#57534e] active:opacity-70"
+                className="text-[11px] font-semibold text-[#a06f3f] active:opacity-70 hover:underline"
               >
                 Kalendarz →
               </Link>
@@ -305,7 +305,7 @@ export default async function Home() {
                 </div>
                 <Link
                   href="/jobs/new"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#282624] text-white text-[12px] font-semibold px-3.5 py-1.5 active:opacity-90 hover:bg-[#3a3633] transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#a06f3f] text-white text-[12px] font-semibold px-3.5 py-1.5 active:opacity-90 hover:bg-[#7d5530] transition-colors"
                 >
                   <span className="text-[14px] leading-none">+</span>
                   Dodaj pomiar
@@ -319,7 +319,7 @@ export default async function Home() {
               <SectionLabel>Skrzynka</SectionLabel>
               <Link
                 href="/jobs"
-                className="text-[11px] font-medium text-[#57534e] active:opacity-70"
+                className="text-[11px] font-semibold text-[#a06f3f] active:opacity-70 hover:underline"
               >
                 Zobacz wszystko →
               </Link>
@@ -371,6 +371,7 @@ export default async function Home() {
                   amount={dash.month.profit}
                   hint="dochód miesiąca"
                   tone={dash.month.profit >= 0 ? "ok" : "warn"}
+                  gold={dash.month.profit >= 0}
                 />
               )}
             </div>
@@ -379,9 +380,9 @@ export default async function Home() {
 
         <section>
           <SectionLabel>Szybkie narzędzia</SectionLabel>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <QuickTool href="/calculator" label="Kalkulator wyceny" icon={<CalcIcon />} />
-            <QuickTool href="/usluga" label="Stawka /h" icon={<WrenchIcon />} />
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <QuickTool href="/calculator" label="Wycena" name="Kalkulator" icon={<CalcIcon />} />
+            <QuickTool href="/usluga" label="Robocizna" name="Stawka /h" icon={<WrenchIcon />} />
           </div>
         </section>
 
@@ -406,7 +407,7 @@ export default async function Home() {
               <SectionLabel>Bilans · {monthName}</SectionLabel>
               <Link
                 href="/dashboard"
-                className="text-[11px] font-medium text-[#57534e] active:opacity-70"
+                className="text-[11px] font-semibold text-[#a06f3f] active:opacity-70 hover:underline"
               >
                 Pełny dashboard →
               </Link>
@@ -678,6 +679,7 @@ function WorkflowTile({
   hint,
   tone,
   feature,
+  gold,
 }: {
   href: string;
   label: string;
@@ -686,17 +688,20 @@ function WorkflowTile({
   hint: string;
   tone: "accent" | "info" | "neutral" | "warn" | "ok";
   feature?: boolean;
+  gold?: boolean;
 }) {
-  const toneClass = {
-    accent: "text-[#282624]",
-    info: "text-[#5a7898]",
-    neutral: "text-[#524d48]",
-    warn: "text-[#b8523a]",
-    ok: "text-[#4f8a64]",
-  }[tone];
+  const toneClass = gold
+    ? "text-[#a06f3f]"
+    : {
+        accent: "text-[#282624]",
+        info: "text-[#5a7898]",
+        neutral: "text-[#524d48]",
+        warn: "text-[#b8523a]",
+        ok: "text-[#4f8a64]",
+      }[tone];
 
   const toneAccentBar = {
-    accent: "bg-[#282624]",
+    accent: "bg-[#a06f3f]",
     info: "bg-[#5a7898]",
     neutral: "bg-[#c4bbac]",
     warn: "bg-[#b8523a]",
@@ -707,12 +712,16 @@ function WorkflowTile({
   const showAmount = typeof amount === "number";
 
   const wrapperBase = "relative overflow-hidden rounded-2xl border active:bg-[#faf7f2] transition-colors";
-  const wrapperClass = feature
-    ? `${wrapperBase} col-span-2 border-[#d8d2c8] p-4 shadow-[0_2px_8px_rgba(40,38,36,0.06)] hover:border-[#c4bbac]`
-    : `${wrapperBase} border-[#e8e4dd] bg-white p-3 shadow-[0_1px_2px_rgba(40,38,36,0.04)] hover:border-[#d8d2c8]`;
-  const wrapperStyle = feature
-    ? { background: "linear-gradient(160deg, #efece5 0%, #faf7f2 100%)" }
-    : undefined;
+  const wrapperClass = gold
+    ? `${wrapperBase} border-[#e2c79c] p-3 shadow-[0_2px_8px_rgba(160,111,63,0.10)] hover:border-[#a06f3f]`
+    : feature
+      ? `${wrapperBase} col-span-2 border-[#d8d2c8] p-4 shadow-[0_2px_8px_rgba(40,38,36,0.06)] hover:border-[#c4bbac]`
+      : `${wrapperBase} border-[#e8e4dd] bg-white p-3 shadow-[0_1px_2px_rgba(40,38,36,0.04)] hover:border-[#d8d2c8]`;
+  const wrapperStyle = gold
+    ? { background: "linear-gradient(160deg, #fbf1dd 0%, #fff8e9 100%)" }
+    : feature
+      ? { background: "linear-gradient(160deg, #efece5 0%, #faf7f2 100%)" }
+      : undefined;
 
   const valueSize = feature
     ? "text-[32px] leading-none"
@@ -850,19 +859,26 @@ function DeadlineIcon() {
 function QuickTool({
   href,
   label,
+  name,
   icon,
 }: {
   href: string;
   label: string;
+  name: string;
   icon: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-2 rounded-full border border-[#e8e4dd] bg-white px-3.5 py-2 text-[13px] font-medium text-[#282624] active:bg-[#faf7f2] hover:border-[#d8d2c8] transition-colors"
+      className="flex items-center gap-3 rounded-xl border border-[#e8e4dd] bg-white px-3 py-2.5 active:bg-[#faf7f2] hover:border-[#a06f3f] transition-colors shadow-[0_1px_2px_rgba(40,38,36,0.04)]"
     >
-      <span className="text-[#57534e]">{icon}</span>
-      {label}
+      <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-[#f1e5d2] text-[#a06f3f] shrink-0">
+        {icon}
+      </span>
+      <span className="min-w-0 flex flex-col leading-tight">
+        <span className="text-[10px] uppercase tracking-wide text-[#9c9081]">{label}</span>
+        <span className="text-[13px] font-semibold text-[#282624] truncate">{name}</span>
+      </span>
     </Link>
   );
 }

@@ -25,7 +25,7 @@ const TONE_BG: Record<Tone, string> = {
   info: "bg-[#dde5ef] text-[#5a7898]",
   ok: "bg-[#e3efe5] text-[#4f8a64]",
   warn: "bg-[#f4e0d9] text-[#b8523a]",
-  accent: "bg-[#ebe8e3] text-[#57534e]",
+  accent: "bg-[#f1e5d2] text-[#a06f3f]",
   neutral: "bg-[#f5f3ef] text-[#6f6457]",
 };
 
@@ -55,14 +55,21 @@ export default function BottomNav() {
               {active && (
                 <span
                   aria-hidden
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-[#282624]"
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-[#a06f3f]"
                 />
               )}
               <span
                 className={[
                   "inline-flex w-9 h-9 rounded-lg items-center justify-center",
-                  active ? "bg-[#282624] text-white" : TONE_BG[tab.tone],
+                  active
+                    ? "text-white"
+                    : TONE_BG[tab.tone],
                 ].join(" ")}
+                style={
+                  active
+                    ? { background: "linear-gradient(160deg, #a06f3f, #7d5530)" }
+                    : undefined
+                }
               >
                 <Icon active={active} />
               </span>
@@ -76,7 +83,6 @@ export default function BottomNav() {
     </nav>
   );
 }
-
 function HomeIcon({ active }: { active: boolean }) {
   return (
     <svg

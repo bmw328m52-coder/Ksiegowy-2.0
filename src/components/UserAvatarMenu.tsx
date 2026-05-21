@@ -35,7 +35,7 @@ export default function UserAvatarMenu({ initial, name, email, signOutAction }: 
         aria-haspopup="menu"
         aria-expanded={open}
         className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-[14px] active:opacity-90 hover:shadow-md transition-shadow"
-        style={{ background: "linear-gradient(160deg, #57534e, #3a3633)" }}
+        style={{ background: "linear-gradient(160deg, #a06f3f, #7d5530)" }}
       >
         {initial}
       </button>

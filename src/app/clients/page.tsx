@@ -123,8 +123,8 @@ export default async function ClientsPage({
                     <span
                       className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                         c.type === "company"
-                          ? "bg-[#282624] text-white"
-                          : "bg-[#ebe8e3] text-[#57534e]"
+                          ? "bg-[#a06f3f] text-white"
+                          : "bg-[#f1e5d2] text-[#a06f3f]"
                       }`}
                     >
                       {c.type === "company" ? "Firma" : "Osoba"}
