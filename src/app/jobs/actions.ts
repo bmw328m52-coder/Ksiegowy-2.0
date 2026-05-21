@@ -290,6 +290,43 @@ export async function revertJobStatusAction(id: string) {
   revalidatePath("/");
 }
 
+export async function applyQuoteToJobAction(
+  id: string,
+  amount_gross: number,
+  vat_rate: number,
+): Promise<Result> {
+  if (!id) return { error: "Brak ID zlecenia." };
+  if (!Number.isFinite(amount_gross) || amount_gross < 0)
+    return { error: "Nieprawidłowa kwota brutto." };
+  if (!Number.isFinite(vat_rate) || vat_rate < 0 || vat_rate > 1)
+    return { error: "Nieprawidłowa stawka VAT." };
+
+  const job = await getJob(id);
+  if (!job) return { error: "Zlecenie nie istnieje." };
+  if (job.status === "cancelled" || job.status === "archived")
+    return { error: "Zlecenie zamknięte — nie można aktualizować wyceny." };
+
+  const update: Record<string, unknown> = {
+    amount_gross,
+    vat_rate,
+  };
+  const earlyStages: JobStatus[] = ["new_inquiry", "to_measure", "after_measure"];
+  if (earlyStages.includes(job.status)) {
+    update.status = "to_quote";
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("jobs").update(update).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+  return {};
+}
+
 export async function deleteJobAction(id: string, clientId: string) {
   await deleteJob(id);
   revalidatePath("/jobs");

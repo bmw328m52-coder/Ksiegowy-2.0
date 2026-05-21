@@ -5,6 +5,8 @@ import { calcDeal, type TaxForm } from "@/lib/tax";
 import { fmtPLN, parseAmount } from "@/lib/format";
 import type { QuoteTemplate } from "@/lib/dao/quote_templates.types";
 import { saveQuoteTemplateAction, deleteQuoteTemplateAction } from "./actions";
+import { applyQuoteToJobAction } from "@/app/jobs/actions";
+import { useRouter } from "next/navigation";
 
 type JobOption = {
   id: string;
@@ -85,6 +87,9 @@ export default function CalculatorForm({
   const [saveState, saveAction, savePending] = useActionState(saveQuoteTemplateAction, {
     error: undefined as string | undefined,
   });
+  const router = useRouter();
+  const [applyPending, setApplyPending] = useState(false);
+  const [applyError, setApplyError] = useState<string | undefined>(undefined);
 
   function loadTemplate(id: string) {
     setTemplateId(id);
@@ -107,11 +112,33 @@ export default function CalculatorForm({
 
   function onJobChange(id: string) {
     setJobId(id);
+    setApplyError(undefined);
     if (!id) return;
     const job = jobs.find((j) => j.id === id);
     if (!job) return;
     const gross = job.costs_net + job.costs_vat;
     setCostsGrossStr(gross > 0 ? gross.toFixed(2) : "");
+  }
+
+  async function applyToJob() {
+    if (!jobId) return;
+    const amountNum = parseAmount(amountStr) ?? 0;
+    if (amountNum <= 0) {
+      setApplyError("Wpisz kwotę zlecenia (brutto) większą od zera.");
+      return;
+    }
+    setApplyPending(true);
+    setApplyError(undefined);
+    try {
+      const res = await applyQuoteToJobAction(jobId, amountNum, vatRate);
+      if (res.error) {
+        setApplyError(res.error);
+        return;
+      }
+      router.push(`/jobs/${jobId}`);
+    } finally {
+      setApplyPending(false);
+    }
   }
 
   const amount = parseAmount(amountStr) ?? 0;
@@ -608,6 +635,32 @@ export default function CalculatorForm({
         profitNoInvoice={profitNoInvoice}
         recoveredVat={recoveredVat}
       />
+
+      {jobId && (
+        <div className="rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={applyToJob}
+            disabled={applyPending || amount <= 0}
+            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors disabled:opacity-50"
+          >
+            <span>
+              {applyPending
+                ? "Zapisuję…"
+                : `Zapisz kwotę w zleceniu: ${fmtPLN(amount)}`}
+            </span>
+            <span aria-hidden>→</span>
+          </button>
+          {applyError && (
+            <p className="text-xs text-red-600">{applyError}</p>
+          )}
+          <p className="text-[11px] text-[#9c9081]">
+            Ustawi <span className="font-medium text-[#3a3633]">amount_gross</span>{" "}
+            i <span className="font-medium text-[#3a3633]">vat_rate</span> na zleceniu.
+            Jeśli etap jest wcześniejszy niż „Do wyceny", przejdzie do tego etapu.
+          </p>
+        </div>
+      )}
 
       <p className="text-[11px] text-zinc-500 text-center">
         To nie porada podatkowa — wyliczenie poglądowe. Skonsultuj z księgową.
