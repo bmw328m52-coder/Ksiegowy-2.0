@@ -6,6 +6,7 @@ import { getJob } from "@/lib/dao/jobs";
 import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus } from "@/lib/dao/jobs.types";
 import { fmtDate } from "@/lib/format";
 import { advanceJobStatusAction, deleteJobAction, revertJobStatusAction } from "../actions";
+import InvoiceSection from "./InvoiceSection";
 import PomiarSection from "./PomiarSection";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
 
@@ -90,6 +91,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </p>
           </Link>
         </div>
+
+        <InvoiceSection
+          jobId={id}
+          invoiced={job.invoiced}
+          invoiceNumber={job.invoice_number}
+          invoiceDate={job.invoice_date}
+          amountGross={Number(job.amount_gross) || 0}
+          status={job.status}
+        />
 
         {job.notes && (
           <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4">

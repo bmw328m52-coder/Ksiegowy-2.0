@@ -290,6 +290,61 @@ export async function revertJobStatusAction(id: string) {
   revalidatePath("/");
 }
 
+export async function markJobInvoicedAction(
+  id: string,
+  _prev: Result,
+  formData: FormData,
+): Promise<Result> {
+  const job = await getJob(id);
+  if (!job) return { error: "Zlecenie nie istnieje." };
+
+  const invoice_number = String(formData.get("invoice_number") ?? "").trim();
+  if (!invoice_number) return { error: "Podaj numer faktury sprzedaży." };
+
+  const today = new Date().toISOString().slice(0, 10);
+  let invoice_date = String(formData.get("invoice_date") ?? "").trim() || today;
+  if (invoice_date > today) return { error: "Data faktury w przyszłości — wybierz dzisiejszą lub wcześniejszą." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("jobs")
+    .update({
+      invoiced: true,
+      invoice_number,
+      invoice_date,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+  return {};
+}
+
+export async function unmarkJobInvoicedAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("jobs")
+    .update({
+      invoiced: false,
+      invoice_number: null,
+      invoice_date: null,
+    })
+    .eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+}
+
 export async function applyQuoteToJobAction(
   id: string,
   amount_gross: number,
