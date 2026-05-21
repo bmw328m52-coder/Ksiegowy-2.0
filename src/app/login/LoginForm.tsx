@@ -22,7 +22,7 @@ export default function LoginForm({ next }: { next: string }) {
           required
           autoComplete="email"
           inputMode="email"
-          className="rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-[#282624]"
+          className="rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-accent"
         />
       </label>
 
@@ -34,7 +34,7 @@ export default function LoginForm({ next }: { next: string }) {
           required
           autoComplete={mode === "in" ? "current-password" : "new-password"}
           minLength={8}
-          className="rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-[#282624]"
+          className="rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-accent"
         />
       </label>
 
@@ -52,7 +52,7 @@ export default function LoginForm({ next }: { next: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-[#282624] text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
+        className="rounded-lg bg-accent text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
       >
         {pending ? "Czekaj..." : mode === "in" ? "Zaloguj się" : "Załóż konto"}
       </button>

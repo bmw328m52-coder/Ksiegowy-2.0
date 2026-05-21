@@ -89,7 +89,7 @@ export default async function InvoiceDetailPage({
             <div className="flex gap-2">
               <Link
                 href="/invoices/new"
-                className="flex-1 rounded-md bg-[#282624] text-white text-sm py-2 text-center font-medium active:opacity-80"
+                className="flex-1 rounded-md bg-accent text-white text-sm py-2 text-center font-medium active:opacity-80"
               >
                 + Skanuj kolejną
               </Link>

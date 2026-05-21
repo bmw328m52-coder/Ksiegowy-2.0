@@ -47,7 +47,7 @@ export default function UploadForm() {
           type="button"
           disabled={pending || source === "file"}
           onClick={() => setCameraOpen(true)}
-          className={`rounded-xl bg-[#282624] text-white p-6 flex flex-col items-center gap-2 active:opacity-80 ${
+          className={`rounded-xl bg-accent text-white p-6 flex flex-col items-center gap-2 active:opacity-80 ${
             pending ? "opacity-50 pointer-events-none" : ""
           }`}
         >
@@ -103,7 +103,7 @@ export default function UploadForm() {
         <button
           type="submit"
           disabled={pending || !fileName}
-          className="rounded-lg bg-[#282624] text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
+          className="rounded-lg bg-accent text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
         >
           {pending ? "Analizuję fakturę..." : "Wgraj i odczytaj"}
         </button>

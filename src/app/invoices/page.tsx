@@ -78,7 +78,7 @@ export default async function InvoicesPage({
           action={
             <Link
               href="/invoices/new"
-              className="rounded-lg bg-[#282624] text-white text-sm px-3 py-2 font-medium active:opacity-80"
+              className="rounded-lg bg-accent text-white text-sm px-3 py-2 font-medium active:opacity-80"
             >
               + Dodaj
             </Link>
@@ -104,7 +104,7 @@ export default async function InvoicesPage({
             <p className="text-sm text-zinc-600 mb-3">Brak faktur. Dodaj pierwszą.</p>
             <Link
               href="/invoices/new"
-              className="inline-block rounded-lg bg-[#282624] text-white text-sm px-4 py-2 font-medium"
+              className="inline-block rounded-lg bg-accent text-white text-sm px-4 py-2 font-medium"
             >
               Wgraj fakturę
             </Link>
@@ -185,7 +185,7 @@ function CategoryPills({
         <Link
           href={buildHref({ cat: null })}
           className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
-            allActive ? "bg-[#282624] text-white" : "bg-white border border-zinc-200 text-zinc-600 active:bg-zinc-50"
+            allActive ? "bg-accent text-white" : "bg-white border border-zinc-200 text-zinc-600 active:bg-zinc-50"
           }`}
         >
           Wszystkie kategorie
@@ -198,7 +198,7 @@ function CategoryPills({
               href={buildHref({ cat: c })}
               className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
                 active
-                  ? "bg-[#282624] text-white"
+                  ? "bg-accent text-white"
                   : "bg-white border border-zinc-200 text-zinc-600 active:bg-zinc-50"
               }`}
             >

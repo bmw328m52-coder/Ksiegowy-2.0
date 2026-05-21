@@ -130,7 +130,7 @@ export default function SettingsForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-[#282624] text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
+        className="rounded-lg bg-accent text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
       >
         {pending ? "Zapisuję..." : "Zapisz ustawienia"}
       </button>
@@ -139,7 +139,7 @@ export default function SettingsForm({
 }
 
 const inputCls =
-  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-[#282624] w-full";
+  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-accent w-full";
 const errorCls = "text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

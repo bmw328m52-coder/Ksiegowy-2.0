@@ -523,7 +523,7 @@ function RadioCard({
       type="button"
       onClick={onChange}
       className={`rounded-lg border p-3 text-left active:bg-zinc-50 ${
-        checked ? "border-[#282624] bg-zinc-50" : "border-zinc-200 bg-white"
+        checked ? "border-accent bg-zinc-50" : "border-zinc-200 bg-white"
       }`}
     >
       <div className="text-sm font-medium">{label}</div>

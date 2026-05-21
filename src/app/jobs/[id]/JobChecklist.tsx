@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import {
   CHECKLIST_STATUSES,
   CHECKLIST_STATUS_LABELS,
@@ -126,32 +126,37 @@ function SeedButton({ jobId, projectType }: { jobId: string; projectType: Projec
 function ChecklistRow({ item, jobId }: { item: ChecklistItem; jobId: string }) {
   const [open, setOpen] = useState(false);
   const [statusPending, startStatusTransition] = useTransition();
+  const [status, setStatus] = useState<ChecklistItemStatus>(item.status);
+  useEffect(() => {
+    setStatus(item.status);
+  }, [item.status]);
   const totalNet = item.unit_price_net !== null ? item.qty * item.unit_price_net : null;
 
   return (
     <li className="px-2 py-2">
       <div className="flex items-center gap-2">
-        <form
-          action={(formData) => {
+        <select
+          value={status}
+          disabled={statusPending}
+          onChange={(e) => {
+            const next = e.currentTarget.value as ChecklistItemStatus;
+            setStatus(next);
             startStatusTransition(async () => {
-              await setChecklistItemStatusAction(item.id, jobId, formData);
+              try {
+                await setChecklistItemStatusAction(item.id, jobId, next);
+              } catch {
+                setStatus(item.status);
+              }
             });
           }}
+          className={`text-[11px] font-medium px-2 py-1 rounded-full border ${STATUS_BG[status]} cursor-pointer focus:outline-none disabled:opacity-60`}
         >
-          <select
-            name="status"
-            defaultValue={item.status}
-            disabled={statusPending}
-            onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className={`text-[11px] font-medium px-2 py-1 rounded-full border ${STATUS_BG[item.status]} cursor-pointer focus:outline-none disabled:opacity-60`}
-          >
-            {CHECKLIST_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {CHECKLIST_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </form>
+          {CHECKLIST_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {CHECKLIST_STATUS_LABELS[s]}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -199,7 +204,7 @@ function AddItemForm({ jobId, onClose }: { jobId: string; onClose: () => void })
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-[#282624] text-white px-3 py-2 text-sm font-medium disabled:opacity-50"
+          className="rounded-lg bg-accent text-white px-3 py-2 text-sm font-medium disabled:opacity-50"
         >
           {pending ? "Dodaję..." : "Dodaj"}
         </button>
@@ -246,7 +251,7 @@ function EditItemForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-[#282624] text-white px-3 py-2 text-sm font-medium disabled:opacity-50"
+          className="rounded-lg bg-accent text-white px-3 py-2 text-sm font-medium disabled:opacity-50"
         >
           {pending ? "Zapisuję..." : "Zapisz"}
         </button>
@@ -355,7 +360,7 @@ function DeleteItemButton({ itemId, jobId }: { itemId: string; jobId: string }) 
 }
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-2 py-2 text-sm focus:outline-none focus:border-[#282624] w-full";
+  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-2 py-2 text-sm focus:outline-none focus:border-accent w-full";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

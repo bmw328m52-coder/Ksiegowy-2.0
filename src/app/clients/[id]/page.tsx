@@ -7,6 +7,7 @@ import { listJobsByClient, JOB_STATUS_LABELS } from "@/lib/dao/jobs";
 import { listMaterialCostsByClient } from "@/lib/dao/cost_lines";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { computeJobMargin, getJobMarginsMap } from "@/lib/jobMargin";
+import { effectiveJobStatus } from "@/lib/jobStatus";
 import { fmtPLN, fmtDate } from "@/lib/format";
 import { deleteClientAction } from "../actions";
 
@@ -32,7 +33,7 @@ export default async function ClientDetailPage({
 
   const totalGross = jobs.reduce((acc, j) => acc + Number(j.amount_gross), 0);
   const paidGross = jobs
-    .filter((j) => j.status === "paid")
+    .filter((j) => j.status === "settled" || j.status === "archived")
     .reduce((acc, j) => acc + Number(j.amount_gross), 0);
 
   const materialsTotalGross = materials.reduce(
@@ -115,12 +116,12 @@ export default async function ClientDetailPage({
 
         <section className="mt-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold">Zlecenia</h2>
+            <h2 className="text-base font-semibold">Pomiary</h2>
             <Link
               href={`/jobs/new?clientId=${id}`}
-              className="rounded-lg bg-[#282624] text-white px-3 py-1.5 text-sm font-medium active:opacity-80"
+              className="rounded-lg bg-accent text-white px-3 py-1.5 text-sm font-medium active:opacity-80"
             >
-              + Nowe zlecenie
+              + Nowy pomiar
             </Link>
           </div>
 
@@ -201,7 +202,7 @@ export default async function ClientDetailPage({
                             {fmtPLN(j.amount_gross)} • {fmtDate(j.due_date ?? j.start_date)}
                           </p>
                         </div>
-                        <StatusBadge status={j.status} />
+                        <StatusBadge status={effectiveJobStatus(j)} />
                       </div>
                       {m && (
                         <div className="mt-1 flex items-center gap-2 text-xs">
@@ -280,7 +281,11 @@ export default async function ClientDetailPage({
 
         <form action={deleteWithId} className="mt-10">
           <ConfirmSubmitButton
-            message="Na pewno usunąć tego klienta? Wszystkie powiązane zlecenia i koszty zostaną odpięte."
+            message={
+              jobs.length > 0
+                ? `Klient ma ${jobs.length} ${plJobs(jobs.length)}. Razem z klientem zostaną trwale usunięte wszystkie zlecenia (z czasem pracy i checklistami). Koszty z faktur zostaną zachowane jako koszty ogólne. Kontynuować?`
+                : "Na pewno usunąć tego klienta?"
+            }
             formNoValidate
             className="w-full text-sm text-red-600 py-3 active:underline"
           >
@@ -292,13 +297,30 @@ export default async function ClientDetailPage({
   );
 }
 
+function plJobs(n: number): string {
+  if (n === 1) return "zlecenie";
+  const lastTwo = n % 100;
+  const last = n % 10;
+  if (lastTwo >= 12 && lastTwo <= 14) return "zleceń";
+  if (last >= 2 && last <= 4) return "zlecenia";
+  return "zleceń";
+}
+
 function StatusBadge({ status }: { status: keyof typeof JOB_STATUS_LABELS }) {
   const colors: Record<string, string> = {
-    planned: "bg-zinc-100 text-zinc-700",
-    in_progress: "bg-blue-100 text-blue-700",
-    completed: "bg-amber-100 text-amber-700",
-    paid: "bg-green-100 text-green-700",
-    cancelled: "bg-zinc-100 text-zinc-400 line-through",
+    new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
+    to_measure: "bg-[#ebe8e3] text-[#524d48]",
+    after_measure: "bg-[#ebe8e3] text-[#524d48]",
+    to_quote: "bg-[#faf5e9] text-[#a18653]",
+    quote_sent: "bg-[#faf5e9] text-[#a18653]",
+    accepted: "bg-[#dde5ef] text-[#5a7898]",
+    materials_ordered: "bg-[#dde5ef] text-[#5a7898]",
+    in_production: "bg-[#dde5ef] text-[#5a7898]",
+    ready_to_install: "bg-[#e3efe5] text-[#4f8a64]",
+    installed: "bg-[#e3efe5] text-[#4f8a64]",
+    settled: "bg-[#e3efe5] text-[#3a6b4d]",
+    archived: "bg-[#f5f3ef] text-[#9c9081]",
+    cancelled: "bg-[#f5f3ef] text-[#9c9081] line-through",
   };
   return (
     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${colors[status]}`}>

@@ -55,7 +55,7 @@ export default function CostLineCard({
               name="job_id"
               defaultValue={line.job_id ?? "__none__"}
               onChange={(e) => e.currentTarget.form?.requestSubmit()}
-              className="flex-1 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-xs focus:outline-none focus:border-[#282624]"
+              className="flex-1 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-xs focus:outline-none focus:border-accent"
             >
               <option value="__none__">— koszt ogólny —</option>
               {jobs.map((j) => (
@@ -144,7 +144,7 @@ export default function CostLineCard({
             <button
               type="submit"
               disabled={pending}
-              className="flex-1 rounded-md bg-[#282624] text-white text-xs py-2 font-medium active:opacity-80 disabled:opacity-50"
+              className="flex-1 rounded-md bg-accent text-white text-xs py-2 font-medium active:opacity-80 disabled:opacity-50"
             >
               {pending ? "Zapisuję..." : "Zapisz"}
             </button>
@@ -163,7 +163,7 @@ export default function CostLineCard({
 }
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-2 py-1.5 text-sm focus:outline-none focus:border-[#282624] w-full";
+  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-2 py-1.5 text-sm focus:outline-none focus:border-accent w-full";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

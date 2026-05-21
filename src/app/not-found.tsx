@@ -13,7 +13,7 @@ export default function NotFound() {
         </div>
         <Link
           href="/"
-          className="inline-block rounded-lg bg-[#282624] text-white px-4 py-2 text-sm font-medium active:opacity-80"
+          className="inline-block rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80"
         >
           Strona główna
         </Link>

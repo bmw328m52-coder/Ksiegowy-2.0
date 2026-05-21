@@ -32,7 +32,7 @@ export default function GlobalError({
         <div className="flex gap-2 justify-center pt-2">
           <button
             onClick={reset}
-            className="rounded-lg bg-[#282624] text-white px-4 py-2 text-sm font-medium active:opacity-80"
+            className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80"
           >
             Spróbuj ponownie
           </button>

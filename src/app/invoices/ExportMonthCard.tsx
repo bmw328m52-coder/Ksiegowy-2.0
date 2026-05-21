@@ -93,7 +93,7 @@ export default function ExportMonthCard() {
         type="button"
         onClick={handleDownload}
         disabled={busy}
-        className="w-full rounded-md bg-[#282624] text-white text-sm py-2 font-medium active:opacity-80 disabled:opacity-50"
+        className="w-full rounded-md bg-accent text-white text-sm py-2 font-medium active:opacity-80 disabled:opacity-50"
       >
         {busy ? "Generuję ZIP..." : "Pobierz ZIP (CSV + zdjęcia)"}
       </button>

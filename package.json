@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack -H 0.0.0.0",
-    "dev:https": "next dev --webpack -H 0.0.0.0 --experimental-https --experimental-https-key ./certificates/lan-key.pem --experimental-https-cert ./certificates/lan.pem",
+    "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev --webpack -H 0.0.0.0",
+    "dev:https": "cross-env NODE_OPTIONS=--use-system-ca next dev --webpack -H 0.0.0.0 --experimental-https --experimental-https-key ./certificates/lan-key.pem --experimental-https-cert ./certificates/lan.pem",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

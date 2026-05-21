@@ -85,6 +85,18 @@ export async function listEntriesByJob(jobId: string): Promise<TimeEntry[]> {
   return (data ?? []) as TimeEntry[];
 }
 
+export async function listRecentEntries(limit = 20): Promise<TimeEntry[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("time_entries")
+    .select("*")
+    .not("ended_at", "is", null)
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as TimeEntry[];
+}
+
 export async function addManualEntry(input: ManualEntryInput): Promise<TimeEntry> {
   const userId = await uid();
   const supabase = await createClient();
@@ -115,6 +127,46 @@ export async function deleteEntry(entryId: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("time_entries").delete().eq("id", entryId);
   if (error) throw error;
+}
+
+export type UpdateEntryInput = {
+  phase?: WorkPhase;
+  duration_minutes?: number;
+  notes?: string | null;
+};
+
+export async function updateEntry(
+  entryId: string,
+  patch: UpdateEntryInput
+): Promise<TimeEntry> {
+  const supabase = await createClient();
+
+  const { data: existing, error: getErr } = await supabase
+    .from("time_entries")
+    .select("*")
+    .eq("id", entryId)
+    .single();
+  if (getErr) throw getErr;
+  const cur = existing as TimeEntry;
+
+  const update: Record<string, unknown> = {};
+  if (patch.phase) update.phase = patch.phase;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.duration_minutes !== undefined) {
+    const minutes = Math.max(0, Math.round(patch.duration_minutes));
+    update.duration_minutes = minutes;
+    const startedMs = new Date(cur.started_at).getTime();
+    update.ended_at = new Date(startedMs + minutes * 60_000).toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from("time_entries")
+    .update(update)
+    .eq("id", entryId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as TimeEntry;
 }
 
 export type PhaseSums = Record<WorkPhase, number>;

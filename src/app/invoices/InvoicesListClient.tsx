@@ -46,7 +46,7 @@ export default function InvoicesListClient({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Szukaj dostawcy lub numeru…"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-9 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#282624]/20"
+          className="w-full rounded-lg border border-zinc-300 bg-white px-9 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-accent/30"
           aria-label="Szukaj faktur"
         />
         <SearchIcon />

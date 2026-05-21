@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listClients } from "@/lib/dao/clients";
 import PageHeader from "@/components/PageHeader";
+import { avatarTone, clientInitials } from "@/lib/avatar";
 
 export const metadata = { title: "Klienci" };
 
@@ -36,7 +37,7 @@ export default async function ClientsPage({
           action={
             <Link
               href="/clients/new"
-              className="rounded-lg bg-[#282624] text-white px-3 py-2 text-sm font-medium active:opacity-80"
+              className="rounded-lg bg-accent text-white px-3 py-2 text-sm font-medium active:opacity-80"
             >
               + Dodaj
             </Link>
@@ -51,7 +52,7 @@ export default async function ClientsPage({
               defaultValue={q}
               placeholder="Szukaj: nazwa, NIP, telefon, e-mail"
               autoComplete="off"
-              className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#282624]/20"
+              className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
             />
             {q ? (
               <Link
@@ -63,7 +64,7 @@ export default async function ClientsPage({
             ) : (
               <button
                 type="submit"
-                className="rounded-lg bg-[#282624] text-white px-3 py-2 text-sm font-medium active:opacity-80"
+                className="rounded-lg bg-accent text-white px-3 py-2 text-sm font-medium active:opacity-80"
               >
                 Szukaj
               </button>
@@ -82,7 +83,7 @@ export default async function ClientsPage({
             <p>Nie masz jeszcze żadnych klientów.</p>
             <Link
               href="/clients/new"
-              className="inline-block rounded-lg bg-[#282624] text-white px-4 py-3 text-sm font-medium"
+              className="inline-block rounded-lg bg-accent text-white px-4 py-3 text-sm font-medium"
             >
               + Dodaj pierwszego klienta
             </Link>
@@ -99,31 +100,39 @@ export default async function ClientsPage({
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
-            {clients.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/clients/${c.id}`}
-                  className="block rounded-xl border border-zinc-200 bg-white p-4 active:bg-zinc-50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{c.name}</p>
-                      {c.nip && <p className="text-xs text-zinc-500">NIP: {c.nip}</p>}
-                      {c.phone && <p className="text-xs text-zinc-500">{c.phone}</p>}
+            {clients.map((c) => {
+              const tone = avatarTone(c.name);
+              return (
+                <li key={c.id}>
+                  <Link
+                    href={`/clients/${c.id}`}
+                    className="flex items-center gap-3 rounded-xl border border-[#e6dcc7] bg-white p-3.5 active:bg-[#faf7f2] hover:border-[#c4bbac] transition-colors"
+                  >
+                    <span
+                      className="inline-flex w-11 h-11 rounded-full items-center justify-center text-[14px] font-bold shrink-0"
+                      style={{ background: tone.bg, color: tone.fg }}
+                    >
+                      {clientInitials(c.name)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-[14px] text-[#282624] truncate">{c.name}</p>
+                      <p className="text-[11px] text-[#9c9081] truncate mt-0.5">
+                        {[c.nip && `NIP ${c.nip}`, c.phone].filter(Boolean).join(" · ") || (c.type === "company" ? "Firma" : "Osoba prywatna")}
+                      </p>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                         c.type === "company"
-                          ? "bg-zinc-900 text-white"
-                          : "bg-zinc-100 text-zinc-700"
+                          ? "bg-[#282624] text-white"
+                          : "bg-[#ebe8e3] text-[#57534e]"
                       }`}
                     >
                       {c.type === "company" ? "Firma" : "Osoba"}
                     </span>
-                  </div>
-                </Link>
-              </li>
-            ))}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

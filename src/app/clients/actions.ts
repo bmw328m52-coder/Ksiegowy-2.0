@@ -9,6 +9,7 @@ import {
   type ClientInput,
   type ClientType,
 } from "@/lib/dao/clients";
+import { listJobsByClient, deleteJob } from "@/lib/dao/jobs";
 
 type Result = { error?: string };
 
@@ -30,9 +31,11 @@ function readClientForm(formData: FormData): ClientInput | string {
 export async function createClientAction(_prev: Result, formData: FormData): Promise<Result> {
   const parsed = readClientForm(formData);
   if (typeof parsed === "string") return { error: parsed };
+  const next = String(formData.get("next") ?? "");
   try {
     const created = await createClientRow(parsed);
     revalidatePath("/clients");
+    if (next === "job") redirect(`/jobs/new?clientId=${created.id}`);
     redirect(`/clients/${created.id}`);
   } catch (e) {
     if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
@@ -61,15 +64,12 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(id: string) {
-  try {
-    await deleteClient(id);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "";
-    if (msg.includes("violates foreign key")) {
-      throw new Error("Nie można usunąć klienta — ma przypisane zlecenia. Usuń je najpierw.");
-    }
-    throw e;
+  const jobs = await listJobsByClient(id);
+  for (const j of jobs) {
+    await deleteJob(j.id);
   }
+  await deleteClient(id);
   revalidatePath("/clients");
+  revalidatePath("/jobs");
   redirect("/clients");
 }

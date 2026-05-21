@@ -100,12 +100,11 @@ export async function updateChecklistItemAction(
 export async function setChecklistItemStatusAction(
   itemId: string,
   jobId: string,
-  formData: FormData
+  status: ChecklistItemStatus
 ) {
-  const status = String(formData.get("status") ?? "");
-  if (!CHECKLIST_STATUSES.includes(status as ChecklistItemStatus))
+  if (!CHECKLIST_STATUSES.includes(status))
     throw new Error("Nieznany status.");
-  await setStatusDao(itemId, status as ChecklistItemStatus);
+  await setStatusDao(itemId, status);
   revalidatePath(`/jobs/${jobId}`);
 }
 

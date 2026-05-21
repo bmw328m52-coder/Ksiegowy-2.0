@@ -10,10 +10,27 @@ import {
   seedChecklistFromTemplate,
 } from "@/lib/dao/job_checklist";
 import { PROJECT_TYPES, type ProjectType } from "@/lib/dao/job_checklist.types";
+import { createBrief, setBriefJob, updateBrief } from "@/lib/dao/quote_briefs";
+import type { BriefData } from "@/lib/dao/quote_briefs.types";
+import { getBriefSchema } from "@/lib/briefSchema";
 
 type Result = { error?: string };
 
-const STATUSES: JobStatus[] = ["planned", "in_progress", "completed", "paid", "cancelled"];
+const STATUSES: JobStatus[] = [
+  "new_inquiry",
+  "to_measure",
+  "after_measure",
+  "to_quote",
+  "quote_sent",
+  "accepted",
+  "materials_ordered",
+  "in_production",
+  "ready_to_install",
+  "installed",
+  "settled",
+  "archived",
+  "cancelled",
+];
 
 function readJobForm(formData: FormData): JobInput | string {
   const client_id = String(formData.get("client_id") ?? "").trim();
@@ -21,20 +38,52 @@ function readJobForm(formData: FormData): JobInput | string {
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return "Podaj tytuł zlecenia.";
 
-  const amount_gross = parseAmount(String(formData.get("amount_gross") ?? ""));
-  if (amount_gross === null || amount_gross < 0)
-    return "Podaj kwotę brutto (np. 12500 lub 12 500,00).";
+  const amountRaw = String(formData.get("amount_gross") ?? "").trim();
+  let amount_gross: number;
+  if (amountRaw) {
+    const parsedAmount = parseAmount(amountRaw);
+    if (parsedAmount === null || parsedAmount < 0)
+      return "Podaj kwotę brutto (np. 12500 lub 12 500,00).";
+    amount_gross = parsedAmount;
+  } else {
+    amount_gross = 0;
+  }
 
-  const vat_pct = Number(formData.get("vat_rate") ?? "23");
+  const vatRaw = String(formData.get("vat_rate") ?? "").trim();
+  const vat_pct = vatRaw ? Number(vatRaw) : 23;
   const vat_rate = Number.isFinite(vat_pct) ? vat_pct / 100 : 0.23;
 
-  const status = String(formData.get("status") ?? "planned") as JobStatus;
+  const statusRaw = String(formData.get("status") ?? "").trim();
+  const status = (statusRaw || "to_measure") as JobStatus;
   if (!STATUSES.includes(status)) return "Nieznany status.";
 
   const start_date = String(formData.get("start_date") ?? "").trim() || null;
   const due_date = String(formData.get("due_date") ?? "").trim() || null;
-  const completed_date = String(formData.get("completed_date") ?? "").trim() || null;
-  const paid_date = String(formData.get("paid_date") ?? "").trim() || null;
+  let completed_date = String(formData.get("completed_date") ?? "").trim() || null;
+  let paid_date = String(formData.get("paid_date") ?? "").trim() || null;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const isInstalledOrLater = status === "installed" || status === "settled" || status === "archived";
+  const isPaid = status === "settled" || status === "archived";
+
+  if (isInstalledOrLater && due_date && due_date > today) {
+    return "Termin realizacji w przyszłości — nie można oznaczyć jako zamontowane/rozliczone. Zmień datę realizacji albo status.";
+  }
+  if (isInstalledOrLater) {
+    if (!completed_date) completed_date = today;
+    if (completed_date > today) return "Data zakończenia w przyszłości — wybierz dzisiejszą lub wcześniejszą.";
+    if (isPaid) {
+      if (!paid_date) paid_date = today;
+      if (paid_date > today) return "Data opłaty w przyszłości — wybierz dzisiejszą lub wcześniejszą.";
+    } else {
+      paid_date = null;
+    }
+  } else {
+    // wcześniejsze etapy + cancelled → bez dat realizacji i opłaty
+    completed_date = null;
+    paid_date = null;
+  }
 
   const depositRaw = String(formData.get("deposit_amount") ?? "").trim();
   const depositParsed = depositRaw ? parseAmount(depositRaw) : 0;
@@ -131,13 +180,39 @@ export async function markJobPaidAction(id: string) {
   if (!job) throw new Error("Zlecenie nie istnieje.");
 
   const today = new Date().toISOString().slice(0, 10);
+  if (job.due_date && job.due_date > today) {
+    throw new Error(
+      "Termin realizacji w przyszłości — nie można oznaczyć jako opłacone. Zmień datę realizacji w edycji zlecenia."
+    );
+  }
   const supabase = await createClient();
   const { error } = await supabase
     .from("jobs")
     .update({
-      status: "paid",
+      status: "settled",
       paid_date: job.paid_date ?? today,
       completed_date: job.completed_date ?? today,
+    })
+    .eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+}
+
+export async function unmarkJobPaidAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+
+  const nextStatus: JobStatus = job.completed_date ? "installed" : "in_production";
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("jobs")
+    .update({
+      status: nextStatus,
+      paid_date: null,
     })
     .eq("id", id);
   if (error) throw error;
@@ -153,4 +228,219 @@ export async function deleteJobAction(id: string, clientId: string) {
   revalidatePath("/jobs");
   revalidatePath(`/clients/${clientId}`);
   redirect(`/clients/${clientId}`);
+}
+
+function readBriefDataFromForm(formData: FormData, project_type: ProjectType): {
+  title: string;
+  visit_date: string | null;
+  notes: string | null;
+  data: BriefData;
+} | string {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return "Podaj tytuł pomiaru.";
+  const visit_date = String(formData.get("visit_date") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  const schema = getBriefSchema(project_type);
+  const data: BriefData = {};
+  for (const group of schema.groups) {
+    for (const field of group.fields) {
+      const raw = formData.get(`data.${field.key}`);
+      if (field.type === "checkbox") {
+        data[field.key] = raw === "on";
+        continue;
+      }
+      if (raw === null) continue;
+      const s = String(raw).trim();
+      if (s === "") continue;
+      if (field.type === "number") {
+        const n = parseAmount(s);
+        if (n === null) continue;
+        data[field.key] = n;
+      } else {
+        data[field.key] = s;
+      }
+    }
+  }
+
+  return { title, visit_date, notes, data };
+}
+
+export async function createPomiarForJobAction(
+  jobId: string,
+  _prev: Result,
+  formData: FormData
+): Promise<Result> {
+  const job = await getJob(jobId);
+  if (!job) return { error: "Pomiar nie istnieje." };
+
+  const projectTypeRaw = String(formData.get("project_type") ?? "").trim();
+  if (!PROJECT_TYPES.includes(projectTypeRaw as ProjectType))
+    return { error: "Wybierz typ projektu." };
+  const project_type = projectTypeRaw as ProjectType;
+
+  const parsed = readBriefDataFromForm(formData, project_type);
+  if (typeof parsed === "string") return { error: parsed };
+
+  try {
+    const brief = await createBrief({
+      client_id: job.client_id,
+      project_type,
+      title: parsed.title,
+      visit_date: parsed.visit_date,
+      status: "draft",
+      data: parsed.data,
+      notes: parsed.notes,
+    });
+    await setBriefJob(brief.id, jobId);
+
+    const supabase = await createClient();
+    const { error: jobErr } = await supabase
+      .from("jobs")
+      .update({
+        title: parsed.title,
+        project_type,
+        start_date: parsed.visit_date,
+        notes: parsed.notes,
+      })
+      .eq("id", jobId);
+    if (jobErr) throw jobErr;
+
+    await maybeSeedChecklist(jobId, project_type);
+
+    revalidatePath(`/jobs/${jobId}`);
+    revalidatePath("/jobs");
+    revalidatePath("/briefs");
+    redirect(`/jobs/${jobId}`);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    return { error: e instanceof Error ? e.message : "Nieznany błąd." };
+  }
+  return {};
+}
+
+export async function updatePomiarAction(
+  briefId: string,
+  jobId: string,
+  _prev: Result,
+  formData: FormData
+): Promise<Result> {
+  const projectTypeRaw = String(formData.get("project_type") ?? "").trim();
+  if (!PROJECT_TYPES.includes(projectTypeRaw as ProjectType))
+    return { error: "Wybierz typ projektu." };
+  const project_type = projectTypeRaw as ProjectType;
+
+  const parsed = readBriefDataFromForm(formData, project_type);
+  if (typeof parsed === "string") return { error: parsed };
+
+  try {
+    await updateBrief(briefId, {
+      project_type,
+      title: parsed.title,
+      visit_date: parsed.visit_date,
+      notes: parsed.notes,
+      data: parsed.data,
+    });
+    // Synchronizuj tylko pola pomiaru na zleceniu — nie ruszaj wyceny / statusu.
+    const supabase = await createClient();
+    const { error: jobErr } = await supabase
+      .from("jobs")
+      .update({
+        title: parsed.title,
+        project_type,
+        start_date: parsed.visit_date,
+        notes: parsed.notes,
+      })
+      .eq("id", jobId);
+    if (jobErr) throw jobErr;
+
+    revalidatePath(`/jobs/${jobId}`);
+    revalidatePath("/jobs");
+    redirect(`/jobs/${jobId}`);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    return { error: e instanceof Error ? e.message : "Nieznany błąd." };
+  }
+  return {};
+}
+
+// Pomiar = brief + job razem; wycenę dopiszesz później po kalkulatorze.
+export async function createPomiarAction(_prev: Result, formData: FormData): Promise<Result> {
+  const client_id = String(formData.get("client_id") ?? "").trim();
+  if (!client_id) return { error: "Brak klienta — dodaj pomiar z poziomu klienta." };
+
+  const projectTypeRaw = String(formData.get("project_type") ?? "").trim();
+  if (!PROJECT_TYPES.includes(projectTypeRaw as ProjectType))
+    return { error: "Wybierz typ projektu." };
+  const project_type = projectTypeRaw as ProjectType;
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Podaj tytuł pomiaru." };
+
+  const visit_date = String(formData.get("visit_date") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  const schema = getBriefSchema(project_type);
+  const data: BriefData = {};
+  for (const group of schema.groups) {
+    for (const field of group.fields) {
+      const raw = formData.get(`data.${field.key}`);
+      if (field.type === "checkbox") {
+        data[field.key] = raw === "on";
+        continue;
+      }
+      if (raw === null) continue;
+      const s = String(raw).trim();
+      if (s === "") continue;
+      if (field.type === "number") {
+        const n = parseAmount(s);
+        if (n === null) continue;
+        data[field.key] = n;
+      } else {
+        data[field.key] = s;
+      }
+    }
+  }
+
+  try {
+    const job = await createJob({
+      client_id,
+      title,
+      amount_gross: 0,
+      vat_rate: 0.23,
+      status: "to_measure",
+      start_date: visit_date,
+      due_date: null,
+      completed_date: null,
+      paid_date: null,
+      deposit_amount: 0,
+      deposit_date: null,
+      invoiced: false,
+      invoice_number: null,
+      invoice_date: null,
+      project_type,
+      notes,
+    });
+    await maybeSeedChecklist(job.id, project_type);
+
+    const brief = await createBrief({
+      client_id,
+      project_type,
+      title,
+      visit_date,
+      status: "draft",
+      data,
+      notes,
+    });
+    await setBriefJob(brief.id, job.id);
+
+    revalidatePath("/jobs");
+    revalidatePath(`/clients/${client_id}`);
+    revalidatePath("/briefs");
+    redirect(`/jobs/${job.id}`);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    return { error: e instanceof Error ? e.message : "Nieznany błąd." };
+  }
+  return {};
 }

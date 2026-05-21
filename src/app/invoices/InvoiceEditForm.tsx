@@ -69,7 +69,7 @@ export default function InvoiceEditForm({ invoice }: { invoice: Invoice }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-[#282624] text-white py-2.5 font-medium active:opacity-80 disabled:opacity-50"
+        className="rounded-lg bg-accent text-white py-2.5 font-medium active:opacity-80 disabled:opacity-50"
       >
         {pending ? "Zapisuję..." : "Zapisz dane faktury"}
       </button>
@@ -78,7 +78,7 @@ export default function InvoiceEditForm({ invoice }: { invoice: Invoice }) {
 }
 
 const inputCls =
-  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2.5 text-sm focus:outline-none focus:border-[#282624] w-full";
+  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2.5 text-sm focus:outline-none focus:border-accent w-full";
 
 function Field({
   label,
