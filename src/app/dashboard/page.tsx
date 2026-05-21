@@ -1,5 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
+import { Money } from "@/components/Money";
 import { getDashboardData, MONTH_NAMES_PL, type ReminderItem } from "@/lib/dao/dashboard";
 import { CATEGORY_COLORS } from "@/lib/dao/cost_lines.types";
 import { fmtPLN, fmtDate } from "@/lib/format";
@@ -30,10 +31,13 @@ export default async function DashboardPage() {
 
         <RemindersBanner reminders={d.reminders} />
 
-        <section className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+        <section className="rounded-2xl border border-[#e8e4dd] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <h2 className="text-sm font-semibold text-zinc-700">
-              Bilans — {monthName} {d.year}
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+              Bilans podatkowy
+            </p>
+            <h2 className="text-sm font-semibold text-[#282624]">
+              {monthName} {d.year}
             </h2>
           </header>
 
@@ -64,19 +68,22 @@ export default async function DashboardPage() {
           />
         </section>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">
-            Bieżący miesiąc — {monthName}
-          </h2>
+        <section className="rounded-xl border border-[#e8e4dd] bg-white p-4 space-y-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+              Bieżący miesiąc
+            </p>
+            <h2 className="text-sm font-semibold text-[#282624]">{monthName}</h2>
+          </div>
           <div className="space-y-2">
             <Row label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
             <Row label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
             <Divider />
-            <Row label="Dochód" value={fmtPLN(d.month.profit)} bold />
+            <Row label="Dochód" value={fmtPLN(d.month.profit)} highlight={d.month.profit >= 0 ? "gold" : "negative"} />
           </div>
           {d.costsByCategoryMonth.length > 0 && (
-            <div className="pt-3 border-t border-zinc-100 space-y-2">
-              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+            <div className="pt-3 border-t border-[#f1ede5] space-y-2">
+              <p className="text-[10px] font-semibold text-[#9c9081] uppercase tracking-wide">
                 Rozkład kosztów
               </p>
               <CategoryBars rows={d.costsByCategoryMonth} />
@@ -84,19 +91,24 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-zinc-700">Rok {d.year}</h2>
+        <section className="rounded-xl border border-[#e8e4dd] bg-white p-4 space-y-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+              Rok
+            </p>
+            <h2 className="text-sm font-semibold text-[#282624]">{d.year}</h2>
+          </div>
           {!hasYearData ? (
-            <p className="text-xs text-zinc-500 py-4 text-center">
+            <p className="text-xs text-[#9c9081] py-4 text-center">
               Brak danych w {d.year}. Dodaj zlecenia (status „Opłacone”) i faktury kosztowe.
             </p>
           ) : (
             <>
               <TrendChart data={d.monthlyTrend} highlightMonth={d.month_index} />
-              <div className="space-y-2 pt-3 border-t border-zinc-100">
+              <div className="space-y-2 pt-3 border-t border-[#f1ede5]">
                 <Row label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />
                 <Row label="Koszty netto YTD" value={fmtPLN(d.ytd.costsNet)} />
-                <Row label="Dochód YTD" value={fmtPLN(d.ytd.profit)} bold />
+                <Row label="Dochód YTD" value={fmtPLN(d.ytd.profit)} highlight={d.ytd.profit >= 0 ? "gold" : "negative"} />
                 <Row label="Zaliczka PIT YTD" value={fmtPLN(d.ytd.pit)} />
               </div>
             </>
@@ -104,10 +116,13 @@ export default async function DashboardPage() {
         </section>
 
         {hasCashAlerts && (
-          <section className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <h2 className="text-sm font-semibold text-zinc-700 px-4 pt-4 pb-2">
-              Alerty kasowe
-            </h2>
+          <section className="rounded-xl border border-[#e8e4dd] bg-white overflow-hidden">
+            <div className="px-4 pt-4 pb-2">
+              <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+                Cash flow
+              </p>
+              <h2 className="text-sm font-semibold text-[#282624]">Alerty kasowe</h2>
+            </div>
             {d.uninvoicedMonth && d.uninvoicedMonth.count > 0 && (
               <CashAlertRow
                 tone="neutral"
@@ -135,7 +150,7 @@ export default async function DashboardPage() {
           </section>
         )}
 
-        <p className="text-[11px] text-zinc-400 text-center pt-2">
+        <p className="text-[11px] text-[#9c9081] text-center pt-2">
           Forma: {taxFormLabel} · VAT: {vatPeriodLabel}
           <br />
           Przychód z zleceń opłaconych. Koszty z faktur kosztowych.
@@ -157,19 +172,19 @@ function CashAlertRow({
   hint: string;
 }) {
   const accent = {
-    neutral: "text-zinc-900",
-    warn: "text-amber-800",
-    info: "text-sky-800",
+    neutral: "text-[#282624]",
+    warn: "text-[#a06f3f]",
+    info: "text-[#5a7898]",
   }[tone];
   return (
-    <div className="px-4 py-3 border-t border-zinc-100 first:border-t-0">
+    <div className="px-4 py-3 border-t border-[#f1ede5] first:border-t-0">
       <div className="flex items-baseline justify-between gap-3">
         <p className={`text-sm font-medium ${accent}`}>{title}</p>
-        <p className={`text-base font-semibold tabular-nums ${accent}`}>
+        <Money className={`text-base font-semibold tabular-nums ${accent}`}>
           {fmtPLN(amount)}
-        </p>
+        </Money>
       </div>
-      <p className="text-[11px] text-zinc-500 mt-0.5">{hint}</p>
+      <p className="text-[11px] text-[#9c9081] mt-0.5">{hint}</p>
     </div>
   );
 }
@@ -190,31 +205,31 @@ function BalanceBlock({
   isLast?: boolean;
 }) {
   return (
-    <div className={`px-4 py-3 ${isLast ? "" : "border-b border-zinc-100"}`}>
+    <div className={`px-4 py-3 ${isLast ? "" : "border-b border-[#f1ede5]"}`}>
       <div className="flex items-baseline justify-between gap-2 mb-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-base font-semibold text-zinc-900">{title}</span>
-          <span className="text-[11px] text-zinc-500">{periodLabel}</span>
+          <span className="text-base font-semibold text-[#282624]">{title}</span>
+          <span className="text-[11px] text-[#9c9081]">{periodLabel}</span>
         </div>
         <DeadlinePill deadline={deadline} />
       </div>
       <div className="space-y-1">
         {rows.map((r, i) => (
           <div key={i} className="flex items-center justify-between gap-3">
-            <span className={`text-sm ${r.sub ? "text-zinc-500" : "text-zinc-600"}`}>
+            <span className={`text-sm ${r.sub ? "text-[#9c9081]" : "text-[#6f6457]"}`}>
               {r.label}
             </span>
-            <span className={`text-sm tabular-nums ${r.sub ? "text-zinc-500" : "text-zinc-700"}`}>
+            <Money className={`text-sm tabular-nums ${r.sub ? "text-[#9c9081]" : "text-[#3a3633]"}`}>
               {r.value}
-            </span>
+            </Money>
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-zinc-100">
-        <span className="text-sm font-medium text-zinc-900">{total.label}</span>
-        <span className="text-lg font-semibold tabular-nums text-[#282624]">
+      <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-[#f1ede5]">
+        <span className="text-sm font-medium text-[#282624]">{total.label}</span>
+        <Money className="text-lg font-semibold tabular-nums text-[#a06f3f]">
           {total.value}
-        </span>
+        </Money>
       </div>
     </div>
   );
@@ -228,10 +243,10 @@ function DeadlinePill({ deadline }: { deadline: string }) {
   const overdue = days < 0;
   const urgent = days >= 0 && days <= 7;
   const cls = overdue
-    ? "bg-red-50 text-red-700 border-red-200"
+    ? "bg-[#f4e0d9] text-[#b8523a] border-[#e6c4b9]"
     : urgent
-      ? "bg-amber-50 text-amber-800 border-amber-200"
-      : "bg-zinc-50 text-zinc-600 border-zinc-200";
+      ? "bg-[#f1e5d2] text-[#7d5530] border-[#e3d4b6]"
+      : "bg-[#faf7f2] text-[#9c9081] border-[#e8e4dd]";
   const suffix = overdue
     ? `${Math.abs(days)} dni po terminie`
     : days === 0
@@ -246,17 +261,35 @@ function DeadlinePill({ deadline }: { deadline: string }) {
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function Row({
+  label,
+  value,
+  bold,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  highlight?: "gold" | "negative";
+}) {
+  const valueCls =
+    highlight === "gold"
+      ? "text-[#a06f3f] font-semibold"
+      : highlight === "negative"
+        ? "text-[#b8523a] font-semibold"
+        : bold
+          ? "font-semibold text-[#282624]"
+          : "text-[#3a3633]";
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-zinc-600">{label}</span>
-      <span className={`text-sm tabular-nums ${bold ? "font-semibold" : ""}`}>{value}</span>
+      <span className="text-sm text-[#6f6457]">{label}</span>
+      <Money className={`text-sm tabular-nums ${valueCls}`}>{value}</Money>
     </div>
   );
 }
 
 function Divider() {
-  return <div className="h-px bg-zinc-100" />;
+  return <div className="h-px bg-[#f1ede5]" />;
 }
 
 function RemindersBanner({ reminders }: { reminders: ReminderItem[] }) {
@@ -292,9 +325,9 @@ function ReminderRow({
   tone: "overdue" | "urgent" | "upcoming";
 }) {
   const tones = {
-    overdue: "border-red-200 bg-red-50 text-red-900",
-    urgent: "border-amber-200 bg-amber-50 text-amber-900",
-    upcoming: "border-zinc-200 bg-white text-zinc-800",
+    overdue: "border-[#e6c4b9] bg-[#f4e0d9] text-[#7a2f1e]",
+    urgent: "border-[#e3d4b6] bg-[#f1e5d2] text-[#5a3d1f]",
+    upcoming: "border-[#e8e4dd] bg-white text-[#3a3633]",
   } as const;
   const days = item.daysUntil;
   const suffix =
@@ -314,9 +347,9 @@ function ReminderRow({
         <p className="text-[11px] opacity-80">do {fmtDate(new Date(item.deadline + "T00:00:00"))} · {suffix}</p>
       </div>
       {item.amount !== null && (
-        <span className="text-sm font-semibold tabular-nums shrink-0">
+        <Money className="text-sm font-semibold tabular-nums shrink-0">
           {fmtPLN(item.amount)}
-        </span>
+        </Money>
       )}
     </div>
   );
@@ -331,17 +364,17 @@ function CategoryBars({
   return (
     <ul className="space-y-2">
       {rows.map((r) => {
-        const color = CATEGORY_COLORS[r.category] ?? "#71717a";
+        const color = CATEGORY_COLORS[r.category] ?? "#9c9081";
         const widthPct = max > 0 ? Math.max(2, (r.amountNet / max) * 100) : 0;
         return (
           <li key={r.category} className="space-y-1">
             <div className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="text-zinc-700 capitalize">{r.category}</span>
-              <span className="tabular-nums text-zinc-600">
-                {fmtPLN(r.amountNet)} <span className="text-zinc-400">· {Math.round(r.share * 100)}%</span>
-              </span>
+              <span className="text-[#3a3633] capitalize">{r.category}</span>
+              <Money className="tabular-nums text-[#6f6457]">
+                {fmtPLN(r.amountNet)} <span className="text-[#9c9081]">· {Math.round(r.share * 100)}%</span>
+              </Money>
             </div>
-            <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
+            <div className="h-2 rounded-full bg-[#f1ede5] overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{ width: `${widthPct}%`, backgroundColor: color }}
