@@ -362,14 +362,18 @@ export async function createPomiarForJobAction(
     await setBriefJob(brief.id, jobId);
 
     const supabase = await createClient();
+    const jobUpdate: Record<string, unknown> = {
+      title: parsed.title,
+      project_type,
+      start_date: parsed.visit_date,
+      notes: parsed.notes,
+    };
+    if (job.status === "new_inquiry" || job.status === "to_measure") {
+      jobUpdate.status = "after_measure";
+    }
     const { error: jobErr } = await supabase
       .from("jobs")
-      .update({
-        title: parsed.title,
-        project_type,
-        start_date: parsed.visit_date,
-        notes: parsed.notes,
-      })
+      .update(jobUpdate)
       .eq("id", jobId);
     if (jobErr) throw jobErr;
 
@@ -378,6 +382,7 @@ export async function createPomiarForJobAction(
     revalidatePath(`/jobs/${jobId}`);
     revalidatePath("/jobs");
     revalidatePath("/briefs");
+    revalidatePath("/");
     redirect(`/jobs/${jobId}`);
   } catch (e) {
     if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
