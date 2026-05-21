@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createJob, updateJob, deleteJob, getJob, type JobInput, type JobStatus } from "@/lib/dao/jobs";
+import { JOB_STATUS_WORKFLOW } from "@/lib/dao/jobs.types";
 import { parseAmount } from "@/lib/format";
 import {
   countChecklistByJob,
@@ -221,6 +222,72 @@ export async function unmarkJobPaidAction(id: string) {
   revalidatePath(`/jobs/${id}`);
   revalidatePath(`/clients/${job.client_id}`);
   revalidatePath("/dashboard");
+}
+
+export async function advanceJobStatusAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+  if (job.status === "cancelled") throw new Error("Zlecenie anulowane — nie można posuwać etapu.");
+
+  const idx = JOB_STATUS_WORKFLOW.indexOf(job.status);
+  if (idx < 0) throw new Error("Nieznany status zlecenia.");
+  if (idx >= JOB_STATUS_WORKFLOW.length - 1) throw new Error("Zlecenie jest już w archiwum.");
+
+  const next = JOB_STATUS_WORKFLOW[idx + 1];
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (next === "installed") {
+    if (job.due_date && job.due_date > today) {
+      throw new Error("Termin realizacji w przyszłości — edytuj zlecenie, by zmienić datę.");
+    }
+  }
+  if (next === "settled") {
+    return markJobPaidAction(id);
+  }
+
+  const update: Record<string, unknown> = { status: next };
+  if (next === "installed") {
+    update.completed_date = job.completed_date ?? today;
+  }
+  if (next === "accepted" && !job.deposit_date && Number(job.deposit_amount) > 0) {
+    update.deposit_date = today;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("jobs").update(update).eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+}
+
+export async function revertJobStatusAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+  if (job.status === "settled") {
+    return unmarkJobPaidAction(id);
+  }
+  const idx = JOB_STATUS_WORKFLOW.indexOf(job.status);
+  if (idx <= 0) throw new Error("Nie można cofnąć etapu — zlecenie jest na pierwszym etapie.");
+
+  const prev = JOB_STATUS_WORKFLOW[idx - 1];
+  const update: Record<string, unknown> = { status: prev };
+  if (job.status === "installed") {
+    update.completed_date = null;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("jobs").update(update).eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
 }
 
 export async function deleteJobAction(id: string, clientId: string) {

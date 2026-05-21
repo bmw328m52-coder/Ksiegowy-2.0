@@ -5,7 +5,7 @@ import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getJob } from "@/lib/dao/jobs";
 import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus } from "@/lib/dao/jobs.types";
 import { fmtDate } from "@/lib/format";
-import { deleteJobAction } from "../actions";
+import { advanceJobStatusAction, deleteJobAction, revertJobStatusAction } from "../actions";
 import PomiarSection from "./PomiarSection";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
 
@@ -57,6 +57,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <StatusPill status={job.status} />
           </div>
         </section>
+
+        <StageActions jobId={id} status={job.status} />
 
         <StageTimeline stages={stages} />
 
@@ -296,6 +298,48 @@ function StageConnector({ state, tone }: { state: StageState; tone: string }) {
   const style =
     state === "done" ? { backgroundColor: tone } : { backgroundColor: "#e8e4dd" };
   return <span aria-hidden className="mt-0.5 w-0.5 flex-1 min-h-[14px]" style={style} />;
+}
+
+function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
+  if (status === "cancelled") return null;
+
+  const idx = JOB_STATUS_WORKFLOW.indexOf(status);
+  const canAdvance = idx >= 0 && idx < JOB_STATUS_WORKFLOW.length - 1;
+  const canRevert = idx > 0;
+  if (!canAdvance && !canRevert) return null;
+
+  const nextLabel = canAdvance ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx + 1]] : null;
+  const prevLabel = canRevert ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx - 1]] : null;
+
+  const advance = advanceJobStatusAction.bind(null, jobId);
+  const revert = revertJobStatusAction.bind(null, jobId);
+
+  return (
+    <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+      {canAdvance && (
+        <form action={advance} className="flex-1">
+          <button
+            type="submit"
+            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+          >
+            <span>Następny etap: {nextLabel}</span>
+            <span aria-hidden>→</span>
+          </button>
+        </form>
+      )}
+      {canRevert && (
+        <form action={revert} className={canAdvance ? "sm:w-auto" : "flex-1"}>
+          <button
+            type="submit"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#6f6457] bg-[#faf7f2] border border-[#e8e4dd] hover:bg-[#f1ede5] active:opacity-80 transition-colors"
+          >
+            <span aria-hidden>←</span>
+            <span>Cofnij do: {prevLabel}</span>
+          </button>
+        </form>
+      )}
+    </section>
+  );
 }
 
 function StatusPill({ status }: { status: JobStatus }) {
