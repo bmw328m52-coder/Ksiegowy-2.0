@@ -5,7 +5,13 @@ import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getJob } from "@/lib/dao/jobs";
 import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus } from "@/lib/dao/jobs.types";
 import { fmtDate } from "@/lib/format";
-import { advanceJobStatusAction, deleteJobAction, revertJobStatusAction } from "../actions";
+import {
+  advanceJobStatusAction,
+  cancelJobAction,
+  deleteJobAction,
+  revertJobStatusAction,
+  uncancelJobAction,
+} from "../actions";
 import InvoiceSection from "./InvoiceSection";
 import PomiarSection from "./PomiarSection";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
@@ -25,6 +31,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const stages = buildStages(job);
 
   const deleteWithIds = deleteJobAction.bind(null, id, job.client_id);
+  const cancelWithId = cancelJobAction.bind(null, id);
+  const uncancelWithId = uncancelJobAction.bind(null, id);
+  const isCancelled = job.status === "cancelled";
+  const canCancel = !isCancelled && job.status !== "settled" && job.status !== "archived";
 
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
@@ -112,15 +122,38 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </section>
         )}
 
-        <form action={deleteWithIds} className="mt-10">
-          <ConfirmSubmitButton
-            message="Na pewno usunąć to zlecenie? Tej operacji nie da się cofnąć."
-            formNoValidate
-            className="w-full text-sm text-red-600 py-3 active:underline"
-          >
-            Usuń zlecenie
-          </ConfirmSubmitButton>
-        </form>
+        <div className="mt-10 flex flex-col gap-1">
+          {canCancel && (
+            <form action={cancelWithId}>
+              <ConfirmSubmitButton
+                message="Anulować to zlecenie? Status zmieni się na „Anulowane”. Można to później cofnąć."
+                formNoValidate
+                className="w-full text-sm text-[#9c9081] py-3 hover:text-[#3a3633] active:underline"
+              >
+                Anuluj zlecenie
+              </ConfirmSubmitButton>
+            </form>
+          )}
+          {isCancelled && (
+            <form action={uncancelWithId}>
+              <button
+                type="submit"
+                className="w-full text-sm text-[#a06f3f] py-3 hover:text-[#7d5530] active:underline"
+              >
+                Przywróć (do „Nowe zapytanie”)
+              </button>
+            </form>
+          )}
+          <form action={deleteWithIds}>
+            <ConfirmSubmitButton
+              message="Na pewno usunąć to zlecenie? Tej operacji nie da się cofnąć."
+              formNoValidate
+              className="w-full text-sm text-red-600 py-3 active:underline"
+            >
+              Usuń zlecenie
+            </ConfirmSubmitButton>
+          </form>
+        </div>
       </div>
     </main>
   );

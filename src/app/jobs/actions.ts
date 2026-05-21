@@ -290,6 +290,48 @@ export async function revertJobStatusAction(id: string) {
   revalidatePath("/");
 }
 
+export async function cancelJobAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+  if (job.status === "settled" || job.status === "archived") {
+    throw new Error("Zlecenie już rozliczone/zarchiwizowane — nie można anulować.");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("jobs")
+    .update({
+      status: "cancelled",
+      completed_date: null,
+      paid_date: null,
+    })
+    .eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+}
+
+export async function uncancelJobAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+  if (job.status !== "cancelled") throw new Error("Zlecenie nie jest anulowane.");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("jobs")
+    .update({ status: "new_inquiry" })
+    .eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+}
+
 export async function markJobInvoicedAction(
   id: string,
   _prev: Result,
