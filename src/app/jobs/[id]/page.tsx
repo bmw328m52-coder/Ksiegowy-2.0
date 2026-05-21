@@ -183,6 +183,27 @@ function buildStages(job: Awaited<ReturnType<typeof getJob>> & object): Stage[] 
   });
 }
 
+const STAGE_KEY_TONE: Record<string, string> = {
+  new_inquiry: "#c4bbac",
+  to_measure: "#a06f3f",
+  after_measure: "#a06f3f",
+  to_quote: "#a18653",
+  quote_sent: "#a18653",
+  accepted: "#5a7898",
+  materials_ordered: "#5a7898",
+  in_production: "#5a7898",
+  ready_to_install: "#4f8a64",
+  installed: "#4f8a64",
+  settled: "#3a6b4d",
+  archived: "#c4bbac",
+  cancelled: "#c4bbac",
+  created: "#c4bbac",
+};
+
+function toneForKey(key: string): string {
+  return STAGE_KEY_TONE[key] ?? "#a06f3f";
+}
+
 function StageTimeline({ stages }: { stages: Stage[] }) {
   return (
     <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4">
@@ -192,11 +213,15 @@ function StageTimeline({ stages }: { stages: Stage[] }) {
       <ol className="relative pl-2">
         {stages.map((s, i) => {
           const last = i === stages.length - 1;
+          const tone = toneForKey(s.key);
+          const nextTone = !last ? toneForKey(stages[i + 1].key) : tone;
           return (
             <li key={s.key} className="relative flex gap-3 pb-3 last:pb-0">
               <div className="relative flex flex-col items-center shrink-0">
-                <StageDot state={s.state} />
-                {!last && <StageConnector state={s.state} />}
+                <StageDot state={s.state} tone={tone} />
+                {!last && (
+                  <StageConnector state={s.state} tone={nextTone} />
+                )}
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <div className="flex items-baseline justify-between gap-2">
@@ -214,7 +239,9 @@ function StageTimeline({ stages }: { stages: Stage[] }) {
                   >
                     {s.label}
                     {s.state === "current" && (
-                      <span className="ml-2 inline-block text-[10px] uppercase tracking-wide font-semibold text-[#5a7898] bg-[#dde5ef] rounded-full px-1.5 py-0.5 align-middle">
+                      <span className="ml-2 inline-block text-[10px] uppercase tracking-wide font-semibold text-white rounded-full px-1.5 py-0.5 align-middle"
+                        style={{ backgroundColor: tone }}
+                      >
                         teraz
                       </span>
                     )}
@@ -237,24 +264,38 @@ function StageTimeline({ stages }: { stages: Stage[] }) {
   );
 }
 
-function StageDot({ state }: { state: StageState }) {
-  const cls = {
-    done: "bg-[#4f8a64] border-[#4f8a64]",
-    current: "bg-white border-[#5a7898] ring-2 ring-[#dde5ef]",
-    upcoming: "bg-white border-[#e8e4dd]",
-    skipped: "bg-[#f5f3ef] border-[#e8e4dd]",
-  }[state];
-  return (
-    <span
-      aria-hidden
-      className={`w-3 h-3 rounded-full border-2 ${cls}`}
-    />
-  );
+function StageDot({ state, tone }: { state: StageState; tone: string }) {
+  if (state === "done") {
+    return (
+      <span
+        aria-hidden
+        className="w-3 h-3 rounded-full border-2"
+        style={{ backgroundColor: tone, borderColor: tone }}
+      />
+    );
+  }
+  if (state === "current") {
+    return (
+      <span
+        aria-hidden
+        className="w-3 h-3 rounded-full border-2 bg-white"
+        style={{
+          borderColor: tone,
+          boxShadow: `0 0 0 3px ${tone}26`,
+        }}
+      />
+    );
+  }
+  if (state === "skipped") {
+    return <span aria-hidden className="w-3 h-3 rounded-full border-2 bg-[#f5f3ef] border-[#e8e4dd]" />;
+  }
+  return <span aria-hidden className="w-3 h-3 rounded-full border-2 bg-white border-[#e8e4dd]" />;
 }
 
-function StageConnector({ state }: { state: StageState }) {
-  const cls = state === "done" ? "bg-[#4f8a64]" : "bg-[#e8e4dd]";
-  return <span aria-hidden className={`mt-0.5 w-0.5 flex-1 min-h-[14px] ${cls}`} />;
+function StageConnector({ state, tone }: { state: StageState; tone: string }) {
+  const style =
+    state === "done" ? { backgroundColor: tone } : { backgroundColor: "#e8e4dd" };
+  return <span aria-hidden className="mt-0.5 w-0.5 flex-1 min-h-[14px]" style={style} />;
 }
 
 function StatusPill({ status }: { status: JobStatus }) {
