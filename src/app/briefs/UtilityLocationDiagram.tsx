@@ -1,14 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Wall = "a" | "b" | "c" | "d";
-type Layout = "lin" | "l" | "u" | "wneka" | "kwadrat";
+type Layout = "lin" | "l" | "u" | "wneka" | "kwadrat" | "kwadrat_pol";
+
+export type UtilityField = {
+  // Klucz w zapisie briefu (data.{key}). Konwencja:
+  //   {utility}_offset_mm, {utility}_height_mm, {utility}_width_mm,
+  //   {utility}_occupied_height_mm, {utility}_depth_mm, ...
+  key: string;
+  label: string;
+  help?: string;
+  placeholder?: string;
+  // Czy wartość bierze udział w rysowaniu markera? (offset/height/width/occupied_height)
+  // Dla "depth_mm" itp. = false → renderujemy tylko input bez wpływu na rysunek.
+  role?: "offset" | "height" | "width" | "occupied_height" | "extra";
+};
 
 export type UtilityDef = {
   key: string;
   label: string;
   color: string;
+  fields: UtilityField[];
 };
 
 type UtilityState = {
@@ -16,6 +30,7 @@ type UtilityState = {
   offsetMm: number;
   heightMm: number;
   widthMm: number;
+  occupiedHeightMm: number;
 };
 
 type RoomState = {
@@ -36,11 +51,43 @@ const DEFAULT_ROOM: RoomState = {
   ceilingMm: 2600,
 };
 
-function num(form: HTMLFormElement, name: string): number {
+const WALL_LABELS: Record<Wall, string> = {
+  a: "Ściana A",
+  b: "Ściana B",
+  c: "Ściana C",
+  d: "Ściana D",
+};
+
+function parseNum(raw: string): number {
+  const s = raw.trim().replace(/\s+/g, "");
+  let n = Number(s.replace(",", "."));
+  if (!Number.isFinite(n)) {
+    // Pole wymiaru może zawierać zakres "3000-3200" — bierzemy środek,
+    // tak samo jak RoomMiniDiagram, zamiast cicho spadać do wartości domyślnej.
+    const range = s.match(/^(\d+(?:[.,]\d+)?)[-–—](\d+(?:[.,]\d+)?)$/);
+    if (range) {
+      const a = Number(range[1].replace(",", "."));
+      const b = Number(range[2].replace(",", "."));
+      if (Number.isFinite(a) && Number.isFinite(b)) n = (a + b) / 2;
+    }
+  }
+  if (!Number.isFinite(n)) return 0;
+  if (n < 0) return 0;
+  if (n > 20000) return 20000;
+  return n;
+}
+
+function numFromForm(form: HTMLFormElement, name: string): number {
   const el = form.querySelector<HTMLInputElement>(`input[name="data.${name}"]`);
   if (!el) return 0;
-  const n = Number(el.value.replace(",", "."));
-  return Number.isFinite(n) ? n : 0;
+  return parseNum(el.value);
+}
+
+function tickStep(maxMm: number): number {
+  if (maxMm <= 3500) return 500;
+  if (maxMm <= 7000) return 1000;
+  if (maxMm <= 15000) return 2500;
+  return 5000;
 }
 
 function radio(form: HTMLFormElement, name: string): string {
@@ -50,15 +97,51 @@ function radio(form: HTMLFormElement, name: string): string {
   return el?.value ?? "";
 }
 
+type InitialValue = string | number | boolean | number[] | null | undefined;
+type InitialData = Record<string, InitialValue>;
+
+function initialString(v: InitialValue): string {
+  if (v === null || v === undefined || typeof v === "boolean" || Array.isArray(v)) {
+    return "";
+  }
+  return String(v);
+}
+
 export default function UtilityLocationDiagram({
   utilities,
+  initialData,
 }: {
   utilities: UtilityDef[];
+  initialData?: InitialData;
 }) {
-  const [room, setRoom] = useState<RoomState>(DEFAULT_ROOM);
-  const [states, setStates] = useState<Record<string, UtilityState>>({});
   const ref = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState<RoomState>(DEFAULT_ROOM);
 
+  // Przypisanie utility → ściana. Czytane z formularza (radio data.{u}_wall).
+  const [walls, setWalls] = useState<Record<string, Wall | "">>(() => {
+    const init: Record<string, Wall | ""> = {};
+    for (const u of utilities) {
+      const v = initialData?.[`${u.key}_wall`];
+      init[u.key] = v === "a" || v === "b" || v === "c" || v === "d" ? v : "";
+    }
+    return init;
+  });
+
+  // Wartości liczbowe wszystkich pól mediów — kontrolowane,
+  // żeby DOM mógł je przenosić między sekcjami ścian bez utraty wpisanych danych.
+  const [vals, setVals] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const u of utilities) {
+      for (const f of u.fields ?? []) {
+        init[f.key] = initialString(initialData?.[f.key]);
+      }
+    }
+    return init;
+  });
+
+  // Sync z formularza: wymiary pomieszczenia + radio przypisania ścian.
+  // (Wartości liczbowe są zarządzane lokalnie — formularz je zobaczy przy submit
+  // bo inputy mają name="data.{...}".)
   useEffect(() => {
     const form = ref.current?.closest("form");
     if (!form) return;
@@ -69,30 +152,49 @@ export default function UtilityLocationDiagram({
         layoutRaw === "l" ||
         layoutRaw === "u" ||
         layoutRaw === "wneka" ||
-        layoutRaw === "kwadrat"
+        layoutRaw === "kwadrat" ||
+        layoutRaw === "kwadrat_pol"
           ? layoutRaw
           : "u";
-      setRoom({
-        layout,
-        wallAMm: num(form, "wall_a_mm") || DEFAULT_ROOM.wallAMm,
-        wallBMm: num(form, "wall_b_mm") || DEFAULT_ROOM.wallBMm,
-        wallCMm: num(form, "wall_c_mm") || DEFAULT_ROOM.wallCMm,
-        wallDMm: num(form, "wall_d_mm") || DEFAULT_ROOM.wallDMm,
-        ceilingMm: num(form, "ceiling_mm") || DEFAULT_ROOM.ceilingMm,
-      });
-      const next: Record<string, UtilityState> = {};
-      for (const u of utilities) {
-        const wallRaw = radio(form, `${u.key}_wall`);
-        const wall: Wall | "" =
-          wallRaw === "a" || wallRaw === "b" || wallRaw === "c" || wallRaw === "d" ? wallRaw : "";
-        next[u.key] = {
-          wall,
-          offsetMm: num(form, `${u.key}_offset_mm`),
-          heightMm: num(form, `${u.key}_height_mm`),
-          widthMm: num(form, `${u.key}_width_mm`),
+      const wA = numFromForm(form, "wall_a_mm") || DEFAULT_ROOM.wallAMm;
+      const wB = numFromForm(form, "wall_b_mm") || DEFAULT_ROOM.wallBMm;
+      const wC = numFromForm(form, "wall_c_mm") || DEFAULT_ROOM.wallCMm;
+      const wD = numFromForm(form, "wall_d_mm") || DEFAULT_ROOM.wallDMm;
+      const ceil = numFromForm(form, "ceiling_mm") || DEFAULT_ROOM.ceilingMm;
+      setRoom((prev) => {
+        if (
+          prev.layout === layout &&
+          prev.wallAMm === wA &&
+          prev.wallBMm === wB &&
+          prev.wallCMm === wC &&
+          prev.wallDMm === wD &&
+          prev.ceilingMm === ceil
+        ) {
+          return prev;
+        }
+        return {
+          layout,
+          wallAMm: wA,
+          wallBMm: wB,
+          wallCMm: wC,
+          wallDMm: wD,
+          ceilingMm: ceil,
         };
-      }
-      setStates(next);
+      });
+      setWalls((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const u of utilities) {
+          const w = radio(form, `${u.key}_wall`);
+          const wv: Wall | "" =
+            w === "a" || w === "b" || w === "c" || w === "d" ? w : "";
+          if (next[u.key] !== wv) {
+            next[u.key] = wv;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
     };
     sync();
     form.addEventListener("input", sync);
@@ -103,38 +205,96 @@ export default function UtilityLocationDiagram({
     };
   }, [utilities]);
 
-  const showB = room.layout !== "lin";
-  const showC = room.layout === "u" || room.layout === "wneka" || room.layout === "kwadrat";
-  const showD = room.layout === "kwadrat";
+  const states: Record<string, UtilityState> = useMemo(() => {
+    const out: Record<string, UtilityState> = {};
+    for (const u of utilities) {
+      const get = (role: UtilityField["role"]): number => {
+        const f = (u.fields ?? []).find((x) => x.role === role);
+        if (!f) return 0;
+        return parseNum(vals[f.key] ?? "");
+      };
+      out[u.key] = {
+        wall: walls[u.key] ?? "",
+        offsetMm: get("offset"),
+        heightMm: get("height"),
+        widthMm: get("width"),
+        occupiedHeightMm: get("occupied_height"),
+      };
+    }
+    return out;
+  }, [utilities, walls, vals]);
 
-  const walls: { id: Wall; lenMm: number }[] = [
+  const showB = room.layout !== "lin";
+  const showC =
+    room.layout === "u" ||
+    room.layout === "wneka" ||
+    room.layout === "kwadrat" ||
+    room.layout === "kwadrat_pol";
+  const showD = room.layout === "kwadrat" || room.layout === "kwadrat_pol";
+
+  const wallList: { id: Wall; lenMm: number }[] = [
     { id: "a", lenMm: room.wallAMm },
     ...(showB ? [{ id: "b" as Wall, lenMm: room.wallBMm }] : []),
     ...(showC ? [{ id: "c" as Wall, lenMm: room.wallCMm }] : []),
     ...(showD ? [{ id: "d" as Wall, lenMm: room.wallDMm }] : []),
   ];
 
+  const unassigned = utilities.filter((u) => !walls[u.key]);
+
+  const onValChange = (key: string, value: string) =>
+    setVals((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
+
   return (
     <div ref={ref} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
       <div className="flex items-baseline justify-between mb-3">
         <p className="text-sm font-semibold text-zinc-800">
-          Rozwinięcie ścian
+          Rozwinięcie ścian — przyłącza
         </p>
         <p className="text-[11px] text-zinc-500">widok od wewnątrz</p>
       </div>
 
       <div className="flex flex-col gap-5">
-        {walls.map((w) => (
-          <WallElevation
-            key={w.id}
-            wallId={w.id}
-            wallLenMm={w.lenMm}
-            ceilingMm={room.ceilingMm}
-            utilities={utilities}
-            states={states}
-          />
-        ))}
+        {wallList.map((w) => {
+          const wallUtilities = utilities.filter(
+            (u) => walls[u.key] === w.id
+          );
+          return (
+            <WallSection
+              key={w.id}
+              wallId={w.id}
+              wallLenMm={w.lenMm}
+              ceilingMm={room.ceilingMm}
+              utilities={utilities}
+              states={states}
+              wallUtilities={wallUtilities}
+              vals={vals}
+              onValChange={onValChange}
+            />
+          );
+        })}
       </div>
+
+      {unassigned.length > 0 && (
+        <div className="mt-5 rounded-lg border border-dashed border-zinc-300 bg-white p-3">
+          <p className="text-xs font-semibold text-zinc-700 mb-2">
+            Nieprzypisane do ściany
+          </p>
+          <p className="text-[11px] text-zinc-500 mb-2">
+            Wybierz ścianę powyżej w polu „… — ściana”, a pola wymiarów
+            pojawią się pod właściwą ścianą.
+          </p>
+          <div className="flex flex-col gap-3">
+            {unassigned.map((u) => (
+              <UtilityInputs
+                key={u.key}
+                utility={u}
+                vals={vals}
+                onValChange={onValChange}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 border-t border-zinc-200 pt-3">
         <p className="text-[11px] text-zinc-500 mb-2">Legenda</p>
@@ -168,38 +328,57 @@ export default function UtilityLocationDiagram({
   );
 }
 
-function WallElevation({
+function WallSection({
   wallId,
   wallLenMm,
   ceilingMm,
   utilities,
   states,
+  wallUtilities,
+  vals,
+  onValChange,
 }: {
   wallId: Wall;
   wallLenMm: number;
   ceilingMm: number;
   utilities: UtilityDef[];
   states: Record<string, UtilityState>;
+  wallUtilities: UtilityDef[];
+  vals: Record<string, string>;
+  onValChange: (key: string, value: string) => void;
 }) {
-  // SVG geometry — sized larger so labels are legible
-  const VB_W = 360;
-  const VB_H = 210;
-  const WX = 42;
-  const WY = 32;
-  const WW = 300;
-  const WH = 140;
-  const FLOOR_Y = WY + WH;
-
   const safeLen = wallLenMm > 0 ? wallLenMm : 1;
   const safeH = ceilingMm > 0 ? ceilingMm : 1;
 
+  const MAX_W = 300;
+  const MAX_H = 200;
+  const scale = Math.min(MAX_W / safeLen, MAX_H / safeH);
+  const WW = scale * safeLen;
+  const WH = scale * safeH;
+  const WX = 42;
+  const WY = 24;
+  const VB_W = 360;
+  const VB_H = WY + WH + 54;
+  const FLOOR_Y = WY + WH;
+
   const onWall = utilities.filter((u) => states[u.key]?.wall === wallId);
+
+  const markerOffsetXs = onWall.map((u) => {
+    const s = states[u.key];
+    const clOffset = Math.max(0, Math.min(s.offsetMm, safeLen));
+    return WX + (clOffset / safeLen) * WW;
+  });
+  const endX = WX + WW;
+  const tickLabelTooClose = (x: number): boolean => {
+    if (Math.abs(x - endX) < 30) return true;
+    return markerOffsetXs.some((mx) => Math.abs(x - mx) < 28);
+  };
 
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between text-xs">
         <span className="text-base font-bold text-zinc-900">
-          Ściana {wallId.toUpperCase()}
+          {WALL_LABELS[wallId]}
         </span>
         <span className="text-zinc-500 tabular-nums">
           szer.{" "}
@@ -214,7 +393,6 @@ function WallElevation({
           className="w-full block"
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Wall fill */}
           <rect
             x={WX}
             y={WY}
@@ -225,7 +403,6 @@ function WallElevation({
             strokeWidth="1.8"
           />
 
-          {/* Ceiling line label */}
           <text
             x={WX + WW + 4}
             y={WY + 4}
@@ -239,23 +416,23 @@ function WallElevation({
             {ceilingMm}
           </text>
 
-          {/* Vertical height axis ticks */}
-          {Array.from({ length: Math.floor(ceilingMm / 500) }, (_, i) => {
-            const h = (i + 1) * 500;
-            if (h >= ceilingMm) return null;
-            const y = FLOOR_Y - (h / safeH) * WH;
-            const isMeter = h % 1000 === 0;
-            return (
-              <g key={`tick-${h}`}>
-                <line
-                  x1={WX - (isMeter ? 6 : 3)}
-                  y1={y}
-                  x2={WX}
-                  y2={y}
-                  stroke={isMeter ? "#71717a" : "#d4d4d8"}
-                  strokeWidth={isMeter ? 0.8 : 0.5}
-                />
-                {isMeter && (
+          {(() => {
+            const step = tickStep(ceilingMm);
+            const count = Math.min(Math.floor(ceilingMm / step), 12);
+            return Array.from({ length: count }, (_, i) => {
+              const h = (i + 1) * step;
+              if (h >= ceilingMm) return null;
+              const y = FLOOR_Y - (h / safeH) * WH;
+              return (
+                <g key={`tick-${h}`}>
+                  <line
+                    x1={WX - 6}
+                    y1={y}
+                    x2={WX}
+                    y2={y}
+                    stroke="#71717a"
+                    strokeWidth={0.8}
+                  />
                   <text
                     x={WX - 8}
                     y={y + 3}
@@ -265,12 +442,11 @@ function WallElevation({
                   >
                     {h}
                   </text>
-                )}
-              </g>
-            );
-          })}
+                </g>
+              );
+            });
+          })()}
 
-          {/* Floor */}
           <line
             x1={WX - 8}
             y1={FLOOR_Y}
@@ -289,38 +465,40 @@ function WallElevation({
             0
           </text>
 
-          {/* Horizontal axis ticks */}
-          {Array.from({ length: Math.floor(wallLenMm / 500) }, (_, i) => {
-            const o = (i + 1) * 500;
-            if (o >= wallLenMm) return null;
-            const x = WX + (o / safeLen) * WW;
-            const isMeter = o % 1000 === 0;
-            return (
-              <g key={`htick-${o}`}>
-                <line
-                  x1={x}
-                  y1={FLOOR_Y}
-                  x2={x}
-                  y2={FLOOR_Y + (isMeter ? 6 : 3)}
-                  stroke={isMeter ? "#71717a" : "#d4d4d8"}
-                  strokeWidth={isMeter ? 0.8 : 0.5}
-                />
-                {isMeter && (
-                  <text
-                    x={x}
-                    y={FLOOR_Y + 16}
-                    fontSize="9"
-                    fill="#71717a"
-                    textAnchor="middle"
-                  >
-                    {o}
-                  </text>
-                )}
-              </g>
-            );
-          })}
+          {(() => {
+            const step = tickStep(wallLenMm);
+            const count = Math.min(Math.floor(wallLenMm / step), 12);
+            return Array.from({ length: count }, (_, i) => {
+              const o = (i + 1) * step;
+              if (o >= wallLenMm) return null;
+              const x = WX + (o / safeLen) * WW;
+              const hideLabel = tickLabelTooClose(x);
+              return (
+                <g key={`htick-${o}`}>
+                  <line
+                    x1={x}
+                    y1={FLOOR_Y}
+                    x2={x}
+                    y2={FLOOR_Y + 6}
+                    stroke="#71717a"
+                    strokeWidth={0.8}
+                  />
+                  {!hideLabel && (
+                    <text
+                      x={x}
+                      y={FLOOR_Y + 16}
+                      fontSize="9"
+                      fill="#71717a"
+                      textAnchor="middle"
+                    >
+                      {o}
+                    </text>
+                  )}
+                </g>
+              );
+            });
+          })()}
 
-          {/* End-of-wall label */}
           <text
             x={WX + WW}
             y={FLOOR_Y + 16}
@@ -332,8 +510,7 @@ function WallElevation({
             {wallLenMm}
           </text>
 
-          {/* Markers */}
-          {onWall.map((u, i) => {
+          {onWall.map((u) => {
             const s = states[u.key];
             const clOffset = Math.max(0, Math.min(s.offsetMm, safeLen));
             const clHeight = Math.max(0, Math.min(s.heightMm, safeH));
@@ -342,83 +519,98 @@ function WallElevation({
               (Math.min(s.widthMm, safeLen) / safeLen) * WW,
               6
             );
+            const fieldMm = Math.max(0, Math.min(s.occupiedHeightMm, safeH));
+            const mh = fieldMm > 0 ? Math.max((fieldMm / safeH) * WH, 6) : 10;
             const my = FLOOR_Y - (clHeight / safeH) * WH;
             const cxLineX = cx + mw / 2;
-            // Label position alternates above/below to reduce overlap
-            const labelAbove = i % 2 === 0;
+            const rectTop = my - mh / 2;
+            const rectBot = my + mh / 2;
+
+            const labelRightX = cx + mw + 4;
+            const labelLeftX = cx - 4;
+            const labelOnRight = labelRightX + 50 < WX + MAX_W + 16;
+            const labelX = labelOnRight ? labelRightX : labelLeftX;
+            const labelAnchor: "start" | "end" = labelOnRight ? "start" : "end";
+
+            const lineH = 11;
+            const linesCount = s.widthMm > 0 || fieldMm > 0 ? 2 : 1;
+            const labelY = my - ((linesCount - 1) * lineH) / 2 + 3;
+
+            const sizeStr =
+              fieldMm > 0
+                ? `${s.widthMm || "?"} × ${s.occupiedHeightMm}`
+                : s.widthMm > 0
+                  ? `⇔ ${s.widthMm}`
+                  : "";
+
             return (
               <g key={u.key}>
-                {/* Horizontal extension from left edge */}
+                <line
+                  x1={cxLineX}
+                  y1={FLOOR_Y}
+                  x2={cxLineX}
+                  y2={rectBot}
+                  stroke={u.color}
+                  strokeWidth="1"
+                  strokeDasharray="3 2"
+                />
                 <line
                   x1={WX}
                   y1={my}
                   x2={cx}
                   y2={my}
                   stroke={u.color}
-                  strokeWidth="0.7"
-                  strokeDasharray="2 2"
-                  opacity="0.5"
+                  strokeWidth="0.6"
+                  strokeDasharray="2 3"
+                  opacity="0.35"
                 />
-                {/* Vertical drop to floor */}
-                <line
-                  x1={cxLineX}
-                  y1={FLOOR_Y}
-                  x2={cxLineX}
-                  y2={my}
-                  stroke={u.color}
-                  strokeWidth="1"
-                  strokeDasharray="3 2"
-                />
-                {/* Marker rectangle */}
                 <rect
                   x={cx}
-                  y={my - 5}
+                  y={rectTop}
                   width={mw}
-                  height={10}
+                  height={mh}
                   fill={u.color}
                   stroke="#282624"
                   strokeWidth="0.6"
                   rx="1.5"
                 />
-                {/* Height label */}
                 <text
-                  x={cx + mw + 4}
-                  y={my + 3.5}
+                  x={labelX}
+                  y={labelY}
                   fontSize="10"
                   fill={u.color}
                   fontWeight="800"
+                  textAnchor={labelAnchor}
                 >
-                  ↕{s.heightMm}
+                  <tspan x={labelX}>↕ {s.heightMm}</tspan>
+                  {sizeStr && (
+                    <tspan x={labelX} dy={lineH} fontSize="9" fontWeight="700">
+                      {sizeStr}
+                    </tspan>
+                  )}
                 </text>
-                {/* Width label */}
-                {s.widthMm > 0 && (
-                  <text
-                    x={cxLineX}
-                    y={labelAbove ? my - 8 : my + 14}
-                    fontSize="9"
-                    fill={u.color}
-                    textAnchor="middle"
-                    fontWeight="700"
-                  >
-                    ⇔{s.widthMm}
-                  </text>
-                )}
-                {/* Offset value at floor */}
+                <line
+                  x1={cx}
+                  y1={FLOOR_Y}
+                  x2={cx}
+                  y2={FLOOR_Y + 22}
+                  stroke={u.color}
+                  strokeWidth="0.9"
+                />
                 <text
-                  x={cxLineX}
-                  y={FLOOR_Y + 27}
+                  x={cx}
+                  y={FLOOR_Y + 34}
                   fontSize="10"
                   fill={u.color}
                   textAnchor="middle"
                   fontWeight="800"
                 >
-                  ↔{s.offsetMm}
+                  ↔ {s.offsetMm}
                 </text>
               </g>
             );
           })}
 
-          {/* Empty state */}
           {onWall.length === 0 && (
             <text
               x={WX + WW / 2}
@@ -432,6 +624,72 @@ function WallElevation({
             </text>
           )}
         </svg>
+      </div>
+
+      {wallUtilities.length > 0 && (
+        <div className="flex flex-col gap-2 mt-1">
+          {wallUtilities.map((u) => (
+            <UtilityInputs
+              key={u.key}
+              utility={u}
+              vals={vals}
+              onValChange={onValChange}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UtilityInputs({
+  utility,
+  vals,
+  onValChange,
+}: {
+  utility: UtilityDef;
+  vals: Record<string, string>;
+  onValChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div
+      className="rounded-lg border border-zinc-200 bg-white p-2.5"
+      style={{ borderLeft: `4px solid ${utility.color}` }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <span
+          className="inline-block rounded-sm"
+          style={{ width: 10, height: 10, background: utility.color }}
+        />
+        <span className="text-xs font-semibold text-zinc-800">
+          {utility.label}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {(utility.fields ?? []).map((f) => {
+          const name = `data.${f.key}`;
+          const value = vals[f.key] ?? "";
+          return (
+            <label key={f.key} className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-zinc-700 leading-tight">
+                {f.label}
+              </span>
+              <input
+                name={name}
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => onValChange(f.key, e.target.value)}
+                placeholder={f.placeholder ?? "mm"}
+                className="rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-2.5 py-1.5 text-sm focus:outline-none focus:border-accent w-full"
+              />
+              {f.help && (
+                <span className="text-[10px] text-zinc-500 leading-snug">
+                  {f.help}
+                </span>
+              )}
+            </label>
+          );
+        })}
       </div>
     </div>
   );

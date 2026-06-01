@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { type RoomLayout as Layout, isRoomLayout, wallVisibility } from "./roomLayout";
 
-type Layout = "lin" | "l" | "u" | "wneka" | "kwadrat";
 type Wall = "a" | "b" | "c" | "d";
 
 const WALL = "#282624";
@@ -10,10 +10,6 @@ const WALL_ACTIVE = "#fbbf24";
 const ROOM = "#fafaf9";
 const WINDOW = "#3b82f6";
 const WINDOW_BORDER = "#1d4ed8";
-
-function isLayout(v: string): v is Layout {
-  return v === "lin" || v === "l" || v === "u" || v === "wneka" || v === "kwadrat";
-}
 
 function isWall(v: string): v is Wall {
   return v === "a" || v === "b" || v === "c" || v === "d";
@@ -23,13 +19,16 @@ export default function KitchenLayoutDiagram({
   initialLayout = "u",
   initialWindowWall = "",
   initialHasIsland = false,
+  initialIslandRotation = 0,
 }: {
   initialLayout?: Layout;
   initialWindowWall?: string;
   initialHasIsland?: boolean;
+  initialIslandRotation?: 0 | 90;
 }) {
   const [layout, setLayout] = useState<Layout>(initialLayout);
   const [hasIsland, setHasIsland] = useState<boolean>(initialHasIsland);
+  const [islandRot, setIslandRot] = useState<0 | 90>(initialIslandRotation);
   const [windowWall, setWindowWall] = useState<Wall | "">(
     isWall(initialWindowWall) ? initialWindowWall : ""
   );
@@ -42,11 +41,15 @@ export default function KitchenLayoutDiagram({
       const sel = form.querySelector<HTMLInputElement>(
         'input[name="data.room_layout"]:checked'
       );
-      if (sel && isLayout(sel.value)) setLayout(sel.value);
+      if (sel && isRoomLayout(sel.value)) setLayout(sel.value);
       const island = form.querySelector<HTMLInputElement>(
         'input[name="data.has_island"]'
       );
       if (island) setHasIsland(island.checked);
+      const rot = form.querySelector<HTMLInputElement>(
+        'input[name="data.island_rotation"]:checked'
+      );
+      if (rot) setIslandRot(rot.value === "90" ? 90 : 0);
     };
     sync();
     form.addEventListener("change", sync);
@@ -59,17 +62,20 @@ export default function KitchenLayoutDiagram({
 
   useEffect(() => {
     if (windowWall === "b" && layout === "lin") setWindowWall("");
-    if (windowWall === "c" && layout !== "u" && layout !== "wneka" && layout !== "kwadrat") setWindowWall("");
+    if (windowWall === "c" && layout !== "u" && layout !== "wneka" && layout !== "kwadrat" && layout !== "kwadrat_pol") setWindowWall("");
     if (windowWall === "a" && layout === "wneka") setWindowWall("");
-    if (windowWall === "d" && layout !== "kwadrat") setWindowWall("");
+    if (windowWall === "d" && layout !== "kwadrat" && layout !== "kwadrat_pol") setWindowWall("");
   }, [layout, windowWall]);
 
   const toggle = (w: Wall) => setWindowWall((c) => (c === w ? "" : w));
 
-  const showB = layout === "l" || layout === "u" || layout === "wneka" || layout === "kwadrat";
-  const showC = layout === "u" || layout === "wneka" || layout === "kwadrat";
-  const showD = layout === "kwadrat";
+  const { showB, showC, showD, halfD } = wallVisibility(layout);
   const shortAC = layout === "wneka";
+
+  const dX = halfD ? 100 : 26;
+  const dW = halfD ? 74 : 148;
+  const dTextX = halfD ? 137 : 100;
+  const dWinX = halfD ? 117 : 80;
 
   const wallAH = shortAC ? 48 : 136;
   const wallCH = shortAC ? 48 : 136;
@@ -138,21 +144,21 @@ export default function KitchenLayoutDiagram({
           </g>
         )}
 
-        {/* Wall D — bottom (tylko dla kwadratu) */}
+        {/* Wall D — bottom (kwadrat: pełna; kwadrat_pol: połowa od strony C) */}
         {showD && (
           <g onClick={() => toggle("d")} style={{ cursor: "pointer" }}>
             <rect
-              x="26"
+              x={dX}
               y="134"
-              width="148"
+              width={dW}
               height="14"
               fill={windowWall === "d" ? WALL_ACTIVE : WALL}
             />
-            <text x="100" y="144" textAnchor="middle"
+            <text x={dTextX} y="144" textAnchor="middle"
               fill={windowWall === "d" ? "#282624" : "#fff"}
               fontSize="10" fontWeight="700">D</text>
             {windowWall === "d" && (
-              <rect x="80" y="134" width="40" height="14" fill={WINDOW} stroke={WINDOW_BORDER} strokeWidth="0.8" />
+              <rect x={dWinX} y="134" width="40" height="14" fill={WINDOW} stroke={WINDOW_BORDER} strokeWidth="0.8" />
             )}
           </g>
         )}
@@ -166,16 +172,30 @@ export default function KitchenLayoutDiagram({
         )}
 
         {/* Wyspa */}
-        {hasIsland && (
-          <>
-            <rect x="70" y={showD ? 78 : 90} width="60" height="32" fill="#e4e4e7" stroke="#a1a1aa" strokeDasharray="3 2" />
-            <text x="100" y={showD ? 98 : 110} textAnchor="middle" fill="#71717a" fontSize="8">wyspa</text>
-          </>
-        )}
+        {hasIsland && (() => {
+          const w = islandRot === 90 ? 32 : 60;
+          const h = islandRot === 90 ? 60 : 32;
+          const cx = 100;
+          const cy = showD ? 94 : 106;
+          return (
+            <>
+              <rect
+                x={cx - w / 2}
+                y={cy - h / 2}
+                width={w}
+                height={h}
+                fill="#e4e4e7"
+                stroke="#a1a1aa"
+                strokeDasharray="3 2"
+              />
+              <text x={cx} y={cy + 3} textAnchor="middle" fill="#71717a" fontSize="8">wyspa</text>
+            </>
+          );
+        })()}
       </svg>
       <p className="text-[11px] text-center text-zinc-600 mt-2">
         {windowWall ? `Okno: ściana ${windowWall.toUpperCase()}` : "Bez okna lub nie zaznaczono"}
-        {hasIsland && " • z wyspą"}
+        {hasIsland && ` • z wyspą (${islandRot}°)`}
       </p>
       {shortAC && (
         <p className="text-[11px] text-center text-zinc-500 mt-1">
@@ -184,7 +204,9 @@ export default function KitchenLayoutDiagram({
       )}
       {showD && (
         <p className="text-[11px] text-center text-zinc-500 mt-1">
-          Kwadrat: 4 ściany (A lewa, B góra, C prawa, D dół) — wpisz wszystkie 4 długości.
+          {halfD
+            ? "Kwadrat z ½ D: A lewa, B góra, C prawa, D dolna do połowy (od strony C)."
+            : "Kwadrat: 4 ściany (A lewa, B góra, C prawa, D dół) — wpisz wszystkie 4 długości."}
         </p>
       )}
     </div>
