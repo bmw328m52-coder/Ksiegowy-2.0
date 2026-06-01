@@ -9,6 +9,7 @@ import {
   OCR_STATUS_LABELS,
 } from "@/lib/dao/invoices";
 import { listCostLinesByInvoice } from "@/lib/dao/cost_lines";
+import { listCatalog } from "@/lib/dao/material_catalog";
 import { listJobs } from "@/lib/dao/jobs";
 import { fmtDate, fmtPLN } from "@/lib/format";
 import InvoiceEditForm from "../InvoiceEditForm";
@@ -35,10 +36,11 @@ export default async function InvoiceDetailPage({
   const { id } = await params;
   const { fresh } = await searchParams;
   const justAdded = fresh === "1";
-  const [invoice, costLines, jobs] = await Promise.all([
+  const [invoice, costLines, jobs, catalog] = await Promise.all([
     getInvoice(id),
     listCostLinesByInvoice(id),
     listJobs(),
+    listCatalog(),
   ]);
 
   if (!invoice) notFound();
@@ -58,6 +60,12 @@ export default async function InvoiceDetailPage({
   );
 
   const jobOptions = jobs.map((j) => ({ id: j.id, title: j.title, client_name: j.client_name }));
+  const catalogOptions = catalog.map((c) => ({
+    id: c.id,
+    name: c.name,
+    unit: c.unit,
+    category: c.category,
+  }));
 
   const deleteThisInvoice = deleteInvoiceAction.bind(null, invoice.id);
 
@@ -192,7 +200,13 @@ export default async function InvoiceDetailPage({
           ) : (
             <div className="flex flex-col gap-2">
               {costLines.map((l) => (
-                <CostLineCard key={l.id} line={l} invoiceId={invoice.id} jobs={jobOptions} />
+                <CostLineCard
+                  key={l.id}
+                  line={l}
+                  invoiceId={invoice.id}
+                  jobs={jobOptions}
+                  catalog={catalogOptions}
+                />
               ))}
             </div>
           )}

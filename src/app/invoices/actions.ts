@@ -14,6 +14,7 @@ import {
   deleteCostLine as daoDeleteCostLine,
   updateCostLine,
 } from "@/lib/dao/cost_lines";
+import { updateCatalogItem } from "@/lib/dao/material_catalog";
 import { ocrInvoice, type OCRInput } from "@/lib/ocr/claude";
 import { parseAmount } from "@/lib/format";
 
@@ -202,6 +203,39 @@ export async function assignCostLineAction(lineId: string, formData: FormData) {
   revalidatePath("/invoices");
 }
 
+/**
+ * Spina linię kosztu z pozycją katalogu i — jeśli qty>0 oraz brutto>0 —
+ * nadpisuje material_catalog.default_price_gross ceną jednostkową z faktury.
+ * Dzięki temu kalkulator modułowy używa najświeższych cen z faktur.
+ */
+export async function assignCostLineCatalogAction(lineId: string, formData: FormData) {
+  const rawCat = String(formData.get("catalog_id") ?? "").trim();
+  const catalog_id = rawCat === "" || rawCat === "__none__" ? null : rawCat;
+  const qty = Math.max(0, parseAmount(String(formData.get("qty") ?? "1")) ?? 1);
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+  // Nadpisanie ceny w cenniku jest opcjonalne — żeby spięcie linii (np. tylko
+  // do przypisania kategorii) nie zmieniało po cichu ceny bazowej materiału.
+  const updatePrice = String(formData.get("update_price") ?? "") === "on";
+
+  const updated = await updateCostLine(lineId, { catalog_id, qty });
+
+  if (catalog_id && qty > 0 && updatePrice) {
+    const gross = Number(updated.amount_gross);
+    if (Number.isFinite(gross) && gross > 0) {
+      const unitPrice = Math.round((gross / qty) * 100) / 100;
+      try {
+        await updateCatalogItem(catalog_id, { default_price_gross: unitPrice });
+        revalidatePath("/materials");
+      } catch {
+        // ignore — przypisanie linii nadal jest zapisane, cena pozostaje
+      }
+    }
+  }
+
+  if (invoiceId) revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/invoices");
+}
+
 export async function updateCostLineAction(
   lineId: string,
   invoiceId: string,
@@ -214,6 +248,7 @@ export async function updateCostLineAction(
   if (amount_gross === null) return { error: "Podaj kwotę brutto." };
   const amount_net = parseAmount(String(formData.get("amount_net") ?? "")) ?? 0;
   const amount_vat = parseAmount(String(formData.get("amount_vat") ?? "")) ?? 0;
+  const qty = Math.max(0, parseAmount(String(formData.get("qty") ?? "1")) ?? 1);
   const vat_pct = String(formData.get("vat_rate") ?? "").trim();
   const vat_rate = vat_pct === "" ? null : Number(vat_pct) / 100;
   const category = strOrNull(formData.get("category"));
@@ -225,6 +260,7 @@ export async function updateCostLineAction(
       amount_net,
       amount_vat,
       amount_gross,
+      qty,
       vat_rate: Number.isFinite(vat_rate as number) ? (vat_rate as number) : null,
       category,
       cost_date,
