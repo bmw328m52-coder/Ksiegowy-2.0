@@ -65,6 +65,23 @@ export default async function CalculatorPage({
     <main className="flex flex-1 flex-col px-6 py-6">
       <div className="w-full max-w-md sm:max-w-2xl mx-auto">
         <PageHeader title="Kalkulator" back={{ href: backHref }} />
+        <Link
+          href="/calculator/moduly"
+          className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#e2c79c] bg-gradient-to-br from-[#fbf1dd] to-[#fff8e9] px-3.5 py-2.5 active:opacity-90 hover:border-[#a06f3f] transition-colors"
+        >
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#a18653]">
+              Nowość
+            </p>
+            <p className="text-sm font-semibold text-[#7d5530] truncate">
+              Wycena modułowa kuchni
+            </p>
+            <p className="text-[11px] text-[#a18653] truncate">
+              klikasz szafki → masz cenę
+            </p>
+          </div>
+          <span className="shrink-0 text-[#7d5530] text-lg">→</span>
+        </Link>
         {presetJob && (
           <div className="mb-3 rounded-xl border border-[#f1e5d2] bg-[#faf5e9] px-3.5 py-2.5 flex items-baseline justify-between gap-3">
             <div className="min-w-0">
