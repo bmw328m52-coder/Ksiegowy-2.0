@@ -2,6 +2,7 @@ import type { ProjectType } from "./job_checklist.types";
 
 export type JobStatus =
   | "new_inquiry"
+  | "scheduled_measurement"
   | "to_measure"
   | "after_measure"
   | "to_quote"
@@ -17,8 +18,9 @@ export type JobStatus =
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   new_inquiry: "Nowe zapytanie",
-  to_measure: "Do pomiaru",
-  after_measure: "Po pomiarze",
+  scheduled_measurement: "Umówiony pomiar",
+  to_measure: "Pomiar",
+  after_measure: "Uzupełnienie",
   to_quote: "Do wyceny",
   quote_sent: "Wycena wysłana",
   accepted: "Zaakceptowane",
@@ -34,6 +36,7 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
 // Kolejność workflow (bez 'cancelled' — wyświetlane osobno)
 export const JOB_STATUS_WORKFLOW: JobStatus[] = [
   "new_inquiry",
+  "scheduled_measurement",
   "to_measure",
   "after_measure",
   "to_quote",

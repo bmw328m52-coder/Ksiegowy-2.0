@@ -3,10 +3,12 @@ export type CostLine = {
   user_id: string;
   invoice_id: string | null;
   job_id: string | null;
+  catalog_id: string | null;
   description: string;
   amount_net: string;
   amount_vat: string;
   amount_gross: string;
+  qty: string;
   vat_rate: string | null;
   category: string | null;
   cost_date: string;
@@ -17,10 +19,12 @@ export type CostLine = {
 export type CostLineInput = {
   invoice_id?: string | null;
   job_id?: string | null;
+  catalog_id?: string | null;
   description: string;
   amount_net: number;
   amount_vat: number;
   amount_gross: number;
+  qty?: number;
   vat_rate?: number | null;
   category?: string | null;
   cost_date: string;

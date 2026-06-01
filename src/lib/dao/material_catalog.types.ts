@@ -23,6 +23,7 @@ export type JobMaterial = {
   user_id: string;
   job_id: string;
   catalog_id: string | null;
+  group_key: string | null;
   name: string;
   unit: string;
   qty: number;
@@ -35,6 +36,7 @@ export type JobMaterial = {
 export type JobMaterialInput = {
   job_id: string;
   catalog_id?: string | null;
+  group_key?: string | null;
   name: string;
   unit: string;
   qty: number;
