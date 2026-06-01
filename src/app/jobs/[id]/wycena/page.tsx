@@ -7,10 +7,10 @@ import { getBriefSchema, type BriefField } from "@/lib/briefSchema";
 import { listCatalog, listMaterialsByJob, type JobMaterial } from "@/lib/dao/material_catalog";
 import { fmtPLN } from "@/lib/format";
 import MaterialsSection from "../MaterialsSection";
-import PriceInput from "./PriceInput";
+import GroupMaterialsPicker from "./GroupMaterialsPicker";
 import QtyCalculator from "./QtyCalculator";
+import { suggestedCategoriesFor } from "./groupCategories";
 
-const PRICE_PREFIX = "__price_";
 const QTY_PREFIX = "__qty_";
 
 type QtyConfig = {
@@ -58,9 +58,56 @@ const QTY_CONFIG: Record<string, QtyConfig> = {
   },
 };
 
-const NO_PRICE_KEYS = new Set<string>(["front_finish"]);
+const SKIP_KEYS = new Set<string>([
+  "gas_wall",
+  "gas_offset_mm",
+  "gas_height_mm",
+  "corpus_height_mm",
+  "worktop_height_mm",
+]);
 
-const SKIP_KEYS = new Set<string>(["gas_wall", "gas_offset_mm", "gas_height_mm"]);
+type SubPrice = { key: string; label: string };
+const GROUP_SUBPRICES: Record<string, SubPrice[]> = {
+  Fronty: [
+    { key: "fronty_lakier", label: "Lakier MDF" },
+    { key: "fronty_uchwyty", label: "Uchwyty" },
+  ],
+  "Okucia i szuflady": [
+    { key: "okucia_zawiasy", label: "Zawiasy" },
+    { key: "okucia_silowniki", label: "Siłowniki" },
+    { key: "okucia_tip_on", label: "Tip-on" },
+    { key: "okucia_szuflady", label: "Szuflady" },
+    { key: "okucia_magic_corner", label: "Magic corner" },
+  ],
+};
+
+const SKIP_GROUPS = new Set<string>([
+  "Pomieszczenie",
+  "Ustalenia",
+  "Przyłącza i instalacje",
+]);
+
+// Klucze job_materials należące do grupy: albo z GROUP_SUBPRICES, albo slug tytułu.
+function groupMaterialKeys(title: string): string[] {
+  const sub = GROUP_SUBPRICES[title];
+  return sub ? sub.map((s) => s.key) : [groupSlug(title)];
+}
+
+function groupSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/ą/g, "a")
+    .replace(/ć/g, "c")
+    .replace(/ę/g, "e")
+    .replace(/ł/g, "l")
+    .replace(/ń/g, "n")
+    .replace(/ó/g, "o")
+    .replace(/ś/g, "s")
+    .replace(/ż/g, "z")
+    .replace(/ź/g, "z")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
 
 export async function generateMetadata({
   params,
@@ -87,8 +134,10 @@ export default async function WycenaPage({
     listCatalog(),
   ]);
 
-  const itemsTotal = brief ? sumPrices(brief.data) : 0;
-  const materialsTotal = sumMaterials(materials);
+  const groupedMaterials = groupMaterialsByKey(materials);
+  const looseMaterials = groupedMaterials.get(null) ?? [];
+  const itemsTotal = sumMaterials(materials.filter((m) => m.group_key !== null));
+  const materialsTotal = sumMaterials(looseMaterials);
   const total = itemsTotal + materialsTotal;
 
   return (
@@ -133,23 +182,15 @@ export default async function WycenaPage({
             jobId={id}
             projectType={brief.project_type}
             data={brief.data}
+            catalog={catalog}
+            groupedMaterials={groupedMaterials}
           />
         )}
 
-        <MaterialsSection jobId={id} materials={materials} catalog={catalog} />
+        <MaterialsSection jobId={id} materials={looseMaterials} catalog={catalog} />
       </div>
     </main>
   );
-}
-
-function sumPrices(data: Record<string, unknown>): number {
-  let s = 0;
-  for (const [k, v] of Object.entries(data)) {
-    if (!k.startsWith(PRICE_PREFIX)) continue;
-    const n = typeof v === "number" ? v : Number(v);
-    if (Number.isFinite(n)) s += n;
-  }
-  return s;
 }
 
 function sumMaterials(materials: JobMaterial[]): number {
@@ -159,20 +200,33 @@ function sumMaterials(materials: JobMaterial[]): number {
   }, 0);
 }
 
+function groupMaterialsByKey(materials: JobMaterial[]): Map<string | null, JobMaterial[]> {
+  const map = new Map<string | null, JobMaterial[]>();
+  for (const m of materials) {
+    const key = m.group_key ?? null;
+    const arr = map.get(key) ?? [];
+    arr.push(m);
+    map.set(key, arr);
+  }
+  return map;
+}
+
 function WycenaList({
   briefId,
   jobId,
   projectType,
   data,
+  catalog,
+  groupedMaterials,
 }: {
   briefId: string;
   jobId: string;
   projectType: Parameters<typeof getBriefSchema>[0];
   data: Record<string, unknown>;
+  catalog: import("@/lib/dao/material_catalog").MaterialCatalogItem[];
+  groupedMaterials: Map<string | null, JobMaterial[]>;
 }) {
   const schema = getBriefSchema(projectType);
-
-  const SKIP_GROUPS = new Set(["Pomieszczenie", "Ustalenia"]);
 
   const groups = schema.groups
     .filter((g) => !SKIP_GROUPS.has(g.title))
@@ -184,13 +238,16 @@ function WycenaList({
           if (r.field.type === "checkbox") return r.value === true;
           return r.value !== undefined && r.value !== null && r.value !== "";
         });
-      return { title: g.title, items };
+      // Grupę pokazujemy też, gdy nie ma już wypełnionych pól briefu, ale wiszą
+      // w niej dodane materiały — inaczej znikłyby z UI, zostając w sumie wyceny.
+      const hasMaterials = groupMaterialKeys(g.title).some(
+        (k) => (groupedMaterials.get(k)?.length ?? 0) > 0
+      );
+      return { title: g.title, items, hasMaterials };
     })
-    .filter((g) => g.items.length > 0);
+    .filter((g) => g.items.length > 0 || g.hasMaterials);
 
-  const totalItems = groups.reduce((acc, g) => acc + g.items.length, 0);
-
-  if (totalItems === 0) {
+  if (groups.length === 0) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500">
         Pomiar nie zawiera jeszcze pozycji do wyceny.
@@ -201,41 +258,91 @@ function WycenaList({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-zinc-500">
-        Lista wygenerowana z pomiaru ({totalItems} {plPositions(totalItems)}). Wpisz ceny brutto.
+        Lista wygenerowana z pomiaru. Do każdej grupy dodaj pozycje z cennika — cena policzy się sama.
       </p>
-      {groups.map((g) => (
-        <section
-          key={g.title}
-          className="rounded-xl border border-zinc-200 bg-white p-4"
-        >
-          <h3 className="text-sm font-semibold text-zinc-700 mb-3">{g.title}</h3>
-          <ul className="flex flex-col gap-3 text-sm">
-            {g.items.map((r) => (
-              <Item
-                key={r.field.key}
-                field={r.field}
-                value={r.value}
-                briefId={briefId}
-                jobId={jobId}
-                priceInitial={readPrice(data, r.field.key)}
-                qtyInitial={readQty(data, r.field.key)}
-              />
-            ))}
-          </ul>
-        </section>
-      ))}
+      {groups.map((g) => {
+        const slug = groupSlug(g.title);
+        const subprices = GROUP_SUBPRICES[g.title];
+        return (
+          <section
+            key={g.title}
+            className="rounded-xl border border-zinc-200 bg-white p-4"
+          >
+            <h3 className="text-sm font-semibold text-zinc-700 mb-3">{g.title}</h3>
+            <ul className="flex flex-col gap-2 text-sm mb-3">
+              {g.items.map((r) => (
+                <InfoRow key={r.field.key} field={r.field} value={r.value} />
+              ))}
+            </ul>
+            {g.items.map((r) => {
+              const cfg = QTY_CONFIG[r.field.key];
+              if (!cfg) return null;
+              if (cfg.visibleWhen && !cfg.visibleWhen(r.value)) return null;
+              const unit = cfg.unitFor ? cfg.unitFor(r.value) : cfg.unit;
+              return (
+                <QtyCalculator
+                  key={r.field.key}
+                  briefId={briefId}
+                  jobId={jobId}
+                  fieldKey={r.field.key}
+                  label={cfg.label}
+                  unit={unit}
+                  initial={readQty(data, r.field.key)}
+                />
+              );
+            })}
+            <div className="mt-3 pt-3 border-t border-zinc-100 flex flex-col gap-3">
+              {subprices ? (
+                <>
+                  {subprices.map((sp) => (
+                    <div key={sp.key} className="flex flex-col gap-1.5">
+                      <span className="text-xs font-medium text-zinc-600">{sp.label}</span>
+                      <GroupMaterialsPicker
+                        jobId={jobId}
+                        groupKey={sp.key}
+                        groupLabel={`${g.title} — ${sp.label}`}
+                        items={groupedMaterials.get(sp.key) ?? []}
+                        catalog={catalog}
+                        suggestedCategories={suggestedCategoriesFor(sp.key)}
+                      />
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between border-t border-zinc-100 pt-2">
+                    <span className="text-xs font-medium text-zinc-700">Razem grupa</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {fmtPLN(
+                        subprices.reduce(
+                          (acc, sp) =>
+                            acc +
+                            (groupedMaterials.get(sp.key) ?? []).reduce(
+                              (a, m) =>
+                                m.unit_price_gross === null
+                                  ? a
+                                  : a + m.qty * m.unit_price_gross,
+                              0
+                            ),
+                          0
+                        )
+                      )}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <GroupMaterialsPicker
+                  jobId={jobId}
+                  groupKey={slug}
+                  groupLabel={g.title}
+                  items={groupedMaterials.get(slug) ?? []}
+                  catalog={catalog}
+                  suggestedCategories={suggestedCategoriesFor(slug)}
+                />
+              )}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
-}
-
-function readPrice(
-  data: Record<string, unknown>,
-  fieldKey: string
-): number | null {
-  const v = data[`${PRICE_PREFIX}${fieldKey}`];
-  if (v === null || v === undefined || v === "") return null;
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
 }
 
 function readQty(
@@ -249,58 +356,135 @@ function readQty(
     .filter((n) => Number.isFinite(n));
 }
 
-function Item({
-  field,
-  value,
-  briefId,
-  jobId,
-  priceInitial,
-  qtyInitial,
-}: {
-  field: BriefField;
-  value: unknown;
-  briefId: string;
-  jobId: string;
-  priceInitial: number | null;
-  qtyInitial: number[];
-}) {
-  const display = renderValue(field, value);
-  const priceable = field.type !== "textarea" && !NO_PRICE_KEYS.has(field.key);
-  const qtyCfg = QTY_CONFIG[field.key];
-  const showQty =
-    qtyCfg && (!qtyCfg.visibleWhen || qtyCfg.visibleWhen(value));
-  const qtyUnit = qtyCfg?.unitFor ? qtyCfg.unitFor(value) : qtyCfg?.unit ?? "";
+const HINGE_TYPE_LABELS: Record<string, string> = {
+  "110": "110°",
+  "155": "155°",
+  rownolegle: "Równoległe",
+};
 
-  return (
-    <li className="flex flex-col gap-1">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-zinc-500 text-xs">{field.label}</p>
-          {display && (
-            <p className="text-zinc-900 font-medium break-words">{display}</p>
+// Wspólny render dla lift_breakdown / hinges_breakdown (JSON: [{type, count}]).
+function renderBreakdownRow(
+  label: string,
+  value: string,
+  typeLabels?: Record<string, string>
+) {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    const total = parsed.reduce((sum, e) => {
+      const raw = (e as { count?: unknown })?.count;
+      const c = typeof raw === "number" ? raw : Number(raw);
+      return Number.isFinite(c) ? sum + c : sum;
+    }, 0);
+    return (
+      <li className="flex flex-col gap-1">
+        <span className="text-zinc-500 text-xs">{label}</span>
+        <ul className="flex flex-col gap-0.5">
+          {parsed.map((e, i) => {
+            const type =
+              typeof (e as { type?: unknown })?.type === "string"
+                ? (e as { type: string }).type
+                : "";
+            const count = (e as { count?: unknown })?.count;
+            return (
+              <li key={i} className="text-zinc-900 text-sm">
+                <span className="text-zinc-500">{typeLabels?.[type] ?? (type || "—")}: </span>
+                {String(count)} szt
+              </li>
+            );
+          })}
+          {total > 0 && (
+            <li className="text-zinc-500 text-xs">
+              Łącznie: <span className="text-zinc-900 font-medium">{total} szt</span>
+            </li>
           )}
-        </div>
-        {priceable && (
-          <PriceInput
-            briefId={briefId}
-            jobId={jobId}
-            fieldKey={field.key}
-            initial={priceInitial}
-          />
-        )}
-      </div>
-      {showQty && qtyCfg && (
-        <QtyCalculator
-          briefId={briefId}
-          jobId={jobId}
-          fieldKey={field.key}
-          label={qtyCfg.label}
-          unit={qtyUnit}
-          initial={qtyInitial}
-        />
+        </ul>
+      </li>
+    );
+  } catch {
+    return null;
+  }
+}
+
+function InfoRow({ field, value }: { field: BriefField; value: unknown }) {
+  if (field.type === "checkbox") {
+    return (
+      <li className="flex items-center gap-2">
+        <span className="text-zinc-900">{field.label}</span>
+      </li>
+    );
+  }
+  if (field.key === "lift_breakdown" && typeof value === "string") {
+    const row = renderBreakdownRow(field.label, value);
+    if (row) return row;
+  }
+  if (field.key === "hinges_breakdown" && typeof value === "string") {
+    const row = renderBreakdownRow(field.label, value, HINGE_TYPE_LABELS);
+    if (row) return row;
+  }
+  if (field.key === "corpus_list") {
+    const entries = parseCorpusList(value);
+    if (entries.length > 0) {
+      return (
+        <li className="flex flex-col gap-1.5">
+          <span className="text-zinc-500 text-xs">{field.label}</span>
+          <ul className="flex flex-col gap-1.5">
+            {entries.map((e, i) => (
+              <li
+                key={i}
+                className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5"
+              >
+                {e.label && (
+                  <span className="block text-[11px] text-zinc-500 font-medium">
+                    {e.label}
+                  </span>
+                )}
+                <span className="block text-zinc-900 font-medium text-sm break-words">
+                  {e.color || "—"}
+                </span>
+                {e.edgeColor && (
+                  <span className="block text-zinc-600 text-xs break-words">
+                    Okleina: {e.edgeColor}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </li>
+      );
+    }
+  }
+  const display = renderValue(field, value);
+  return (
+    <li className="flex flex-col">
+      <span className="text-zinc-500 text-xs">{field.label}</span>
+      {display && (
+        <span className="text-zinc-900 font-medium break-words">{display}</span>
       )}
     </li>
   );
+}
+
+type CorpusEntry = { label: string; color: string; edgeColor: string };
+
+function parseCorpusList(value: unknown): CorpusEntry[] {
+  if (typeof value !== "string" || value === "") return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((e): CorpusEntry => {
+        const o = (e ?? {}) as Record<string, unknown>;
+        return {
+          label: typeof o.label === "string" ? o.label : "",
+          color: typeof o.color === "string" ? o.color : "",
+          edgeColor: typeof o.edgeColor === "string" ? o.edgeColor : "",
+        };
+      })
+      .filter((e) => e.label || e.color || e.edgeColor);
+  } catch {
+    return [];
+  }
 }
 
 function renderValue(field: BriefField, value: unknown): string {
@@ -313,13 +497,4 @@ function renderValue(field: BriefField, value: unknown): string {
     return `${value}${field.unit ? ` ${field.unit}` : ""}`;
   }
   return String(value);
-}
-
-function plPositions(n: number): string {
-  if (n === 1) return "pozycja";
-  const lastTwo = n % 100;
-  const last = n % 10;
-  if (lastTwo >= 12 && lastTwo <= 14) return "pozycji";
-  if (last >= 2 && last <= 4) return "pozycje";
-  return "pozycji";
 }

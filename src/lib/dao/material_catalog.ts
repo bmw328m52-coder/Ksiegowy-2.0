@@ -35,6 +35,22 @@ export async function listCatalog(): Promise<MaterialCatalogItem[]> {
   return (data ?? []).map(normalizeCatalog);
 }
 
+export async function listCatalogByCategory(
+  category: string,
+  unit?: string
+): Promise<MaterialCatalogItem[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("material_catalog")
+    .select("*")
+    .eq("category", category)
+    .order("name", { ascending: true });
+  if (unit) query = query.eq("unit", unit);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map(normalizeCatalog);
+}
+
 export async function getCatalogItem(id: string): Promise<MaterialCatalogItem | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -110,6 +126,7 @@ export async function createJobMaterial(input: JobMaterialInput): Promise<JobMat
       user_id: userId,
       job_id: input.job_id,
       catalog_id: input.catalog_id ?? null,
+      group_key: input.group_key ?? null,
       name: input.name,
       unit: input.unit,
       qty: input.qty,
