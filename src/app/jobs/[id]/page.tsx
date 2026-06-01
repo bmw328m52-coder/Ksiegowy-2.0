@@ -8,6 +8,8 @@ import { fmtDate } from "@/lib/format";
 import {
   advanceJobStatusAction,
   cancelJobAction,
+  confirmPomiarAction,
+  confirmUzupelnienieAction,
   deleteJobAction,
   revertJobStatusAction,
   uncancelJobAction,
@@ -175,6 +177,8 @@ function stageDate(
   job: Awaited<ReturnType<typeof getJob>> & object,
 ): { date: string | null; hint?: string } {
   switch (status) {
+    case "scheduled_measurement":
+      return { date: job.start_date, hint: job.start_date ? "pomiar umówiony" : undefined };
     case "to_measure":
       return { date: job.start_date, hint: job.start_date ? "pomiar zaplanowany" : undefined };
     case "accepted":
@@ -230,6 +234,7 @@ function buildStages(job: Awaited<ReturnType<typeof getJob>> & object): Stage[] 
 
 const STAGE_KEY_TONE: Record<string, string> = {
   new_inquiry: "#c4bbac",
+  scheduled_measurement: "#a06f3f",
   to_measure: "#a06f3f",
   after_measure: "#a06f3f",
   to_quote: "#a18653",
@@ -347,15 +352,86 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
   if (status === "cancelled") return null;
 
   const idx = JOB_STATUS_WORKFLOW.indexOf(status);
-  const canAdvance = idx >= 0 && idx < JOB_STATUS_WORKFLOW.length - 1;
   const canRevert = idx > 0;
-  if (!canAdvance && !canRevert) return null;
-
-  const nextLabel = canAdvance ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx + 1]] : null;
   const prevLabel = canRevert ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx - 1]] : null;
-
-  const advance = advanceJobStatusAction.bind(null, jobId);
   const revert = revertJobStatusAction.bind(null, jobId);
+
+  const revertBtn = canRevert ? (
+    <form action={revert}>
+      <button
+        type="submit"
+        className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#6f6457] bg-[#faf7f2] border border-[#e8e4dd] hover:bg-[#f1ede5] active:opacity-80 transition-colors"
+      >
+        <span aria-hidden>←</span>
+        <span>Cofnij do: {prevLabel}</span>
+      </button>
+    </form>
+  ) : null;
+
+  if (status === "scheduled_measurement") {
+    return (
+      <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+        <Link
+          href={`/jobs/${jobId}/pomiar/edit`}
+          className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+        >
+          <span>Wykonaj pomiar →</span>
+          <span aria-hidden>→</span>
+        </Link>
+        <p className="text-[11px] text-[#9c9081]">
+          Wypełnij brief po wizycie u klienta — po zapisaniu zlecenie trafi od razu do „Uzupełnienia".
+        </p>
+        {revertBtn}
+      </section>
+    );
+  }
+
+  if (status === "to_measure") {
+    const confirmPomiar = confirmPomiarAction.bind(null, jobId);
+    return (
+      <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+        <form action={confirmPomiar}>
+          <button
+            type="submit"
+            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+          >
+            <span>Zatwierdź pomiar → Uzupełnienie</span>
+            <span aria-hidden>→</span>
+          </button>
+        </form>
+        <p className="text-[11px] text-[#9c9081]">
+          Po zatwierdzeniu zlecenie trafi do etapu „Uzupełnienie” — tam dopiszesz ilości okuć, szuflad, LED-ów itd. dla wyceny.
+        </p>
+        {revertBtn}
+      </section>
+    );
+  }
+
+  if (status === "after_measure") {
+    const confirmUzup = confirmUzupelnienieAction.bind(null, jobId);
+    return (
+      <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+        <form action={confirmUzup}>
+          <button
+            type="submit"
+            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+          >
+            <span>Zatwierdź uzupełnienie → Wycena</span>
+            <span aria-hidden>→</span>
+          </button>
+        </form>
+        <p className="text-[11px] text-[#9c9081]">
+          Po zatwierdzeniu zlecenie trafi do „Wyceny” — gotowy komplet danych do kalkulatora i listy zakupów.
+        </p>
+        {revertBtn}
+      </section>
+    );
+  }
+
+  const canAdvance = idx >= 0 && idx < JOB_STATUS_WORKFLOW.length - 1;
+  if (!canAdvance && !canRevert) return null;
+  const nextLabel = canAdvance ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx + 1]] : null;
+  const advance = advanceJobStatusAction.bind(null, jobId);
 
   return (
     <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -371,15 +447,9 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
         </form>
       )}
       {canRevert && (
-        <form action={revert} className={canAdvance ? "sm:w-auto" : "flex-1"}>
-          <button
-            type="submit"
-            className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#6f6457] bg-[#faf7f2] border border-[#e8e4dd] hover:bg-[#f1ede5] active:opacity-80 transition-colors"
-          >
-            <span aria-hidden>←</span>
-            <span>Cofnij do: {prevLabel}</span>
-          </button>
-        </form>
+        <div className={canAdvance ? "sm:w-auto" : "flex-1"}>
+          {revertBtn}
+        </div>
       )}
     </section>
   );
@@ -388,6 +458,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
 function StatusPill({ status }: { status: JobStatus }) {
   const styles: Record<JobStatus, string> = {
     new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
+    scheduled_measurement: "bg-[#f1e5d2] text-[#7d5530]",
     to_measure: "bg-[#f1e5d2] text-[#7d5530]",
     after_measure: "bg-[#f1e5d2] text-[#7d5530]",
     to_quote: "bg-[#faf5e9] text-[#a18653]",

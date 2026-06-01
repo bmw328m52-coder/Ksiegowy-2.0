@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { usePrivateMode } from "./PrivateModeProvider";
 
 type Tone = "info" | "ok" | "warn" | "accent" | "neutral";
@@ -9,7 +9,7 @@ type Tone = "info" | "ok" | "warn" | "accent" | "neutral";
 type Item = {
   href: string;
   label: string;
-  match: (p: string) => boolean;
+  match: (p: string, s: URLSearchParams) => boolean;
   icon: (props: { active: boolean }) => React.ReactNode;
   tone: Tone;
   badge?: string;
@@ -21,8 +21,11 @@ const SECTIONS: Section[] = [
   {
     title: "Workflow",
     items: [
-      { href: "/", label: "Start", match: (p) => p === "/", icon: HomeIcon, tone: "accent" },
-      { href: "/jobs", label: "Zlecenia", match: (p) => p.startsWith("/jobs"), icon: ClipboardListIcon, tone: "info" },
+      { href: "/jobs", label: "Zlecenia", match: (p, s) => p.startsWith("/jobs") && !["quote", "pomiar", "uzupelnienie", "scheduled"].includes(s.get("f") ?? ""), icon: ClipboardListIcon, tone: "info" },
+      { href: "/jobs?f=scheduled", label: "Umówione pomiary", match: (p, s) => p.startsWith("/jobs") && s.get("f") === "scheduled", icon: CalendarIcon, tone: "accent" },
+      { href: "/jobs?f=pomiar", label: "Pomiary", match: (p, s) => p.startsWith("/jobs") && s.get("f") === "pomiar", icon: RulerIcon, tone: "accent" },
+      { href: "/jobs?f=uzupelnienie", label: "Uzupełnienie", match: (p, s) => p.startsWith("/jobs") && s.get("f") === "uzupelnienie", icon: ClipboardCheckIcon, tone: "neutral" },
+      { href: "/jobs?f=quote", label: "Wyceny", match: (p, s) => p.startsWith("/jobs") && s.get("f") === "quote", icon: WalletIcon, tone: "warn" },
       { href: "/clients", label: "Klienci", match: (p) => p.startsWith("/clients"), icon: UsersIcon, tone: "ok" },
     ],
   },
@@ -37,6 +40,7 @@ const SECTIONS: Section[] = [
     title: "Narzędzia",
     items: [
       { href: "/calculator", label: "Kalkulator", match: (p) => p.startsWith("/calculator"), icon: CalcIcon, tone: "info" },
+      { href: "/materials", label: "Cennik", match: (p) => p.startsWith("/materials"), icon: PackageIcon, tone: "accent" },
       { href: "/usluga", label: "Stawka /h", match: (p) => p.startsWith("/usluga"), icon: ClockIcon, tone: "ok" },
       { href: "/settings", label: "Ustawienia", match: (p) => p.startsWith("/settings"), icon: GearIcon, tone: "neutral" },
     ],
@@ -53,6 +57,7 @@ const TONE_BG: Record<Tone, string> = {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { priv, toggle } = usePrivateMode();
   if (pathname.startsWith("/login")) return null;
 
@@ -61,10 +66,15 @@ export default function Sidebar() {
       aria-label="Nawigacja desktop"
       className="hidden md:flex md:flex-col md:sticky md:top-[18px] md:h-[calc(100vh-36px)] md:w-[240px] md:rounded-[18px] md:border md:border-[#e6dcc7] md:bg-white md:px-3 md:py-5 md:z-30 md:overflow-hidden"
     >
-      <div className="px-3 pb-4">
+      <Link
+        href="/"
+        aria-label="Strona główna"
+        aria-current={pathname === "/" ? "page" : undefined}
+        className="px-3 pb-4 block rounded-lg hover:bg-[#f5f3ef] transition-colors"
+      >
         <div className="text-[18px] font-bold tracking-[4px] text-[#282624]">LUVIANO</div>
         <div className="text-[10px] tracking-[2px] uppercase text-[#9c9081] mt-1">Manager Firmy</div>
-      </div>
+      </Link>
 
       <Link
         href="/jobs/new"
@@ -83,7 +93,7 @@ export default function Sidebar() {
             </div>
             <div className="flex flex-col gap-0.5">
               {sec.items.map((it) => {
-                const active = it.match(pathname);
+                const active = it.match(pathname, searchParams);
                 const Icon = it.icon;
                 return (
                   <Link
@@ -170,10 +180,31 @@ export default function Sidebar() {
   );
 }
 
-function HomeIcon({ active }: { active: boolean }) {
+function CalendarIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 10.5 12 3l9 7.5V20a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2v-9.5z" />
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18" />
+      <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" strokeWidth="2.4" />
+    </svg>
+  );
+}
+
+function RulerIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.5 14.5 14.5 3.5l6 6L9.5 20.5z" />
+      <path d="M7 11l1.5 1.5M9 9l2 2M11 7l1.5 1.5M13 5l2 2" />
+    </svg>
+  );
+}
+
+function ClipboardCheckIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="16" height="18" rx="2" />
+      <path d="M9 2h6a1 1 0 0 1 1 1v3H8V3a1 1 0 0 1 1-1z" />
+      <path d="m8.5 13.5 2.5 2.5 4.5-5" />
     </svg>
   );
 }
@@ -195,6 +226,15 @@ function UsersIcon({ active }: { active: boolean }) {
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function WalletIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v1H5a2 2 0 0 0 0 4h15a2 2 0 0 1 0 4h-2a2 2 0 0 1 0-4" />
+      <rect x="3" y="7" width="18" height="13" rx="2" />
     </svg>
   );
 }
@@ -234,6 +274,16 @@ function ClockIcon({ active }: { active: boolean }) {
     <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function PackageIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <path d="m3.27 6.96 8.73 5.05 8.73-5.05" />
+      <path d="M12 22.08V12" />
     </svg>
   );
 }

@@ -43,7 +43,8 @@ export default async function EditPomiarPage({
                   notes: job.notes,
                 }
           }
-          submitLabel="Zapisz pomiar"
+          submitLabel={brief ? "Zapisz pomiar" : "Utwórz pomiar"}
+          openPostByDefault={job.status === "after_measure"}
         />
       </div>
     </main>

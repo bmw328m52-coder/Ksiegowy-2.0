@@ -11,7 +11,7 @@ import {
   seedChecklistFromTemplate,
 } from "@/lib/dao/job_checklist";
 import { PROJECT_TYPES, type ProjectType } from "@/lib/dao/job_checklist.types";
-import { createBrief, setBriefJob, updateBrief } from "@/lib/dao/quote_briefs";
+import { createBrief, getBrief, setBriefJob, updateBrief } from "@/lib/dao/quote_briefs";
 import type { BriefData } from "@/lib/dao/quote_briefs.types";
 import { getBriefSchema } from "@/lib/briefSchema";
 
@@ -19,6 +19,7 @@ type Result = { error?: string };
 
 const STATUSES: JobStatus[] = [
   "new_inquiry",
+  "scheduled_measurement",
   "to_measure",
   "after_measure",
   "to_quote",
@@ -290,6 +291,46 @@ export async function revertJobStatusAction(id: string) {
   revalidatePath("/");
 }
 
+export async function confirmPomiarAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+  if (job.status !== "to_measure") {
+    throw new Error("Pomiar można zatwierdzić tylko w etapie „Pomiar”.");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("jobs")
+    .update({ status: "after_measure" })
+    .eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+}
+
+export async function confirmUzupelnienieAction(id: string) {
+  const job = await getJob(id);
+  if (!job) throw new Error("Zlecenie nie istnieje.");
+  if (job.status !== "after_measure") {
+    throw new Error("Uzupełnienie można zatwierdzić tylko w etapie „Uzupełnienie”.");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("jobs")
+    .update({ status: "to_quote" })
+    .eq("id", id);
+  if (error) throw error;
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath(`/clients/${job.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+}
+
 export async function cancelJobAction(id: string) {
   const job = await getJob(id);
   if (!job) throw new Error("Zlecenie nie istnieje.");
@@ -407,7 +448,7 @@ export async function applyQuoteToJobAction(
     amount_gross,
     vat_rate,
   };
-  const earlyStages: JobStatus[] = ["new_inquiry", "to_measure", "after_measure"];
+  const earlyStages: JobStatus[] = ["new_inquiry", "scheduled_measurement", "to_measure", "after_measure"];
   if (earlyStages.includes(job.status)) {
     update.status = "to_quote";
   }
@@ -456,8 +497,15 @@ function readBriefDataFromForm(formData: FormData, project_type: ProjectType): {
       if (s === "") continue;
       if (field.type === "number") {
         const n = parseAmount(s);
-        if (n === null) continue;
-        data[field.key] = n;
+        if (n !== null) {
+          data[field.key] = n;
+          continue;
+        }
+        if (/^\s*\d+(?:[.,]\d+)?\s*[-–—]\s*\d+(?:[.,]\d+)?\s*$/.test(s)) {
+          data[field.key] = s.replace(/\s+/g, "").replace(/[–—]/g, "-");
+          continue;
+        }
+        continue;
       } else {
         data[field.key] = s;
       }
@@ -502,7 +550,11 @@ export async function createPomiarForJobAction(
       start_date: parsed.visit_date,
       notes: parsed.notes,
     };
-    if (job.status === "new_inquiry" || job.status === "to_measure") {
+    if (
+      job.status === "new_inquiry" ||
+      job.status === "scheduled_measurement" ||
+      job.status === "to_measure"
+    ) {
       jobUpdate.status = "after_measure";
     }
     const { error: jobErr } = await supabase
@@ -540,23 +592,44 @@ export async function updatePomiarAction(
   if (typeof parsed === "string") return { error: parsed };
 
   try {
+    // Zachowaj metadane wizyty (visit_time / visit_address / visit_phone)
+    // wpisane przez "Zaplanuj pomiar" — schema briefu ich nie zna, więc
+    // bez merge zostałyby zerowane przy pierwszej edycji.
+    const prev = await getBrief(briefId);
+    const mergedData: BriefData = { ...parsed.data };
+    if (prev) {
+      for (const key of ["visit_time", "visit_address", "visit_phone"] as const) {
+        if (mergedData[key] === undefined && prev.data[key] !== undefined) {
+          mergedData[key] = prev.data[key];
+        }
+      }
+    }
     await updateBrief(briefId, {
       project_type,
       title: parsed.title,
       visit_date: parsed.visit_date,
       notes: parsed.notes,
-      data: parsed.data,
+      data: mergedData,
     });
-    // Synchronizuj tylko pola pomiaru na zleceniu — nie ruszaj wyceny / statusu.
+    // Synchronizuj pola pomiaru na zleceniu; jeśli pomiar był umówiony/do zrobienia
+    // — wypełnienie briefu posuwa status na "Uzupełnienie".
+    const currentJob = await getJob(jobId);
     const supabase = await createClient();
+    const jobUpdate: Record<string, unknown> = {
+      title: parsed.title,
+      project_type,
+      start_date: parsed.visit_date,
+      notes: parsed.notes,
+    };
+    if (
+      currentJob &&
+      (currentJob.status === "scheduled_measurement" || currentJob.status === "to_measure")
+    ) {
+      jobUpdate.status = "after_measure";
+    }
     const { error: jobErr } = await supabase
       .from("jobs")
-      .update({
-        title: parsed.title,
-        project_type,
-        start_date: parsed.visit_date,
-        notes: parsed.notes,
-      })
+      .update(jobUpdate)
       .eq("id", jobId);
     if (jobErr) throw jobErr;
 
@@ -600,8 +673,15 @@ export async function createPomiarAction(_prev: Result, formData: FormData): Pro
       if (s === "") continue;
       if (field.type === "number") {
         const n = parseAmount(s);
-        if (n === null) continue;
-        data[field.key] = n;
+        if (n !== null) {
+          data[field.key] = n;
+          continue;
+        }
+        if (/^\s*\d+(?:[.,]\d+)?\s*[-–—]\s*\d+(?:[.,]\d+)?\s*$/.test(s)) {
+          data[field.key] = s.replace(/\s+/g, "").replace(/[–—]/g, "-");
+          continue;
+        }
+        continue;
       } else {
         data[field.key] = s;
       }
@@ -614,7 +694,7 @@ export async function createPomiarAction(_prev: Result, formData: FormData): Pro
       title,
       amount_gross: 0,
       vat_rate: 0.23,
-      status: "to_measure",
+      status: "after_measure",
       start_date: visit_date,
       due_date: null,
       completed_date: null,
@@ -647,6 +727,90 @@ export async function createPomiarAction(_prev: Result, formData: FormData): Pro
   } catch (e) {
     if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
     return { error: e instanceof Error ? e.message : "Nieznany błąd." };
+  }
+  return {};
+}
+
+// Zaplanuj pomiar — tworzy Job (status: scheduled_measurement) + pusty Brief
+// (z metadanymi: title, project_type, visit_date, notes), bez wypełnionych
+// pól `data`. Po wizycie Artur otwiera zlecenie i klika "Wypełnij pomiar".
+export async function createScheduledPomiarAction(
+  _prev: Result,
+  formData: FormData
+): Promise<Result> {
+  const client_id = String(formData.get("client_id") ?? "").trim();
+  if (!client_id) return { error: "Brak klienta — wybierz klienta najpierw." };
+
+  const projectTypeRaw = String(formData.get("project_type") ?? "").trim();
+  if (!PROJECT_TYPES.includes(projectTypeRaw as ProjectType))
+    return { error: "Wybierz typ projektu." };
+  const project_type = projectTypeRaw as ProjectType;
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Podaj tytuł zlecenia." };
+
+  const visit_date = String(formData.get("visit_date") ?? "").trim() || null;
+  if (!visit_date) return { error: "Podaj datę umówionego pomiaru." };
+
+  const visit_time_raw = String(formData.get("visit_time") ?? "").trim();
+  const visit_time = /^\d{2}:\d{2}$/.test(visit_time_raw) ? visit_time_raw : null;
+
+  const visit_address = String(formData.get("visit_address") ?? "").trim() || null;
+  const visit_phone = String(formData.get("visit_phone") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  const briefData: BriefData = {};
+  if (visit_time) briefData.visit_time = visit_time;
+  if (visit_address) briefData.visit_address = visit_address;
+  if (visit_phone) briefData.visit_phone = visit_phone;
+
+  try {
+    const job = await createJob({
+      client_id,
+      title,
+      amount_gross: 0,
+      vat_rate: 0.23,
+      status: "scheduled_measurement",
+      start_date: visit_date,
+      due_date: null,
+      completed_date: null,
+      paid_date: null,
+      deposit_amount: 0,
+      deposit_date: null,
+      invoiced: false,
+      invoice_number: null,
+      invoice_date: null,
+      project_type,
+      notes,
+    });
+    await maybeSeedChecklist(job.id, project_type);
+
+    const brief = await createBrief({
+      client_id,
+      project_type,
+      title,
+      visit_date,
+      status: "draft",
+      data: briefData,
+      notes,
+    });
+    await setBriefJob(brief.id, job.id);
+
+    revalidatePath("/jobs");
+    revalidatePath(`/clients/${client_id}`);
+    revalidatePath("/briefs");
+    revalidatePath("/");
+    redirect(`/jobs/${job.id}`);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+    console.error("[createScheduledPomiarAction] error:", e);
+    const msg =
+      e instanceof Error
+        ? e.message
+        : typeof e === "object" && e !== null
+          ? JSON.stringify(e)
+          : String(e);
+    return { error: `Nie udało się zapisać: ${msg || "Nieznany błąd."}` };
   }
   return {};
 }

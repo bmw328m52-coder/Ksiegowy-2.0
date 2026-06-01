@@ -83,7 +83,7 @@ export default async function Home() {
     "in_production",
     "ready_to_install",
   ]);
-  const LEADS = new Set(["new_inquiry", "to_measure"]);
+  const LEADS = new Set(["new_inquiry", "scheduled_measurement", "to_measure"]);
   const QUOTE = new Set(["after_measure", "to_quote", "quote_sent"]);
   const GOTOWE = new Set(["installed", "settled"]);
   const skrzynka = {
@@ -100,30 +100,6 @@ export default async function Home() {
         j.due_date < todayIso,
     ).length,
   };
-
-  // Workflow chips — te same grupowania co na /jobs
-  type ChipKey = "all" | "overdue" | "leads" | "quote" | "production" | "done" | "archived" | "cancelled";
-  const chipCounts: Record<ChipKey, number> = {
-    all: jobs.length,
-    overdue: skrzynka.overdueCount,
-    leads: jobs.filter((j) => LEADS.has(j.status)).length,
-    quote: jobs.filter((j) => QUOTE.has(j.status)).length,
-    production: skrzynka.inProgress,
-    done: jobs.filter((j) => GOTOWE.has(j.status)).length,
-    archived: jobs.filter((j) => j.status === "archived").length,
-    cancelled: jobs.filter((j) => j.status === "cancelled").length,
-  };
-  const CHIP_LABELS: Record<ChipKey, string> = {
-    all: "Wszystkie",
-    overdue: "Zaległe",
-    leads: "Leady",
-    quote: "Wycena",
-    production: "Produkcja",
-    done: "Gotowe",
-    archived: "Archiwum",
-    cancelled: "Anulowane",
-  };
-  const CHIP_ORDER: ChipKey[] = ["all", "overdue", "leads", "quote", "production", "done", "archived", "cancelled"];
 
   // Agenda dnia — nadchodzące pomiary i terminy w 7 dni (od dziś)
   type AgendaItem = {
@@ -174,8 +150,7 @@ export default async function Home() {
         <header className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[22px] sm:text-2xl font-bold text-[#282624] leading-tight tracking-tight">
-              {greeting()}
-              {firstName ? `, ${firstName}` : "."}
+              Witaj Prezesie Luviano
             </h1>
             <p className="mt-1 text-xs text-[#6b6661]">
               <span className="capitalize">{today}</span>
@@ -226,48 +201,6 @@ export default async function Home() {
             phaseLabel={WORK_PHASE_LABELS[active.phase]}
             startedAt={active.started_at}
           />
-        )}
-
-        {jobs.length > 0 && (
-          <nav aria-label="Filtr etapu" className="-mx-1">
-            <div className="flex gap-1.5 overflow-x-auto pb-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap lg:overflow-visible">
-              {CHIP_ORDER.map((k) => {
-                const count = chipCounts[k];
-                if (k !== "all" && count === 0) return null;
-                const href = k === "all" ? "/jobs" : `/jobs?f=${k}`;
-                const isActive = k === "all";
-                const isOverdue = k === "overdue";
-                return (
-                  <Link
-                    key={k}
-                    href={href}
-                    className={[
-                      "shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors",
-                      isOverdue
-                        ? "border-[#e8c5b6] bg-[#f4e0d9] text-[#9c3a22] hover:bg-[#eed3c8]"
-                        : isActive
-                          ? "border-[#a06f3f] bg-[#a06f3f] text-white hover:bg-[#7d5530]"
-                          : "border-[#e6dcc7] bg-white text-[#524d48] hover:border-[#c4bbac] hover:text-[#282624]",
-                    ].join(" ")}
-                  >
-                    <span>{CHIP_LABELS[k]}</span>
-                    <span
-                      className={[
-                        "text-[11px] tabular-nums font-bold",
-                        isActive
-                          ? "text-white/75"
-                          : isOverdue
-                            ? "text-[#9c3a22]/75"
-                            : "text-[#9c9081]",
-                      ].join(" ")}
-                    >
-                      {count}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
         )}
 
         <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-5">
@@ -490,6 +423,7 @@ export default async function Home() {
 
         <Section title="Narzędzia">
           <Tile href="/calculator" label="Kalkulator" hint="Wycena na czysto" variant="tool" icon={<CalcIcon />} />
+          <Tile href="/materials" label="Cennik" hint="Materiały i akcesoria" variant="tool" icon={<PackageIcon />} />
           <Tile href="/usluga" label="Stawka usługi" hint="Robocizna /h" variant="tool" icon={<WrenchIcon />} />
           <Tile href="/settings" label="Ustawienia" hint="Forma, VAT, ZUS" variant="meta" icon={<GearIcon />} />
         </Section>
@@ -1027,6 +961,16 @@ function TimerIcon() {
       <path d="M12 9v4l2 2" />
       <path d="M9 2h6" />
       <path d="M12 2v3" />
+    </svg>
+  );
+}
+
+function PackageIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <path d="m3.27 6.96 8.73 5.05 8.73-5.05" />
+      <path d="M12 22.08V12" />
     </svg>
   );
 }

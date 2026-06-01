@@ -309,6 +309,7 @@ function plJobs(n: number): string {
 function StatusBadge({ status }: { status: keyof typeof JOB_STATUS_LABELS }) {
   const colors: Record<string, string> = {
     new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
+    scheduled_measurement: "bg-[#f1e5d2] text-[#7d5530]",
     to_measure: "bg-[#f1e5d2] text-[#7d5530]",
     after_measure: "bg-[#f1e5d2] text-[#7d5530]",
     to_quote: "bg-[#faf5e9] text-[#a18653]",

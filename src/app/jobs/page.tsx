@@ -18,7 +18,10 @@ type FilterKey =
   | "all"
   | "overdue"
   | "leads" // new_inquiry, to_measure
-  | "quote" // after_measure, to_quote, quote_sent
+  | "scheduled" // scheduled_measurement (umówiony pomiar)
+  | "pomiar" // to_measure (do pomiaru)
+  | "uzupelnienie" // after_measure (pomiar zrobiony — uzupełnij pola do wyceny)
+  | "quote" // to_quote, quote_sent
   | "production" // accepted, materials_ordered, in_production, ready_to_install
   | "done" // installed, settled
   | "archived"
@@ -28,6 +31,9 @@ const FILTER_LABELS: Record<FilterKey, string> = {
   all: "Wszystkie",
   overdue: "Zaległe",
   leads: "Leady",
+  scheduled: "Umówione pomiary",
+  pomiar: "Pomiar",
+  uzupelnienie: "Uzupełnienie",
   quote: "Wycena",
   production: "Produkcja",
   done: "Gotowe",
@@ -39,6 +45,9 @@ const FILTER_ORDER: FilterKey[] = [
   "all",
   "overdue",
   "leads",
+  "scheduled",
+  "pomiar",
+  "uzupelnienie",
   "quote",
   "production",
   "done",
@@ -47,8 +56,11 @@ const FILTER_ORDER: FilterKey[] = [
 ];
 
 const FILTER_STATUSES: Record<Exclude<FilterKey, "all" | "overdue">, JobStatus[]> = {
-  leads: ["new_inquiry", "to_measure"],
-  quote: ["after_measure", "to_quote", "quote_sent"],
+  leads: ["new_inquiry"],
+  scheduled: ["scheduled_measurement"],
+  pomiar: ["to_measure"],
+  uzupelnienie: ["after_measure"],
+  quote: ["to_quote", "quote_sent"],
   production: ["accepted", "materials_ordered", "in_production", "ready_to_install"],
   done: ["installed", "settled"],
   archived: ["archived"],
@@ -58,9 +70,12 @@ const FILTER_STATUSES: Record<Exclude<FilterKey, "all" | "overdue">, JobStatus[]
 // Grupy wyświetlane gdy filter = "all" — sekcje w kolejności od najpilniejszych
 const GROUP_ORDER: { key: Exclude<FilterKey, "all">; label: string }[] = [
   { key: "overdue", label: "Zaległe" },
+  { key: "scheduled", label: "Umówione pomiary" },
+  { key: "uzupelnienie", label: "Uzupełnienie" },
   { key: "production", label: "Produkcja" },
   { key: "quote", label: "Wycena" },
-  { key: "leads", label: "Leady / pomiar" },
+  { key: "leads", label: "Leady" },
+  { key: "pomiar", label: "Pomiar" },
   { key: "done", label: "Zamontowane" },
   { key: "archived", label: "Archiwum" },
   { key: "cancelled", label: "Anulowane" },
@@ -103,23 +118,6 @@ export default async function JobsPage({
     if (key === "all") return true;
     if (key === "overdue") return isJobOverdue(j, todayIso);
     return FILTER_STATUSES[key].includes(j.status);
-  }
-
-  const counts: Record<FilterKey, number> = {
-    all: searched.length,
-    overdue: 0,
-    leads: 0,
-    quote: 0,
-    production: 0,
-    done: 0,
-    archived: 0,
-    cancelled: 0,
-  };
-  for (const j of searched) {
-    if (isJobOverdue(j, todayIso)) counts.overdue++;
-    for (const k of ["leads", "quote", "production", "done", "archived", "cancelled"] as const) {
-      if (FILTER_STATUSES[k].includes(j.status)) counts[k]++;
-    }
   }
 
   const visible = filter === "all" ? searched : searched.filter((j) => matches(j, filter));
@@ -177,56 +175,6 @@ export default async function JobsPage({
               </button>
             )}
           </form>
-        )}
-
-        {all.length > 0 && (
-          <nav aria-label="Filtr etapu" className="mb-3">
-            <div className="flex flex-wrap gap-1.5">
-              {FILTER_ORDER.map((k) => {
-                const active = filter === k;
-                const count = counts[k];
-                // Ukryj puste filtry (poza "Wszystkie" i aktywnym) — chipy mieszczą się bez scrolla
-                if (k !== "all" && count === 0 && !active) return null;
-                const href = (() => {
-                  const params = new URLSearchParams();
-                  if (k !== "all") params.set("f", k);
-                  if (q) params.set("q", q);
-                  const qs = params.toString();
-                  return qs ? `/jobs?${qs}` : "/jobs";
-                })();
-
-                return (
-                  <Link
-                    key={k}
-                    href={href}
-                    aria-current={active ? "page" : undefined}
-                    className={[
-                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors shadow-[0_1px_2px_rgba(40,38,36,0.04)]",
-                      active
-                        ? "border-[#a06f3f] bg-[#a06f3f] text-white shadow-[0_2px_6px_rgba(160,111,63,0.28)]"
-                        : k === "overdue"
-                          ? "border-[#e8c5b6] bg-[#f4e0d9] text-[#9c3a22] hover:bg-[#eed3c8]"
-                          : "border-[#d8d2c8] bg-[#faf7f2] text-[#282624] hover:bg-white hover:border-[#c4bbac]",
-                    ].join(" ")}
-                  >
-                    {FILTER_LABELS[k]}
-                    <span
-                      className={[
-                        "text-[11px] tabular-nums rounded-full px-1.5 min-w-[20px] text-center font-bold",
-                        active
-                          ? "bg-white/25 text-white"
-                          : k === "overdue"
-                            ? "bg-white/70 text-[#9c3a22]"
-                            : "bg-white text-[#a06f3f]",
-                      ].join(" ")}
-                    >
-                      {count}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
         )}
 
         {q && (
@@ -305,6 +253,7 @@ export default async function JobsPage({
 
 const STAGE_GROUP_ACCENT: Record<JobStatus, string> = {
   new_inquiry: "#c4bbac",
+  scheduled_measurement: "#a06f3f",
   to_measure: "#a06f3f",
   after_measure: "#a06f3f",
   to_quote: "#a18653",
@@ -318,6 +267,21 @@ const STAGE_GROUP_ACCENT: Record<JobStatus, string> = {
   archived: "#c4bbac",
   cancelled: "#c4bbac",
 };
+
+function hrefForJobStatus(id: string, status: JobStatus): string {
+  switch (status) {
+    case "scheduled_measurement":
+    case "to_measure":
+      return `/jobs/${id}/pomiar/edit`;
+    case "after_measure":
+      return `/jobs/${id}/pomiar/edit#uzupelnienie`;
+    case "to_quote":
+    case "quote_sent":
+      return `/jobs/${id}/wycena`;
+    default:
+      return `/jobs/${id}`;
+  }
+}
 
 function JobItem({
   job,
@@ -334,10 +298,11 @@ function JobItem({
   const completedStages = stageIdx >= 0 ? stageIdx + 1 : 0;
   const showProgress =
     stageIdx >= 0 && job.status !== "cancelled" && job.status !== "archived";
+  const href = hrefForJobStatus(job.id, job.status);
   return (
     <li>
       <Link
-        href={`/jobs/${job.id}`}
+        href={href}
         className="flex items-start gap-3 rounded-xl border border-[#e6dcc7] bg-white p-3.5 pl-3 active:bg-[#faf7f2] hover:border-[#c4bbac] transition-colors border-l-4"
         style={{ borderLeftColor: accent }}
       >
@@ -389,6 +354,7 @@ function JobItem({
 function StageChip({ status }: { status: JobStatus }) {
   const styles: Record<JobStatus, string> = {
     new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
+    scheduled_measurement: "bg-[#f1e5d2] text-[#7d5530]",
     to_measure: "bg-[#f1e5d2] text-[#7d5530]",
     after_measure: "bg-[#f1e5d2] text-[#7d5530]",
     to_quote: "bg-[#faf5e9] text-[#a18653]",
