@@ -176,7 +176,9 @@ export default function BriefForm({
   submitLabel?: string;
   openPostByDefault?: boolean;
 }) {
-  const isAfterMeasure = openPostByDefault;
+  const [tab, setTab] = useState<"measurement" | "post">(
+    openPostByDefault ? "post" : "measurement"
+  );
   const [state, formAction, pending] = useActionState(action ?? NOOP_ACTION, { error: undefined });
   const [projectType, setProjectType] = useState<ProjectType>(
     initial?.project_type ?? defaults?.project_type ?? defaultProjectType ?? "kitchen"
@@ -382,52 +384,63 @@ export default function BriefForm({
           .map((g) => ({ title: g.title, fields: g.fields.filter(isPost) }))
           .filter((g) => g.fields.length > 0);
         const hasPostFields = postGroups.length > 0;
+        const postFieldCount = postGroups.reduce((n, g) => n + g.fields.length, 0);
+        // Gdy typ projektu nie ma pól po-pomiarowych, pokazujemy tylko pomiar
+        // (bez paska zakładek), żeby stan tab="post" nie ukrył formularza.
+        const showMeasurement = tab === "measurement" || !hasPostFields;
 
         return (
           <>
-            {schema.groups.map((group) => {
-              const measurementFields = group.fields.filter((f) => !isPost(f));
-              if (measurementFields.length === 0) return null;
-              return (
-                <section key={group.title} className="rounded-xl border border-zinc-200 bg-white p-4">
-                  <h3 className="text-sm font-semibold text-zinc-700 mb-3">{group.title}</h3>
-                  <div className="flex flex-col gap-3">
-                    {measurementFields.map(renderFieldNode)}
-                  </div>
-                </section>
-              );
-            })}
-
             {hasPostFields && (
-              <section id="uzupelnienie" className="rounded-xl border border-zinc-200 bg-white p-4 scroll-mt-4">
-                <details className="group" open={isAfterMeasure}>
-                  <summary className="flex items-center justify-between cursor-pointer list-none">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-zinc-700">
-                        Uzupełnienie do wyceny (po pomiarze)
-                      </span>
-                      <span className="text-[11px] text-zinc-500">
-                        Pola ilościowe i szczegóły — wypełnij po akceptacji wstępnej wyceny
-                      </span>
+              <div className="flex gap-1 rounded-lg bg-zinc-100 p-1">
+                <TabButton active={showMeasurement} onClick={() => setTab("measurement")}>
+                  Pomiar
+                </TabButton>
+                <TabButton active={tab === "post"} onClick={() => setTab("post")}>
+                  Po pomiarze
+                  <span className="ml-1.5 rounded-full bg-black/10 px-1.5 text-[10px] tabular-nums">
+                    {postFieldCount}
+                  </span>
+                </TabButton>
+              </div>
+            )}
+
+            {/* Panel: Pomiar — tylko dane zbierane na wizycie */}
+            <div className={showMeasurement ? "flex flex-col gap-5" : "hidden"}>
+              {schema.groups.map((group) => {
+                const measurementFields = group.fields.filter((f) => !isPost(f));
+                if (measurementFields.length === 0) return null;
+                return (
+                  <section key={group.title} className="rounded-xl border border-zinc-200 bg-white p-4">
+                    <h3 className="text-sm font-semibold text-zinc-700 mb-3">{group.title}</h3>
+                    <div className="flex flex-col gap-3">
+                      {measurementFields.map(renderFieldNode)}
                     </div>
-                    <span className="text-zinc-400 text-xs group-open:rotate-180 transition-transform">
-                      ▼
-                    </span>
-                  </summary>
-                  <div className="flex flex-col gap-5 mt-4">
-                    {postGroups.map((g) => (
-                      <div key={g.title} className="flex flex-col gap-3">
-                        <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                          {g.title}
-                        </h4>
-                        <div className="flex flex-col gap-3">
-                          {g.fields.map(renderFieldNode)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              </section>
+                  </section>
+                );
+              })}
+            </div>
+
+            {/* Panel: Po pomiarze — pola ilościowe po akceptacji wyceny.
+                Zostaje w DOM nawet gdy ukryty, żeby wszystkie pola wysłały się
+                jednym submitem. id zachowane dla CTA #uzupelnienie. */}
+            {hasPostFields && (
+              <div
+                id="uzupelnienie"
+                className={tab === "post" ? "flex flex-col gap-5 scroll-mt-4" : "hidden"}
+              >
+                <p className="text-[11px] text-zinc-500 -mb-1">
+                  Pola ilościowe i szczegóły — wypełnij po akceptacji wstępnej wyceny.
+                </p>
+                {postGroups.map((g) => (
+                  <section key={g.title} className="rounded-xl border border-zinc-200 bg-white p-4">
+                    <h3 className="text-sm font-semibold text-zinc-700 mb-3">{g.title}</h3>
+                    <div className="flex flex-col gap-3">
+                      {g.fields.map(renderFieldNode)}
+                    </div>
+                  </section>
+                ))}
+              </div>
             )}
           </>
         );
@@ -546,6 +559,31 @@ function FieldRender({
         className={inputCls}
       />
     </Field>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex-1 flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+        active
+          ? "bg-white text-zinc-900 shadow-sm"
+          : "text-zinc-500 active:bg-white/50"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
