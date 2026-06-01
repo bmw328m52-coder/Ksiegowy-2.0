@@ -74,12 +74,16 @@ export async function addJobMaterialAction(jobId: string, formData: FormData) {
   const qty = parseAmount(qtyRaw) ?? 1;
   if (qty <= 0) throw new Error("Ilość musi być większa od zera.");
 
+  const groupKeyRaw = String(formData.get("group_key") ?? "").trim();
+  const group_key = groupKeyRaw || null;
+
   if (catalogIdRaw) {
     const item = await getCatalogItem(catalogIdRaw);
     if (!item) throw new Error("Nie znaleziono pozycji w katalogu.");
     await createJobMaterial({
       job_id: jobId,
       catalog_id: item.id,
+      group_key,
       name: item.name,
       unit: item.unit,
       qty,
@@ -96,6 +100,7 @@ export async function addJobMaterialAction(jobId: string, formData: FormData) {
     await createJobMaterial({
       job_id: jobId,
       catalog_id: null,
+      group_key,
       name,
       unit,
       qty,

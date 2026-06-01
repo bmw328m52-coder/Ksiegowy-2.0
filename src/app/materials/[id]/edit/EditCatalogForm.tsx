@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import type { MaterialCatalogItem } from "@/lib/dao/material_catalog";
+import { UNITS, isUnit } from "@/lib/units";
 
 const inputCls =
   "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
@@ -33,7 +34,16 @@ export default function EditCatalogForm({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Jednostka">
-          <input name="unit" defaultValue={initial.unit} className={inputCls} />
+          <select name="unit" defaultValue={initial.unit} className={inputCls}>
+            {initial.unit && !isUnit(initial.unit) && (
+              <option value={initial.unit}>{initial.unit} (obecna)</option>
+            )}
+            {UNITS.map((u) => (
+              <option key={u.code} value={u.code}>
+                {u.label}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Cena brutto (PLN)">
           <input

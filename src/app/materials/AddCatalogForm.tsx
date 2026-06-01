@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { UNITS } from "@/lib/units";
 import { createCatalogAction } from "./actions";
 
 const inputCls =
@@ -16,7 +17,13 @@ export default function AddCatalogForm() {
     >
       <input name="name" required placeholder="Nazwa (np. Zawias Blum Clip Top)" className={inputCls} />
       <div className="grid grid-cols-3 gap-2">
-        <input name="unit" defaultValue="szt" placeholder="szt / m / kpl" className={inputCls} />
+        <select name="unit" defaultValue="szt" className={inputCls}>
+          {UNITS.map((u) => (
+            <option key={u.code} value={u.code}>
+              {u.label}
+            </option>
+          ))}
+        </select>
         <input
           name="default_price_gross"
           inputMode="decimal"

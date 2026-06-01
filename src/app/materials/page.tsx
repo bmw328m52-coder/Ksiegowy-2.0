@@ -6,7 +6,7 @@ import { fmtPLN } from "@/lib/format";
 import { deleteCatalogAction } from "./actions";
 import AddCatalogForm from "./AddCatalogForm";
 
-export const metadata = { title: "Katalog materiałów" };
+export const metadata = { title: "Cennik" };
 
 export default async function MaterialsPage() {
   const items = await listCatalog();
@@ -22,13 +22,13 @@ export default async function MaterialsPage() {
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <div className="w-full max-w-md mx-auto">
-        <PageHeader title="Katalog materiałów" back={{ href: "/jobs" }} />
+        <PageHeader title="Cennik" back={{ href: "/jobs" }} />
 
         <AddCatalogForm />
 
         {items.length === 0 ? (
           <p className="text-center text-sm text-zinc-500 py-10">
-            Katalog jest pusty. Dodaj pierwszy materiał powyżej.
+            Cennik jest pusty. Dodaj pierwszą pozycję powyżej.
           </p>
         ) : (
           <div className="flex flex-col gap-5 mt-4">
