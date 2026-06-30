@@ -72,7 +72,18 @@ export function GroupTotal({ keys }: { keys: string[] }) {
 }
 
 // Górna karta: Pozycje (group_key != null) + Materiały (group_key == null) + Razem.
-export function WycenaTotals() {
+// Dodatkowo — pasek marży: wartość zlecenia − koszt materiałów = zostaje (robocizna + marża).
+// Ceny w wycenie to ceny ZAKUPU z cennika = koszt materiałów; wartość sprzedaży to job.amount_gross.
+// VAT-owiec z niezerową stawką: przeliczamy obie kwoty na netto TĄ SAMĄ stawką (jak w MarginSection).
+export function WycenaTotals({
+  amountGross,
+  vatRate,
+  isVatPayer,
+}: {
+  amountGross: number;
+  vatRate: number;
+  isVatPayer: boolean;
+}) {
   const { materials } = useMaterialsStore();
   let itemsTotal = 0;
   let materialsTotal = 0;
@@ -82,6 +93,16 @@ export function WycenaTotals() {
     if (m.group_key === null) materialsTotal += v;
     else itemsTotal += v;
   }
+  const materialGross = itemsTotal + materialsTotal;
+
+  const useNet = isVatPayer && vatRate > 0;
+  const net = (g: number) => (useNet ? g / (1 + vatRate) : g);
+  const revenue = net(amountGross);
+  const materialCost = net(materialGross);
+  const profit = revenue - materialCost;
+  const marginPct = revenue > 0 ? (profit / revenue) * 100 : null;
+  const basis = useNet ? "netto" : "brutto";
+
   return (
     <>
       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -96,8 +117,47 @@ export function WycenaTotals() {
       </div>
       <div className="mt-3 pt-3 border-t border-zinc-100 flex items-baseline justify-between">
         <span className="text-zinc-500 text-sm">Razem brutto</span>
-        <span className="font-semibold text-lg tabular-nums">{fmtPLN(itemsTotal + materialsTotal)}</span>
+        <span className="font-semibold text-lg tabular-nums">{fmtPLN(materialGross)}</span>
       </div>
+
+      {amountGross > 0 ? (
+        <div className="mt-3 pt-3 border-t border-zinc-100 flex items-baseline justify-between gap-3">
+          <div>
+            <p className="text-zinc-500 text-xs">Zostaje (robocizna + marża)</p>
+            <p
+              className={`font-semibold text-base tabular-nums ${
+                profit >= 0 ? "text-[#3a6b4d]" : "text-red-700"
+              }`}
+            >
+              {fmtPLN(profit)}
+            </p>
+            <p className="text-[10px] text-zinc-400">
+              wartość {fmtPLN(revenue)} − materiały {fmtPLN(materialCost)} ({basis})
+            </p>
+          </div>
+          {marginPct !== null && <MarginBadge pct={marginPct} />}
+        </div>
+      ) : (
+        <p className="mt-3 pt-3 border-t border-zinc-100 text-[11px] text-[#b08968]">
+          Ustaw wartość zlecenia (przez „Edytuj”), aby zobaczyć marżę.
+        </p>
+      )}
     </>
+  );
+}
+
+function MarginBadge({ pct }: { pct: number }) {
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+        pct >= 20
+          ? "bg-[#e3efe5] text-[#3a6b4d]"
+          : pct >= 0
+            ? "bg-[#faf5e9] text-[#a18653]"
+            : "bg-red-100 text-red-700"
+      }`}
+    >
+      marża {pct.toFixed(1)}%
+    </span>
   );
 }

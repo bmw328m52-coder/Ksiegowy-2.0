@@ -5,6 +5,7 @@ import { getJob } from "@/lib/dao/jobs";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
 import { getBriefSchema, type BriefField } from "@/lib/briefSchema";
 import { listCatalog, listMaterialsByJob, type JobMaterial } from "@/lib/dao/material_catalog";
+import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import MaterialsSection from "../MaterialsSection";
 import GroupMaterialsPicker from "./GroupMaterialsPicker";
 import QtyCalculator from "./QtyCalculator";
@@ -151,10 +152,11 @@ export default async function WycenaPage({
   const job = await getJob(id);
   if (!job) notFound();
 
-  const [brief, materials, catalog] = await Promise.all([
+  const [brief, materials, catalog, settings] = await Promise.all([
     getBriefByJob(id),
     listMaterialsByJob(id),
     listCatalog(),
+    getUserSettingsOrDefault(),
   ]);
 
   // Sumy (góra) i listy są teraz liczone po stronie klienta ze wspólnego store,
@@ -179,7 +181,11 @@ export default async function WycenaPage({
         <MaterialsStoreProvider initial={materials}>
           {brief && (
             <section className="mb-4 rounded-xl border border-zinc-200 bg-white p-4">
-              <WycenaTotals />
+              <WycenaTotals
+                amountGross={Number(job.amount_gross) || 0}
+                vatRate={Number(job.vat_rate) || 0}
+                isVatPayer={settings.is_vat_payer}
+              />
             </section>
           )}
 
