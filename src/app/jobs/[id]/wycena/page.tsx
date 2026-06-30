@@ -5,11 +5,12 @@ import { getJob } from "@/lib/dao/jobs";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
 import { getBriefSchema, type BriefField } from "@/lib/briefSchema";
 import { listCatalog, listMaterialsByJob, type JobMaterial } from "@/lib/dao/material_catalog";
-import { fmtPLN } from "@/lib/format";
 import MaterialsSection from "../MaterialsSection";
 import GroupMaterialsPicker from "./GroupMaterialsPicker";
 import QtyCalculator from "./QtyCalculator";
+import RecalcAutopriceButton from "./RecalcAutopriceButton";
 import { suggestedCategoriesFor } from "./groupCategories";
+import { MaterialsStoreProvider, WycenaTotals, GroupTotal } from "./MaterialsStore";
 
 const QTY_PREFIX = "__qty_";
 
@@ -30,7 +31,11 @@ const QTY_CONFIG: Record<string, QtyConfig> = {
     label: "Otwieranie — ilość",
     unit: "szt",
     unitFor: (v) =>
-      v === "bezuchwytowe" ? "mb" : v === "mieszane" ? "szt / mb" : "szt",
+      v === "korytkowy" || v === "podluzne" || v === "krawedziowe" || v === "wpuszczane"
+        ? "mb"
+        : v === "mieszane"
+          ? "szt / mb"
+          : "szt",
   },
   worktop_material: {
     label: "Blat — łączna długość",
@@ -78,6 +83,8 @@ const GROUP_SUBPRICES: Record<string, SubPrice[]> = {
     { key: "okucia_tip_on", label: "Tip-on" },
     { key: "okucia_szuflady", label: "Szuflady" },
     { key: "okucia_magic_corner", label: "Magic corner" },
+    { key: "okucia_cargo", label: "Cargo / kosze wysokie" },
+    { key: "okucia_nogi", label: "Nogi / nóżki" },
   ],
 };
 
@@ -85,12 +92,28 @@ const SKIP_GROUPS = new Set<string>([
   "Pomieszczenie",
   "Ustalenia",
   "Przyłącza i instalacje",
+  // Blat zamawiany razem z korpusami — pokazujemy go złączony w „Korpusy i okleina".
+  "Blat",
 ]);
 
-// Klucze job_materials należące do grupy: albo z GROUP_SUBPRICES, albo slug tytułu.
+// Grupy, których pozycje (group_key) pokazujemy złączone w innej grupie.
+// Klucz docelowy → dodatkowe klucze do dołączenia (wyświetlanie + suma).
+const MERGE_INTO: Record<string, string[]> = {
+  korpusy_i_okleina: ["blat"],
+};
+
+// Nadpisanie etykiety grupy na wycenie (sam brief zostaje bez zmian).
+const GROUP_TITLE_OVERRIDE: Record<string, string> = {
+  "Korpusy i okleina": "Korpusy, okleina i blat",
+};
+
+// Klucze job_materials należące do grupy: albo z GROUP_SUBPRICES, albo slug tytułu
+// + ewentualne klucze złączone (MERGE_INTO), by nic nie wypadło z sumy/widoku.
 function groupMaterialKeys(title: string): string[] {
   const sub = GROUP_SUBPRICES[title];
-  return sub ? sub.map((s) => s.key) : [groupSlug(title)];
+  if (sub) return sub.map((s) => s.key);
+  const slug = groupSlug(title);
+  return [slug, ...(MERGE_INTO[slug] ?? [])];
 }
 
 function groupSlug(title: string): string {
@@ -134,70 +157,61 @@ export default async function WycenaPage({
     listCatalog(),
   ]);
 
+  // Sumy (góra) i listy są teraz liczone po stronie klienta ze wspólnego store,
+  // żeby aktualizowały się natychmiast po dodaniu/usunięciu/zmianie ilości.
   const groupedMaterials = groupMaterialsByKey(materials);
-  const looseMaterials = groupedMaterials.get(null) ?? [];
-  const itemsTotal = sumMaterials(materials.filter((m) => m.group_key !== null));
-  const materialsTotal = sumMaterials(looseMaterials);
-  const total = itemsTotal + materialsTotal;
 
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
       <div className="w-full max-w-md mx-auto">
         <PageHeader title="Wycena" back={{ href: `/jobs/${id}` }} />
 
-        <p className="text-sm text-zinc-500 mb-4 truncate">{job.title}</p>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <p className="text-sm text-zinc-500 truncate">{job.title}</p>
+          <Link
+            href={`/jobs/${id}/zakupy`}
+            className="shrink-0 text-xs font-medium text-accent px-2 py-1 rounded-md active:bg-accent/10"
+          >
+            Lista zakupów →
+          </Link>
+        </div>
 
-        {brief && (
-          <section className="mb-4 rounded-xl border border-zinc-200 bg-white p-4">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-zinc-500">Pozycje</p>
-                <p className="font-medium text-sm tabular-nums">{fmtPLN(itemsTotal)}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500">Materiały</p>
-                <p className="font-medium text-sm tabular-nums">{fmtPLN(materialsTotal)}</p>
-              </div>
+        <MaterialsStoreProvider initial={materials}>
+          {brief && (
+            <section className="mb-4 rounded-xl border border-zinc-200 bg-white p-4">
+              <WycenaTotals />
+            </section>
+          )}
+
+          {!brief ? (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 space-y-3">
+              <p>Brak pomiaru. Najpierw wypełnij pomiar, aby wygenerować listę pozycji.</p>
+              <Link
+                href={`/jobs/${id}/pomiar/edit`}
+                className="inline-block rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80"
+              >
+                Wypełnij pomiar
+              </Link>
             </div>
-            <div className="mt-3 pt-3 border-t border-zinc-100 flex items-baseline justify-between">
-              <span className="text-zinc-500 text-sm">Razem brutto</span>
-              <span className="font-semibold text-lg tabular-nums">{fmtPLN(total)}</span>
-            </div>
-          </section>
-        )}
+          ) : (
+            <>
+              <RecalcAutopriceButton jobId={id} />
+              <WycenaList
+                briefId={brief.id}
+                jobId={id}
+                projectType={brief.project_type}
+                data={brief.data}
+                catalog={catalog}
+                groupedMaterials={groupedMaterials}
+              />
+            </>
+          )}
 
-        {!brief ? (
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 space-y-3">
-            <p>Brak pomiaru. Najpierw wypełnij pomiar, aby wygenerować listę pozycji.</p>
-            <Link
-              href={`/jobs/${id}/pomiar/edit`}
-              className="inline-block rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80"
-            >
-              Wypełnij pomiar
-            </Link>
-          </div>
-        ) : (
-          <WycenaList
-            briefId={brief.id}
-            jobId={id}
-            projectType={brief.project_type}
-            data={brief.data}
-            catalog={catalog}
-            groupedMaterials={groupedMaterials}
-          />
-        )}
-
-        <MaterialsSection jobId={id} materials={looseMaterials} catalog={catalog} />
+          <MaterialsSection jobId={id} catalog={catalog} />
+        </MaterialsStoreProvider>
       </div>
     </main>
   );
-}
-
-function sumMaterials(materials: JobMaterial[]): number {
-  return materials.reduce((acc, m) => {
-    if (m.unit_price_gross === null) return acc;
-    return acc + m.qty * m.unit_price_gross;
-  }, 0);
 }
 
 function groupMaterialsByKey(materials: JobMaterial[]): Map<string | null, JobMaterial[]> {
@@ -263,12 +277,17 @@ function WycenaList({
       {groups.map((g) => {
         const slug = groupSlug(g.title);
         const subprices = GROUP_SUBPRICES[g.title];
+        const displayTitle = GROUP_TITLE_OVERRIDE[g.title] ?? g.title;
+        const mergeKeys = MERGE_INTO[slug] ?? [];
+        const mergedCategories = Array.from(
+          new Set([slug, ...mergeKeys].flatMap((k) => suggestedCategoriesFor(k)))
+        );
         return (
           <section
             key={g.title}
             className="rounded-xl border border-zinc-200 bg-white p-4"
           >
-            <h3 className="text-sm font-semibold text-zinc-700 mb-3">{g.title}</h3>
+            <h3 className="text-sm font-semibold text-zinc-700 mb-3">{displayTitle}</h3>
             <ul className="flex flex-col gap-2 text-sm mb-3">
               {g.items.map((r) => (
                 <InfoRow key={r.field.key} field={r.field} value={r.value} />
@@ -301,7 +320,7 @@ function WycenaList({
                         jobId={jobId}
                         groupKey={sp.key}
                         groupLabel={`${g.title} — ${sp.label}`}
-                        items={groupedMaterials.get(sp.key) ?? []}
+                        displayKeys={[sp.key]}
                         catalog={catalog}
                         suggestedCategories={suggestedCategoriesFor(sp.key)}
                       />
@@ -309,32 +328,17 @@ function WycenaList({
                   ))}
                   <div className="flex items-center justify-between border-t border-zinc-100 pt-2">
                     <span className="text-xs font-medium text-zinc-700">Razem grupa</span>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {fmtPLN(
-                        subprices.reduce(
-                          (acc, sp) =>
-                            acc +
-                            (groupedMaterials.get(sp.key) ?? []).reduce(
-                              (a, m) =>
-                                m.unit_price_gross === null
-                                  ? a
-                                  : a + m.qty * m.unit_price_gross,
-                              0
-                            ),
-                          0
-                        )
-                      )}
-                    </span>
+                    <GroupTotal keys={subprices.map((sp) => sp.key)} />
                   </div>
                 </>
               ) : (
                 <GroupMaterialsPicker
                   jobId={jobId}
                   groupKey={slug}
-                  groupLabel={g.title}
-                  items={groupedMaterials.get(slug) ?? []}
+                  groupLabel={displayTitle}
+                  displayKeys={[slug, ...mergeKeys]}
                   catalog={catalog}
-                  suggestedCategories={suggestedCategoriesFor(slug)}
+                  suggestedCategories={mergedCategories}
                 />
               )}
             </div>
@@ -357,6 +361,13 @@ function readQty(
 }
 
 const HINGE_TYPE_LABELS: Record<string, string> = {
+  "110_z": "110° z hamulcem",
+  "110_bez": "110° bez hamulca",
+  "155_z": "155° z hamulcem",
+  "155_bez": "155° bez hamulca",
+  rownolegle_z: "Równoległe z hamulcem",
+  rownolegle_bez: "Równoległe bez hamulca",
+  // stare wpisy — zgodność wsteczna z briefami sprzed rozbicia na hamulec
   "110": "110°",
   "155": "155°",
   rownolegle: "Równoległe",

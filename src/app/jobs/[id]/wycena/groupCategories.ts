@@ -11,8 +11,12 @@ export const GROUP_CATEGORIES: Record<string, string[]> = {
   okucia_zawiasy: ["Zawiasy"],
   okucia_silowniki: ["Aventos", "Siłowniki"],
   okucia_tip_on: ["Tip-on", "Tip-on Blumotion"],
-  okucia_szuflady: ["Szuflady", "Prowadnice szuflad", "Legrabox", "Tandembox"],
+  // "Szuflady" = gotowe zestawy (na górze pickera). Luźne części ("Szuflady — części")
+  // celowo nie sugerowane, żeby nie wypychały zestawów — wciąż dostępne przez wyszukiwarkę.
+  okucia_szuflady: ["Szuflady"],
   okucia_magic_corner: ["Magic corner", "Cargo narożne"],
+  okucia_cargo: ["Kosze cargo wysokie", "Cargo narożne"],
+  okucia_nogi: ["Nogi", "Nogi i cokoły"],
 
   // Główne grupy (klucze ze slug tytułu)
   korpusy_i_okleina: ["Płyty laminowane", "Obrzeża ABS"],
