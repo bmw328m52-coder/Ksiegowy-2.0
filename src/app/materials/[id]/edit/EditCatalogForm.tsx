@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import type { MaterialCatalogItem } from "@/lib/dao/material_catalog";
 import { UNITS, isUnit } from "@/lib/units";
+import { SUPPLIERS } from "@/lib/suppliers";
 
 const inputCls =
   "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
@@ -54,9 +55,21 @@ export default function EditCatalogForm({
           />
         </Field>
       </div>
-      <Field label="Kategoria">
-        <input name="category" defaultValue={initial.category ?? ""} className={inputCls} />
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Kategoria">
+          <input name="category" defaultValue={initial.category ?? ""} className={inputCls} />
+        </Field>
+        <Field label="Dostawca">
+          <select name="supplier" defaultValue={initial.supplier ?? ""} className={inputCls}>
+            <option value="">Auto z kategorii</option>
+            {SUPPLIERS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
       <Field label="Notatka">
         <input name="notes" defaultValue={initial.notes ?? ""} className={inputCls} />
       </Field>

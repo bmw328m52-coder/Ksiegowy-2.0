@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { UNITS } from "@/lib/units";
+import { SUPPLIERS } from "@/lib/suppliers";
 import { createCatalogAction } from "./actions";
 
 const inputCls =
@@ -32,6 +33,14 @@ export default function AddCatalogForm() {
         />
         <input name="category" placeholder="Kategoria" className={inputCls} />
       </div>
+      <select name="supplier" defaultValue="" className={inputCls}>
+        <option value="">Dostawca — auto z kategorii</option>
+        {SUPPLIERS.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
       <input name="notes" placeholder="Notatka (opcjonalnie)" className={inputCls} />
       {state.error && (
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1">

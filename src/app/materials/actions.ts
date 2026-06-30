@@ -2,24 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { parseAmount } from "@/lib/format";
+import { humanizeSupabaseError } from "@/lib/supabaseError";
 import {
   createCatalogItem,
   updateCatalogItem,
   deleteCatalogItem,
+  syncMercuryCatalog,
   createJobMaterial,
   updateJobMaterial,
   deleteJobMaterial,
   getCatalogItem,
   type MaterialCatalogInput,
+  type JobMaterial,
 } from "@/lib/dao/material_catalog";
+import { MERCURY_STARTER } from "./mercury_starter";
 
 type Result = { error?: string };
+type ImportResult = { error?: string; message?: string };
 
 function readCatalogForm(formData: FormData): MaterialCatalogInput | string {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return "Podaj nazwę materiału.";
   const unit = String(formData.get("unit") ?? "").trim() || "szt";
   const category = String(formData.get("category") ?? "").trim() || null;
+  const supplier = String(formData.get("supplier") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
   const priceRaw = String(formData.get("default_price_gross") ?? "").trim();
@@ -30,7 +36,7 @@ function readCatalogForm(formData: FormData): MaterialCatalogInput | string {
     default_price_gross = parsed;
   }
 
-  return { name, unit, category, default_price_gross, notes };
+  return { name, unit, category, supplier, default_price_gross, notes };
 }
 
 export async function createCatalogAction(_prev: Result, formData: FormData): Promise<Result> {
@@ -41,7 +47,7 @@ export async function createCatalogAction(_prev: Result, formData: FormData): Pr
     revalidatePath("/materials");
     return {};
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Nieznany błąd." };
+    return { error: humanizeSupabaseError(e) };
   }
 }
 
@@ -57,7 +63,7 @@ export async function updateCatalogAction(
     revalidatePath("/materials");
     return {};
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Nieznany błąd." };
+    return { error: humanizeSupabaseError(e) };
   }
 }
 
@@ -66,9 +72,39 @@ export async function deleteCatalogAction(id: string) {
   revalidatePath("/materials");
 }
 
+export async function syncMercuryCatalogAction(
+  _prev: ImportResult,
+  _formData: FormData
+): Promise<ImportResult> {
+  try {
+    const items: MaterialCatalogInput[] = MERCURY_STARTER.map((it) => ({
+      name: it.name,
+      unit: it.unit,
+      default_price_gross: it.default_price_gross,
+      category: it.category,
+      supplier: "Mercury",
+      notes: it.notes ?? null,
+    }));
+    const { inserted, updated, deleted } = await syncMercuryCatalog(items);
+    revalidatePath("/materials");
+    if (inserted === 0 && updated === 0 && deleted === 0)
+      return { message: "Cennik Mercury aktualny — bez zmian." };
+    const parts: string[] = [];
+    if (inserted) parts.push(`dodano ${inserted}`);
+    if (updated) parts.push(`zaktualizowano ${updated}`);
+    if (deleted) parts.push(`usunięto ${deleted} nieaktualnych`);
+    return { message: `Synchronizacja cennika Mercury: ${parts.join(", ")}.` };
+  } catch (e) {
+    return { error: humanizeSupabaseError(e) };
+  }
+}
+
 // ---------- Materiały na wycenie ----------
 
-export async function addJobMaterialAction(jobId: string, formData: FormData) {
+export async function addJobMaterialAction(
+  jobId: string,
+  formData: FormData
+): Promise<JobMaterial> {
   const catalogIdRaw = String(formData.get("catalog_id") ?? "").trim();
   const qtyRaw = String(formData.get("qty") ?? "1").trim();
   const qty = parseAmount(qtyRaw) ?? 1;
@@ -77,10 +113,11 @@ export async function addJobMaterialAction(jobId: string, formData: FormData) {
   const groupKeyRaw = String(formData.get("group_key") ?? "").trim();
   const group_key = groupKeyRaw || null;
 
+  let created: JobMaterial;
   if (catalogIdRaw) {
     const item = await getCatalogItem(catalogIdRaw);
     if (!item) throw new Error("Nie znaleziono pozycji w katalogu.");
-    await createJobMaterial({
+    created = await createJobMaterial({
       job_id: jobId,
       catalog_id: item.id,
       group_key,
@@ -97,7 +134,7 @@ export async function addJobMaterialAction(jobId: string, formData: FormData) {
     const unit_price_gross = priceRaw ? parseAmount(priceRaw) : null;
     if (priceRaw && (unit_price_gross === null || unit_price_gross < 0))
       throw new Error("Nieprawidłowa cena.");
-    await createJobMaterial({
+    created = await createJobMaterial({
       job_id: jobId,
       catalog_id: null,
       group_key,
@@ -109,6 +146,7 @@ export async function addJobMaterialAction(jobId: string, formData: FormData) {
   }
 
   revalidatePath(`/jobs/${jobId}/wycena`);
+  return created;
 }
 
 export async function updateJobMaterialQtyAction(
