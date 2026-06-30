@@ -149,12 +149,16 @@ const KITCHEN: BriefSchema = {
         ]},
         { key: "front_opening", label: "Otwieranie", type: "radio", options: [
           { value: "uchwyty", label: "Uchwyty" },
-          { value: "bezuchwytowe", label: "Bezuchwytowe (gola / tip-on)" },
+          { value: "korytkowy", label: "Uchwyt korytkowy" },
+          { value: "tip_on", label: "Tip-on" },
+          { value: "podluzne", label: "Podłużne" },
+          { value: "krawedziowe", label: "Krawędziowe" },
+          { value: "wpuszczane", label: "Wpuszczane" },
           { value: "frezowane", label: "Frezowane wcięcie" },
           { value: "mieszane", label: "Mieszane" },
         ]},
         { key: "handle_model", label: "Model uchwytów (jeśli)", type: "text" },
-        { key: "gola_color", label: "Kolor profilu gola (jeśli bezuchwytowe)", type: "text", placeholder: "np. czarny, srebrny, antracyt, w kolorze frontu" },
+        { key: "gola_color", label: "Kolor profilu korytkowego (jeśli korytkowy)", type: "text", placeholder: "np. czarny, srebrny, antracyt, w kolorze frontu" },
       ],
     },
     {
@@ -188,10 +192,7 @@ const KITCHEN: BriefSchema = {
           { value: "other", label: "Inny" },
         ]},
         { key: "hinges_breakdown", label: "Zawiasy — rozbicie po typie", type: "text", stage: "post_measurement" },
-        { key: "hinges_damping", label: "Zawiasy — hamulec", type: "radio", stage: "post_measurement", options: [
-          { value: "z_hamulcem", label: "Z hamulcem" },
-          { value: "bez", label: "Bez hamulca" },
-        ]},
+        { key: "tip_on_count", label: "Tip-on — ilość", type: "number", unit: "szt", stage: "post_measurement", help: "ilość mechanizmów tip-on / push-to-open na frontach bez uchwytu" },
         { key: "lift_brand", label: "Siłowniki — producent", type: "select", stage: "post_measurement", options: [
           { value: "blum", label: "Blum (Aventos)" },
           { value: "hettich", label: "Hettich" },

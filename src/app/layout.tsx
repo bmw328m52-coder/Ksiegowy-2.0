@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
@@ -53,7 +54,9 @@ export default function RootLayout({
         <PrivateModeProvider>
           <PrivateModeFab />
           <div className="flex flex-col min-h-full md:max-w-[1500px] md:mx-auto md:p-[18px] md:grid md:gap-[18px] md:items-start md:[grid-template-columns:240px_minmax(0,1fr)] lg:[grid-template-columns:240px_minmax(0,1fr)_300px]">
-            <Sidebar />
+            <Suspense fallback={null}>
+              <Sidebar />
+            </Suspense>
             <div className="flex flex-col min-w-0 md:rounded-[18px] md:bg-[#faf7f2] md:border md:border-[#e6dcc7] md:overflow-hidden">
               {children}
             </div>

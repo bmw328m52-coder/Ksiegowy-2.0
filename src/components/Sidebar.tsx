@@ -42,6 +42,7 @@ const SECTIONS: Section[] = [
       { href: "/calculator", label: "Kalkulator", match: (p) => p.startsWith("/calculator"), icon: CalcIcon, tone: "info" },
       { href: "/materials", label: "Cennik", match: (p) => p.startsWith("/materials"), icon: PackageIcon, tone: "accent" },
       { href: "/usluga", label: "Stawka /h", match: (p) => p.startsWith("/usluga"), icon: ClockIcon, tone: "ok" },
+      { href: "/timer", label: "Licznik", match: (p) => p.startsWith("/timer"), icon: StopwatchIcon, tone: "info" },
       { href: "/settings", label: "Ustawienia", match: (p) => p.startsWith("/settings"), icon: GearIcon, tone: "neutral" },
     ],
   },
@@ -274,6 +275,18 @@ function ClockIcon({ active }: { active: boolean }) {
     <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function StopwatchIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l2.5 2.5" />
+      <path d="M9 2h6" />
+      <path d="M12 2v3" />
+      <path d="m18.5 6.5 1.5-1.5" />
     </svg>
   );
 }

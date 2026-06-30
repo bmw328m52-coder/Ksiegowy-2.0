@@ -27,9 +27,16 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getUser() może rzucić, gdy ciasteczko sesji jest uszkodzone/obcięte
+  // (np. przerwany zapis przy odświeżaniu tokenu). Zamiast 500 — traktuj
+  // jak brak sesji i przekieruj na login (zły stan sam się wyczyści).
+  let user = null;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    user = null;
+  }
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));

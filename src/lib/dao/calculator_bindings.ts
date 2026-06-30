@@ -46,7 +46,7 @@ export const SLOTS: SlotDef[] = [
     key: "prowadnica_komplet",
     label: "Prowadnica szuflady (komplet)",
     unit: "kpl",
-    preferredCategories: ["Prowadnice szuflad"],
+    preferredCategories: ["Szuflady — części"],
   },
   {
     key: "noga_szt",

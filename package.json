@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev --webpack -H 0.0.0.0",
-    "dev:https": "cross-env NODE_OPTIONS=--use-system-ca next dev --webpack -H 0.0.0.0 --experimental-https --experimental-https-key ./certificates/lan-key.pem --experimental-https-cert ./certificates/lan.pem",
-    "build": "next build",
-    "start": "next start",
+    "dev": "cross-env NODE_OPTIONS=\"--use-system-ca --max-old-space-size=4096\" next dev --webpack -H 0.0.0.0",
+    "dev:https": "cross-env NODE_OPTIONS=\"--use-system-ca --max-old-space-size=4096\" next dev --webpack -H 0.0.0.0 --experimental-https --experimental-https-key ./certificates/lan-key.pem --experimental-https-cert ./certificates/lan.pem",
+    "build": "cross-env NODE_OPTIONS=--use-system-ca next build",
+    "start": "cross-env NODE_OPTIONS=--use-system-ca next start -H 0.0.0.0",
+    "prod": "npm run build && npm run start",
     "lint": "eslint"
   },
   "dependencies": {

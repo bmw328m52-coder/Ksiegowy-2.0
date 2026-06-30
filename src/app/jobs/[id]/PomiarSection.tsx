@@ -20,11 +20,9 @@ const ROOM_DIAGRAM_KEYS = new Set([
 export default function PomiarSection({
   jobId,
   brief,
-  projectType,
 }: {
   jobId: string;
   brief: QuoteBrief | null;
-  projectType: QuoteBrief["project_type"] | null;
 }) {
   if (!brief) {
     return (

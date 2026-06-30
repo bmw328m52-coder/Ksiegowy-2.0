@@ -23,14 +23,6 @@ const VARIANT_COLOR: Record<TileVariant, string> = {
   meta: "#6b6661",
 };
 
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 6) return "Dobranoc";
-  if (h < 12) return "Dzień dobry";
-  if (h < 18) return "Cześć";
-  return "Dobry wieczór";
-}
-
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
@@ -83,9 +75,6 @@ export default async function Home() {
     "in_production",
     "ready_to_install",
   ]);
-  const LEADS = new Set(["new_inquiry", "scheduled_measurement", "to_measure"]);
-  const QUOTE = new Set(["after_measure", "to_quote", "quote_sent"]);
-  const GOTOWE = new Set(["installed", "settled"]);
   const skrzynka = {
     active: jobs.filter((j) => !CLOSED.has(j.status)).length,
     inProgress: jobs.filter((j) => IN_PRODUCTION.has(j.status)).length,

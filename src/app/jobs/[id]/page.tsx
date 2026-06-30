@@ -15,6 +15,7 @@ import {
   uncancelJobAction,
 } from "../actions";
 import InvoiceSection from "./InvoiceSection";
+import MarginSection from "./MarginSection";
 import PomiarSection from "./PomiarSection";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
 
@@ -75,7 +76,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
         <StageTimeline stages={stages} />
 
-        <PomiarSection jobId={id} brief={brief} projectType={job.project_type} />
+        <PomiarSection jobId={id} brief={brief} />
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <Link
@@ -88,6 +89,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </div>
             <p className="text-xs text-[#9c9081] mt-1">
               Lista pozycji i materiały
+            </p>
+          </Link>
+          <Link
+            href={`/jobs/${id}/zakupy`}
+            className="block rounded-xl border border-[#e8e4dd] bg-white p-4 text-sm font-medium text-[#282624] active:bg-[#faf7f2] hover:border-[#d8d2c8] transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span>Lista zakupów</span>
+              <span className="text-[#9c9081]">→</span>
+            </div>
+            <p className="text-xs text-[#9c9081] mt-1">
+              Co kupić, wg dostawcy
             </p>
           </Link>
           <Link
@@ -112,6 +125,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           amountGross={Number(job.amount_gross) || 0}
           status={job.status}
         />
+
+        {!isCancelled && <MarginSection job={job} />}
 
         {job.notes && (
           <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4">
@@ -379,7 +394,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
           <span aria-hidden>→</span>
         </Link>
         <p className="text-[11px] text-[#9c9081]">
-          Wypełnij brief po wizycie u klienta — po zapisaniu zlecenie trafi od razu do „Uzupełnienia".
+          Wypełnij brief po wizycie u klienta — po zapisaniu zlecenie trafi od razu do „Uzupełnienia”.
         </p>
         {revertBtn}
       </section>

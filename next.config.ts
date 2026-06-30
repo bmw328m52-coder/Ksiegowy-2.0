@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "192.168.0.143", "192.168.0.145", "192.168.0.101", "192.168.0.162", "192.168.0.165", "flowers-lip-nirvana-shots.trycloudflare.com"],
+  allowedDevOrigins: ["127.0.0.1", "192.168.0.143", "192.168.0.145", "192.168.0.101", "192.168.0.162", "192.168.0.165", "192.168.0.175", "flowers-lip-nirvana-shots.trycloudflare.com"],
   images: {
     unoptimized: true,
   },
@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
         "192.168.0.101:3000",
         "192.168.0.162:3000",
         "192.168.0.165:3000",
+        "192.168.0.175:3000",
         "localhost:3000",
         "flowers-lip-nirvana-shots.trycloudflare.com",
       ],

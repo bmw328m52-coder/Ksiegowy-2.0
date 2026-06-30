@@ -1,15 +1,18 @@
 import PageHeader from "@/components/PageHeader";
 import { listJobs } from "@/lib/dao/jobs";
-import { getActiveTimer, listRecentEntries } from "@/lib/dao/time_entries";
+import { getActiveTimer, listRecentEntries, sumMinutesByJob } from "@/lib/dao/time_entries";
+import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import TimerPanel from "./TimerPanel";
 
 export const metadata = { title: "Licznik czasu" };
 
 export default async function TimerPage() {
-  const [jobs, active, recent] = await Promise.all([
+  const [jobs, active, recent, minutesByJob, settings] = await Promise.all([
     listJobs(),
     getActiveTimer(),
     listRecentEntries(20),
+    sumMinutesByJob(),
+    getUserSettingsOrDefault(),
   ]);
 
   const jobMap = new Map(jobs.map((j) => [j.id, j]));
@@ -29,6 +32,9 @@ export default async function TimerPage() {
           active={active}
           activeJob={activeJob}
           recent={recentWithMeta}
+          minutesByJob={minutesByJob}
+          isVatPayer={settings.is_vat_payer}
+          targetRate={settings.default_hourly_rate}
         />
       </div>
     </main>

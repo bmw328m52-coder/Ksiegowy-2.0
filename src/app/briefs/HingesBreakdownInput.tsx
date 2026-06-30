@@ -4,9 +4,12 @@ import { useState } from "react";
 import { coerceCount, serializeBreakdown, type BreakdownEntry as Entry } from "./breakdownEntries";
 
 const TYPES: { value: string; label: string }[] = [
-  { value: "110", label: "110°" },
-  { value: "155", label: "155°" },
-  { value: "rownolegle", label: "Równoległe" },
+  { value: "110_z", label: "110° z hamulcem" },
+  { value: "110_bez", label: "110° bez hamulca" },
+  { value: "155_z", label: "155° z hamulcem" },
+  { value: "155_bez", label: "155° bez hamulca" },
+  { value: "rownolegle_z", label: "Równoległe z hamulcem" },
+  { value: "rownolegle_bez", label: "Równoległe bez hamulca" },
 ];
 
 const inputCls =
@@ -58,7 +61,7 @@ export default function HingesBreakdownInput({
       <div className="flex flex-col gap-1.5 rounded-md border border-zinc-200 p-2">
         {entries.map((e, i) => (
           <div key={e.type} className="flex items-center gap-2">
-            <span className="text-[12px] font-medium text-zinc-800 w-24 shrink-0">
+            <span className="text-[12px] font-medium text-zinc-800 flex-1 min-w-0">
               {TYPES[i].label}
             </span>
             <input

@@ -97,6 +97,23 @@ export async function listRecentEntries(limit = 20): Promise<TimeEntry[]> {
   return (data ?? []) as TimeEntry[];
 }
 
+// Suma minut (zakończone wpisy) per zlecenie — do podsumowania w panelu licznika.
+export async function sumMinutesByJob(): Promise<Record<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("time_entries")
+    .select("job_id, duration_minutes")
+    .not("ended_at", "is", null);
+  if (error) throw error;
+  const out: Record<string, number> = {};
+  for (const r of (data ?? []) as { job_id: string; duration_minutes: number | null }[]) {
+    if (r.duration_minutes != null) {
+      out[r.job_id] = (out[r.job_id] ?? 0) + r.duration_minutes;
+    }
+  }
+  return out;
+}
+
 export async function addManualEntry(input: ManualEntryInput): Promise<TimeEntry> {
   const userId = await uid();
   const supabase = await createClient();

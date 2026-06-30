@@ -17,7 +17,7 @@ export default async function BriefsPage() {
 
         {briefs.length === 0 ? (
           <p className="text-center text-sm text-zinc-500 py-12">
-            Brak briefów. Dodaj brief z poziomu klienta — przycisk „+ Nowy brief / pomiar".
+            Brak briefów. Dodaj brief z poziomu klienta — przycisk „+ Nowy brief / pomiar”.
           </p>
         ) : (
           <ul className="flex flex-col gap-2">

@@ -385,7 +385,7 @@ export async function markJobInvoicedAction(
   if (!invoice_number) return { error: "Podaj numer faktury sprzedaży." };
 
   const today = new Date().toISOString().slice(0, 10);
-  let invoice_date = String(formData.get("invoice_date") ?? "").trim() || today;
+  const invoice_date = String(formData.get("invoice_date") ?? "").trim() || today;
   if (invoice_date > today) return { error: "Data faktury w przyszłości — wybierz dzisiejszą lub wcześniejszą." };
 
   const supabase = await createClient();

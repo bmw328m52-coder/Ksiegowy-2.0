@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useOptimistic, useState, useTransition, type ReactNode } from "react";
 import {
   CHECKLIST_STATUSES,
   CHECKLIST_STATUS_LABELS,
@@ -126,10 +126,9 @@ function SeedButton({ jobId, projectType }: { jobId: string; projectType: Projec
 function ChecklistRow({ item, jobId }: { item: ChecklistItem; jobId: string }) {
   const [open, setOpen] = useState(false);
   const [statusPending, startStatusTransition] = useTransition();
-  const [status, setStatus] = useState<ChecklistItemStatus>(item.status);
-  useEffect(() => {
-    setStatus(item.status);
-  }, [item.status]);
+  // Optymistyczny status: pokazuje wybór od razu, a po zakończeniu transakcji wraca
+  // do wartości z propsa (sukces → nowy props z rewalidacji; błąd → stary status).
+  const [status, setOptimisticStatus] = useOptimistic<ChecklistItemStatus>(item.status);
   const totalNet = item.unit_price_net !== null ? item.qty * item.unit_price_net : null;
 
   return (
@@ -140,12 +139,12 @@ function ChecklistRow({ item, jobId }: { item: ChecklistItem; jobId: string }) {
           disabled={statusPending}
           onChange={(e) => {
             const next = e.currentTarget.value as ChecklistItemStatus;
-            setStatus(next);
             startStatusTransition(async () => {
+              setOptimisticStatus(next);
               try {
                 await setChecklistItemStatusAction(item.id, jobId, next);
               } catch {
-                setStatus(item.status);
+                // błąd → po zakończeniu transakcji status wróci do item.status (props)
               }
             });
           }}

@@ -105,7 +105,7 @@ export async function GET(request: Request) {
         const datePart = inv.issue_date ?? "bez_daty";
         const supplierPart = safeFilename(inv.supplier_name ?? "dostawca");
         const numberPart = safeFilename(inv.invoice_number ?? inv.id.slice(0, 8));
-        let base = `${datePart}_${supplierPart}_${numberPart}`;
+        const base = `${datePart}_${supplierPart}_${numberPart}`;
         let name = `${base}.${ext}`;
         let i = 2;
         while (usedNames.has(name)) {

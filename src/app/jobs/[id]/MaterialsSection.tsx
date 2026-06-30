@@ -9,21 +9,22 @@ import {
   deleteJobMaterialAction,
   updateJobMaterialQtyAction,
 } from "@/app/materials/actions";
-import { fmtPLN } from "@/lib/format";
+import { fmtPLN, parseAmount } from "@/lib/format";
+import { useLooseItems, useMaterialsStore } from "./wycena/MaterialsStore";
 
 const inputCls =
   "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
 
 export default function MaterialsSection({
   jobId,
-  materials,
   catalog,
 }: {
   jobId: string;
-  materials: JobMaterial[];
   catalog: MaterialCatalogItem[];
 }) {
   const [adding, setAdding] = useState(false);
+  // Materiały luźne ze wspólnego store — wszystko aktualizuje się na żywo.
+  const materials = useLooseItems();
   const total = materials.reduce(
     (acc, m) => (m.unit_price_gross === null ? acc : acc + m.qty * m.unit_price_gross),
     0
@@ -82,6 +83,7 @@ function MaterialRow({ m, jobId }: { m: JobMaterial; jobId: string }) {
   const [editing, setEditing] = useState(false);
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const { remove, add, updateQty } = useMaterialsStore();
   const unit = m.unit_price_gross;
   const lineTotal = unit !== null ? m.qty * unit : null;
 
@@ -103,8 +105,15 @@ function MaterialRow({ m, jobId }: { m: JobMaterial; jobId: string }) {
           ) : (
             <form
               action={async (formData) => {
-                await updateJobMaterialQtyAction(m.id, jobId, formData);
+                const qty = parseAmount(String(formData.get("qty") ?? ""));
+                const prevQty = m.qty;
+                if (qty !== null && qty > 0) updateQty(m.id, qty); // optymistycznie
                 setEditing(false);
+                try {
+                  await updateJobMaterialQtyAction(m.id, jobId, formData);
+                } catch {
+                  updateQty(m.id, prevQty); // błąd — przywróć
+                }
                 startTransition(() => router.refresh());
               }}
               className="mt-1 flex items-center gap-2"
@@ -149,7 +158,12 @@ function MaterialRow({ m, jobId }: { m: JobMaterial; jobId: string }) {
             </button>
             <form
               action={async () => {
-                await deleteJobMaterialAction(m.id, jobId);
+                remove(m.id); // ukryj od razu
+                try {
+                  await deleteJobMaterialAction(m.id, jobId);
+                } catch {
+                  add(m); // błąd — przywróć
+                }
                 startTransition(() => router.refresh());
               }}
             >
@@ -178,6 +192,7 @@ function AddMaterialForm({
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const { add } = useMaterialsStore();
   const [mode, setMode] = useState<"catalog" | "manual">("catalog");
   const [error, setError] = useState<string | undefined>();
 
@@ -186,7 +201,8 @@ function AddMaterialForm({
       action={async (formData) => {
         setError(undefined);
         try {
-          await addJobMaterialAction(jobId, formData);
+          const created = await addJobMaterialAction(jobId, formData);
+          add(created); // pokaż od razu
           onDone();
           startTransition(() => router.refresh());
         } catch (e) {

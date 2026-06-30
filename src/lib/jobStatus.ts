@@ -11,7 +11,7 @@ type JobLike = {
 
 // W 12-stage workflow user ręcznie ustawia etap — funkcja zwraca po prostu status.
 // Pozostawiona dla kompatybilności call-site'ów.
-export function effectiveJobStatus(job: JobLike, _todayIso?: string): JobStatus {
+export function effectiveJobStatus(job: JobLike): JobStatus {
   return job.status;
 }
 

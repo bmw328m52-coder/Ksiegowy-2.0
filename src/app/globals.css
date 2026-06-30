@@ -38,6 +38,21 @@
   --color-info-soft: var(--info-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Ocieplenie palety: nadpisujemy wbudowany zinc Tailwinda na ciepły taupe
+     dostrojony do kremu (#f4eee2) i złota (#a06f3f). Dzięki temu wszystkie
+     podstrony używające zinc-* dziedziczą ciepły feel bez przepisywania klas.
+     Punkty zaczepienia spięte z tokenami: 200 = border, 500 = ink-2, 900 = foreground. */
+  --color-zinc-50: #faf6ee;
+  --color-zinc-100: #f3ecdf;
+  --color-zinc-200: #e6dcc7;
+  --color-zinc-300: #d5c9b2;
+  --color-zinc-400: #ab9f88;
+  --color-zinc-500: #6f6457;
+  --color-zinc-600: #5b5249;
+  --color-zinc-700: #463f39;
+  --color-zinc-800: #332e29;
+  --color-zinc-900: #282624;
 }
 
 html {

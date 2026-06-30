@@ -657,7 +657,7 @@ export default function CalculatorForm({
           <p className="text-[11px] text-[#9c9081]">
             Ustawi <span className="font-medium text-[#3a3633]">amount_gross</span>{" "}
             i <span className="font-medium text-[#3a3633]">vat_rate</span> na zleceniu.
-            Jeśli etap jest wcześniejszy niż „Do wyceny", przejdzie do tego etapu.
+            Jeśli etap jest wcześniejszy niż „Do wyceny”, przejdzie do tego etapu.
           </p>
         </div>
       )}
