@@ -14,9 +14,23 @@ export default function ServiceWorkerRegistrar() {
     window.addEventListener("offline", down);
 
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+      // Gdy nowy service worker przejmie kontrolę (po deployu), przeładuj raz,
+      // żeby apka pobrała świeże pliki zamiast trzymać nieaktualny cache.
+      const hadController = !!navigator.serviceWorker.controller;
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing || !hadController) return;
+        refreshing = true;
+        window.location.reload();
+      });
+
       const reg = () =>
         navigator.serviceWorker
           .register("/sw.js", { scope: "/", updateViaCache: "none" })
+          .then((r) => {
+            // Sprawdź od razu, czy jest nowsza wersja workera.
+            r.update().catch(() => {});
+          })
           .catch(() => {});
       if (document.readyState === "complete") reg();
       else window.addEventListener("load", reg, { once: true });

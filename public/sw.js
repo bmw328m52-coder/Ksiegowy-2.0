@@ -2,7 +2,7 @@
 // Cel: aplikacja odpala się offline (shell + ostatnio odwiedzone strony),
 // zapisy (server actions) wymagają sieci.
 
-const SW_VERSION = "v1";
+const SW_VERSION = "v2";
 const PRECACHE = `mf-precache-${SW_VERSION}`;
 const RUNTIME_PAGES = `mf-pages-${SW_VERSION}`;
 const RUNTIME_STATIC = `mf-static-${SW_VERSION}`;
