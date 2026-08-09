@@ -176,7 +176,7 @@ export default async function Home() {
             src="/brand/logo-luviano.png"
             alt="LUVIANO"
             width={420}
-            height={108}
+            height={105}
             priority
             className="w-full h-auto max-w-[180px]"
           />
