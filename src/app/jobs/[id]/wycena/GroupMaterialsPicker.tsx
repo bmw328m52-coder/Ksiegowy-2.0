@@ -10,6 +10,7 @@ import {
   updateJobMaterialQtyAction,
 } from "@/app/materials/actions";
 import { fmtPLN, parseAmount } from "@/lib/format";
+import { matchesSearch } from "@/lib/search";
 import { humanizeSupabaseError } from "@/lib/supabaseError";
 import { useGroupItems, useMaterialsStore } from "./MaterialsStore";
 
@@ -203,10 +204,10 @@ function AddForm({
 
   // Wyniki filtrowane po nazwie/kategorii/dostawcy; sugerowane kategorie na górze.
   const results = useMemo(() => {
-    const q = norm(query.trim());
+    const q = query.trim();
     const list = q
       ? catalog.filter((c) =>
-          norm(`${c.name} ${c.category ?? ""} ${c.supplier ?? ""}`).includes(q)
+          matchesSearch(`${c.name} ${c.category ?? ""} ${c.supplier ?? ""}`, q)
         )
       : catalog.slice();
     return list.sort((a, b) => {
@@ -417,15 +418,6 @@ function AddForm({
       </div>
     </form>
   );
-}
-
-// Normalizacja do wyszukiwania: małe litery + bez polskich znaków.
-function norm(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/ł/g, "l")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 }
 
 function formatQty(q: number): string {

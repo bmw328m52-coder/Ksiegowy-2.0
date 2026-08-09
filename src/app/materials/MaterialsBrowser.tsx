@@ -5,6 +5,7 @@ import Link from "next/link";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { resolveSupplier } from "@/lib/suppliers";
 import { fmtPLN } from "@/lib/format";
+import { matchesSearch } from "@/lib/search";
 import type { MaterialCatalogItem } from "@/lib/dao/material_catalog";
 import { deleteCatalogAction } from "./actions";
 
@@ -25,12 +26,12 @@ export default function MaterialsBrowser({ items }: { items: MaterialCatalogItem
 
   // Filtr po nazwie/kategorii/dostawcy + opcjonalnie wybrana kategoria.
   const grouped = useMemo(() => {
-    const q = norm(query.trim());
+    const q = query.trim();
     const map = new Map<string, MaterialCatalogItem[]>();
     for (const it of items) {
       const cat = it.category ?? NO_CAT;
       if (category && cat !== category) continue;
-      if (q && !norm(`${it.name} ${it.category ?? ""} ${it.supplier ?? ""}`).includes(q)) continue;
+      if (q && !matchesSearch(`${it.name} ${it.category ?? ""} ${it.supplier ?? ""}`, q)) continue;
       const arr = map.get(cat) ?? [];
       arr.push(it);
       map.set(cat, arr);
@@ -139,13 +140,4 @@ export default function MaterialsBrowser({ items }: { items: MaterialCatalogItem
       )}
     </div>
   );
-}
-
-// Normalizacja do wyszukiwania: małe litery + bez polskich znaków diakrytycznych.
-function norm(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/ł/g, "l")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 }

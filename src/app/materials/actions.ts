@@ -149,6 +149,46 @@ export async function addJobMaterialAction(
   return created;
 }
 
+// group_key dedykowany pozycji „Paliwo / dojazd" (patrz MaterialsStore.FUEL_GROUP_KEY).
+const FUEL_GROUP_KEY = "paliwo";
+
+/**
+ * Ustawia koszt paliwa/dojazdu dla wyceny jako pojedynczą pozycję job_materials
+ * (group_key = "paliwo", qty = 1). Pusta/zerowa kwota usuwa pozycję.
+ * Zwraca zaktualizowaną/utworzoną pozycję albo null, gdy skasowano.
+ */
+export async function setFuelAction(
+  jobId: string,
+  existingId: string | null,
+  amountRaw: string
+): Promise<JobMaterial | null> {
+  const trimmed = amountRaw.trim();
+  const amount = trimmed ? parseAmount(trimmed) : null;
+  if (trimmed && (amount === null || amount < 0))
+    throw new Error("Nieprawidłowa kwota paliwa.");
+
+  if (amount === null || amount === 0) {
+    if (existingId) await deleteJobMaterial(existingId);
+    revalidatePath(`/jobs/${jobId}/wycena`);
+    return null;
+  }
+
+  const result = existingId
+    ? await updateJobMaterial(existingId, { unit_price_gross: amount, qty: 1 })
+    : await createJobMaterial({
+        job_id: jobId,
+        catalog_id: null,
+        group_key: FUEL_GROUP_KEY,
+        name: "Paliwo / dojazd",
+        unit: "zł",
+        qty: 1,
+        unit_price_gross: amount,
+      });
+
+  revalidatePath(`/jobs/${jobId}/wycena`);
+  return result;
+}
+
 export async function updateJobMaterialQtyAction(
   id: string,
   jobId: string,

@@ -18,11 +18,19 @@ export const GROUP_CATEGORIES: Record<string, string[]> = {
   okucia_cargo: ["Kosze cargo wysokie", "Cargo narożne"],
   okucia_nogi: ["Nogi", "Nogi i cokoły"],
 
+  okucia_zawieszki: ["Zawieszki"],
+
   // Główne grupy (klucze ze slug tytułu)
   korpusy_i_okleina: ["Płyty laminowane", "Obrzeża ABS"],
   blat: ["Blaty"],
+  laczenia_blatu: ["Łączenia blatu"],
   agd_do_zabudowy: ["AGD"],
   oswietlenie_led: ["LED", "Profile LED"],
+
+  // Montażówka / materiały drobne
+  montaz_kolki: ["Kołki"],
+  montaz_silikon: ["Silikony"],
+  montaz_wkrety: ["Wkręty"],
 
   drzwi_i_fronty: ["Fronty lakierowane MDF (JUKA)", "Drzwi przesuwne", "Uchwyty"],
   korpusy_i_wnetrze: ["Płyty laminowane", "Akcesoria szafy"],

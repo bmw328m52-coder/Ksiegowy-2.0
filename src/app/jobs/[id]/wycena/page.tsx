@@ -10,6 +10,7 @@ import MaterialsSection from "../MaterialsSection";
 import GroupMaterialsPicker from "./GroupMaterialsPicker";
 import QtyCalculator from "./QtyCalculator";
 import RecalcAutopriceButton from "./RecalcAutopriceButton";
+import FuelSection from "./FuelSection";
 import { suggestedCategoriesFor } from "./groupCategories";
 import { MaterialsStoreProvider, WycenaTotals, GroupTotal } from "./MaterialsStore";
 
@@ -133,6 +134,61 @@ function groupSlug(title: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+// Pełna lista pozycji kuchni do wyceny „z kartki" (gdy brak wymiarów w pomiarze).
+// Kolejność jak w realnej rozpisce. Klucze spójne z GROUP_CATEGORIES/sumami.
+type ChecklistPos = { title: string; key: string };
+const KITCHEN_CHECKLIST: ChecklistPos[] = [
+  { title: "Korpusy i okleina", key: "korpusy_i_okleina" },
+  { title: "Blat", key: "blat" },
+  { title: "Łączenia blatu", key: "laczenia_blatu" },
+  { title: "Fronty", key: "fronty_lakier" },
+  { title: "Uchwyty", key: "fronty_uchwyty" },
+  { title: "Zawiasy", key: "okucia_zawiasy" },
+  { title: "Siłowniki", key: "okucia_silowniki" },
+  { title: "Szuflady", key: "okucia_szuflady" },
+  { title: "Nóżki", key: "okucia_nogi" },
+  { title: "Tip-on", key: "okucia_tip_on" },
+  { title: "Zawieszki", key: "okucia_zawieszki" },
+  { title: "Kosze / cargo", key: "okucia_cargo" },
+  { title: "Oświetlenie LED", key: "oswietlenie_led" },
+  { title: "Kołki", key: "montaz_kolki" },
+  { title: "Silikony", key: "montaz_silikon" },
+  { title: "Wkręty", key: "montaz_wkrety" },
+];
+
+function FullChecklist({
+  jobId,
+  catalog,
+}: {
+  jobId: string;
+  catalog: import("@/lib/dao/material_catalog").MaterialCatalogItem[];
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-zinc-500">
+        Pomiar bez wymiarów — pełna lista pozycji kuchni. Do każdej dodaj pozycję z
+        cennika (policzy się z ilości) albo wpisz kwotę ręczną. Paliwo/dojazd niżej.
+      </p>
+      {KITCHEN_CHECKLIST.map((pos) => (
+        <section
+          key={pos.key}
+          className="rounded-xl border border-zinc-200 bg-white p-4"
+        >
+          <h3 className="text-sm font-semibold text-zinc-700 mb-3">{pos.title}</h3>
+          <GroupMaterialsPicker
+            jobId={jobId}
+            groupKey={pos.key}
+            groupLabel={pos.title}
+            displayKeys={[pos.key]}
+            catalog={catalog}
+            suggestedCategories={suggestedCategoriesFor(pos.key)}
+          />
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -214,6 +270,7 @@ export default async function WycenaPage({
           )}
 
           <MaterialsSection jobId={id} catalog={catalog} />
+          <FuelSection jobId={id} />
         </MaterialsStoreProvider>
       </div>
     </main>
@@ -267,7 +324,15 @@ function WycenaList({
     })
     .filter((g) => g.items.length > 0 || g.hasMaterials);
 
+  // Pomiar bez wpisanych wymiarów (np. spisane na kartce). Zamiast pustego
+  // komunikatu pokaż pełną, stałą listę pozycji kuchni — do każdej można dodać
+  // pozycję z cennika lub kwotę ręczną. Dla szafy/łazienki zostaje komunikat.
   if (groups.length === 0) {
+    if (projectType === "kitchen") {
+      return (
+        <FullChecklist jobId={jobId} catalog={catalog} />
+      );
+    }
     return (
       <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500">
         Pomiar nie zawiera jeszcze pozycji do wyceny.

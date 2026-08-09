@@ -254,6 +254,17 @@ function AddMaterialForm({
         <>
           <input name="name" required placeholder="Nazwa materiału" className={inputCls} />
           <input name="unit" defaultValue="szt" placeholder="Jednostka" className={inputCls} />
+          <div className="relative">
+            <input
+              name="unit_price_gross"
+              inputMode="decimal"
+              placeholder="Cena za jedn. (brutto)"
+              className={`${inputCls} pr-9`}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">
+              zł
+            </span>
+          </div>
         </>
       )}
 

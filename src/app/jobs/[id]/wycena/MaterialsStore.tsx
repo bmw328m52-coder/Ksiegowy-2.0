@@ -12,9 +12,13 @@ import { fmtPLN } from "@/lib/format";
 type Store = {
   materials: JobMaterial[];
   add: (row: JobMaterial) => void;
+  upsert: (row: JobMaterial) => void;
   remove: (id: string) => void;
   updateQty: (id: string, qty: number) => void;
 };
+
+// group_key dedykowany pozycji „Paliwo / dojazd" — jedna na wycenę.
+export const FUEL_GROUP_KEY = "paliwo";
 
 const Ctx = createContext<Store | null>(null);
 
@@ -31,6 +35,14 @@ export function MaterialsStoreProvider({
       materials,
       add: (row) =>
         setMaterials((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row])),
+      upsert: (row) =>
+        setMaterials((prev) => {
+          const i = prev.findIndex((m) => m.id === row.id);
+          if (i === -1) return [...prev, row];
+          const next = prev.slice();
+          next[i] = row;
+          return next;
+        }),
       remove: (id) => setMaterials((prev) => prev.filter((m) => m.id !== id)),
       updateQty: (id, qty) =>
         setMaterials((prev) => prev.map((m) => (m.id === id ? { ...m, qty } : m))),
@@ -59,10 +71,16 @@ export function useGroupItems(keys: string[]): JobMaterial[] {
   return materials.filter((m) => m.group_key !== null && keys.includes(m.group_key));
 }
 
-// Materiały luźne (bez group_key).
+// Materiały luźne (bez group_key). Paliwo ma własny group_key, więc tu nie wpada.
 export function useLooseItems(): JobMaterial[] {
   const { materials } = useMaterialsStore();
   return materials.filter((m) => m.group_key === null);
+}
+
+// Pozycja „Paliwo / dojazd" (jeśli już wpisana).
+export function useFuelItem(): JobMaterial | null {
+  const { materials } = useMaterialsStore();
+  return materials.find((m) => m.group_key === FUEL_GROUP_KEY) ?? null;
 }
 
 // Suma brutto pozycji o wskazanych group_key — do „Razem grupa".

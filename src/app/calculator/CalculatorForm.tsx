@@ -170,12 +170,14 @@ export default function CalculatorForm({
   const hours = Math.max(0, parseAmount(hoursStr) ?? 0);
   const zusMonthly = Math.max(0, parseAmount(zusStr) ?? 0);
   const hoursPerMonth = Math.max(1, parseAmount(hoursPerMonthStr) ?? 160);
-  const zusForJob = withInvoice ? (zusMonthly / hoursPerMonth) * hours : 0;
+  // Składka ZUS + zdrowotna to koszt stały co miesiąc, niezależnie od tego, czy zlecenie
+  // idzie na fakturę. Przypisujemy zleceniu jego proporcjonalną część także bez faktury.
+  const zusForJob = (zusMonthly / hoursPerMonth) * hours;
   // Bez faktury: koszt = brutto. Jeśli VATowiec może odliczyć VAT od kosztów, efektywny koszt = netto.
   const canDeductVat = !withInvoice && isVatPayer && deductCostsVat;
   const recoveredVat = canDeductVat ? extraCostsVat : 0;
   const profitNoInvoice = amount - costsGross + recoveredVat;
-  const netCashAfterZus = withInvoice ? result.netCash - zusForJob : profitNoInvoice;
+  const netCashAfterZus = (withInvoice ? result.netCash : profitNoInvoice) - zusForJob;
   // Rezerwa: 26 dni urlopu × 8 h = 208 h, 10 dni L4 × 8 h = 80 h, na rok 1728 h produktywnych
   const reserveRatio = ((reserveVacation ? 208 : 0) + (reserveSick ? 80 : 0)) / 1728;
   const reserveAmount = netCashAfterZus * reserveRatio;
@@ -572,34 +574,36 @@ export default function CalculatorForm({
           </label>
         </div>
 
-        {withInvoice && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Miesięczny ZUS (PLN)">
-                <input
-                  inputMode="decimal"
-                  value={zusStr}
-                  onChange={(e) => setZusStr(e.target.value)}
-                  placeholder="np. 1900"
-                  className="input"
-                />
-              </Field>
-              <Field label="Godzin pracy / mies.">
-                <input
-                  inputMode="decimal"
-                  value={hoursPerMonthStr}
-                  onChange={(e) => setHoursPerMonthStr(e.target.value)}
-                  placeholder="160"
-                  className="input"
-                />
-              </Field>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <ZusPreset label="Ulga" amount={defaultZusUlga} onPick={setZusStr} />
-              <ZusPreset label="Mały" amount={defaultZusMaly} onPick={setZusStr} />
-              <ZusPreset label="Pełny" amount={defaultZusPelny} onPick={setZusStr} />
-            </div>
-          </>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Miesięczny ZUS (PLN)">
+            <input
+              inputMode="decimal"
+              value={zusStr}
+              onChange={(e) => setZusStr(e.target.value)}
+              placeholder="np. 1900"
+              className="input"
+            />
+          </Field>
+          <Field label="Godzin pracy / mies.">
+            <input
+              inputMode="decimal"
+              value={hoursPerMonthStr}
+              onChange={(e) => setHoursPerMonthStr(e.target.value)}
+              placeholder="160"
+              className="input"
+            />
+          </Field>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <ZusPreset label="Ulga" amount={defaultZusUlga} onPick={setZusStr} />
+          <ZusPreset label="Mały" amount={defaultZusMaly} onPick={setZusStr} />
+          <ZusPreset label="Pełny" amount={defaultZusPelny} onPick={setZusStr} />
+        </div>
+        {!withInvoice && (
+          <p className="text-[11px] text-zinc-500 -mt-1">
+            Składkę ZUS płacisz co miesiąc niezależnie od faktury, więc doliczamy jej część
+            proporcjonalną do godzin także tutaj.
+          </p>
         )}
 
         {hours > 0 && (
@@ -763,7 +767,7 @@ function HourlyRatePanel({
   const reserveLabel = [reserveVacation ? "urlop" : null, reserveSick ? "L4" : null]
     .filter(Boolean)
     .join(" + ");
-  const tagBase = withInvoice ? "po VAT, PIT i ZUS" : "kwota − koszty (gotówka)";
+  const tagBase = withInvoice ? "po VAT, PIT i ZUS" : "kwota − koszty − ZUS (gotówka)";
   return (
     <div className="space-y-2">
       <div
@@ -833,7 +837,12 @@ function HourlyRatePanel({
                   sub
                 />
               )}
-              <Row label="= Do kieszeni" value={fmtPLN(netCashAfterZus)} bold />
+              <Row
+                label={`− ZUS proporcjonalny (${fmtPLN(zusMonthly)}/${hoursPerMonth}h × ${hours}h)`}
+                value={`− ${fmtPLN(zusForJob)}`}
+                sub
+              />
+              <Row label="= Do kieszeni po ZUS" value={fmtPLN(netCashAfterZus)} bold />
               {reserveActive && (
                 <Row
                   label={`− Rezerwa ${reserveLabel}`}
