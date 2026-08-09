@@ -13,8 +13,10 @@ import {
   createCostLines,
   deleteCostLine as daoDeleteCostLine,
   updateCostLine,
+  setInvoiceVatDeduction,
 } from "@/lib/dao/cost_lines";
 import { updateCatalogItem } from "@/lib/dao/material_catalog";
+import { suggestedVatDeduction } from "@/lib/dao/cost_lines.types";
 import { ocrInvoice, type OCRInput } from "@/lib/ocr/claude";
 import { parseAmount } from "@/lib/format";
 
@@ -104,6 +106,7 @@ export async function uploadAndOcrInvoice(_prev: Result, formData: FormData): Pr
             vat_rate: li.vat_rate ?? ocr.vat_rate,
             category: ocr.category,
             cost_date: costDate,
+            vat_deduction: suggestedVatDeduction(ocr.category),
           }))
         : ocr.amount_gross && ocr.amount_gross > 0
           ? [
@@ -117,6 +120,7 @@ export async function uploadAndOcrInvoice(_prev: Result, formData: FormData): Pr
                 vat_rate: ocr.vat_rate,
                 category: ocr.category,
                 cost_date: costDate,
+                vat_deduction: suggestedVatDeduction(ocr.category),
               },
             ]
           : [];
@@ -270,6 +274,16 @@ export async function updateCostLineAction(
     return { error: e instanceof Error ? e.message : "Nieznany błąd." };
   }
   return {};
+}
+
+export async function setInvoiceVatDeductionAction(formData: FormData) {
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+  const raw = Number(formData.get("vat_deduction"));
+  if (!invoiceId || ![0, 50, 100].includes(raw)) return;
+  await setInvoiceVatDeduction(invoiceId, raw);
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/finanse");
 }
 
 export async function deleteCostLineAction(lineId: string, invoiceId: string) {

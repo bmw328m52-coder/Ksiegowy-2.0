@@ -66,7 +66,9 @@ export default async function Home() {
 
   // Skrzynka workflow — counts from jobs (12-stage enum)
   const todayIso = new Date().toISOString().slice(0, 10);
-  const in7DaysIso = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const in7DaysIso = new Date(new Date().getTime() + 7 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const CLOSED = new Set(["settled", "archived", "cancelled"]);
   const DONE = new Set(["installed", "settled", "archived"]);
   const IN_PRODUCTION = new Set([
@@ -406,7 +408,9 @@ export default async function Home() {
         </Section>
 
         <Section title="Finanse">
+          <Tile href="/finanse" label="Finanse" hint="Pulpit i kontrola" variant="money" icon={<WalletIcon />} />
           <Tile href="/invoices" label="Faktury" hint="OCR + koszty" variant="money" icon={<ReceiptIcon />} />
+          <Tile href="/finanse/rentownosc" label="Rentowność" hint="Marża zleceń" variant="money" icon={<ChartIcon />} />
           <Tile href="/dashboard" label="Dashboard" hint="VAT, PIT, ZUS" variant="money" icon={<ChartIcon />} />
         </Section>
 
@@ -931,6 +935,15 @@ function ChartIcon() {
     <svg {...iconProps}>
       <path d="M3 3v18h18" />
       <path d="M7 14l4-4 4 4 5-5" />
+    </svg>
+  );
+}
+
+function WalletIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v1H5a2 2 0 0 0 0 4h15a2 2 0 0 1 0 4h-2a2 2 0 0 1 0-4" />
+      <rect x="3" y="7" width="18" height="13" rx="2" />
     </svg>
   );
 }

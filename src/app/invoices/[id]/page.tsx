@@ -9,12 +9,17 @@ import {
   OCR_STATUS_LABELS,
 } from "@/lib/dao/invoices";
 import { listCostLinesByInvoice } from "@/lib/dao/cost_lines";
+import {
+  VAT_DEDUCTION_VALUES,
+  VAT_DEDUCTION_LABELS,
+  type VatDeduction,
+} from "@/lib/dao/cost_lines.types";
 import { listCatalog } from "@/lib/dao/material_catalog";
 import { listJobs } from "@/lib/dao/jobs";
 import { fmtDate, fmtPLN } from "@/lib/format";
 import InvoiceEditForm from "../InvoiceEditForm";
 import CostLineCard from "../CostLineCard";
-import { deleteInvoiceAction } from "../actions";
+import { deleteInvoiceAction, setInvoiceVatDeductionAction } from "../actions";
 import InvoicePhotoViewer from "./InvoicePhotoViewer";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +62,14 @@ export default async function InvoiceDetailPage({
       gross: acc.gross + Number(l.amount_gross),
     }),
     { net: 0, vat: 0, gross: 0 }
+  );
+
+  const deductionSet = new Set(costLines.map((l) => (l.vat_deduction ?? 100) as VatDeduction));
+  const currentDeduction: VatDeduction | null =
+    deductionSet.size === 1 ? [...deductionSet][0] : null;
+  const deductibleVat = costLines.reduce(
+    (acc, l) => acc + Number(l.amount_vat) * ((l.vat_deduction ?? 100) / 100),
+    0
   );
 
   const jobOptions = jobs.map((j) => ({ id: j.id, title: j.title, client_name: j.client_name }));
@@ -218,6 +231,44 @@ export default async function InvoiceDetailPage({
             </p>
           )}
         </section>
+
+        {costLines.length > 0 && (
+          <section className="mb-6">
+            <div className="flex items-baseline justify-between mb-2">
+              <h2 className="text-sm font-semibold text-zinc-700">Odliczenie VAT</h2>
+              <span className="text-xs text-zinc-500">
+                Do odliczenia:{" "}
+                <span className="font-medium text-zinc-900">{fmtPLN(deductibleVat)}</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {VAT_DEDUCTION_VALUES.map((v) => {
+                const active = currentDeduction === v;
+                return (
+                  <form key={v} action={setInvoiceVatDeductionAction}>
+                    <input type="hidden" name="invoice_id" value={invoice.id} />
+                    <input type="hidden" name="vat_deduction" value={v} />
+                    <button
+                      type="submit"
+                      className={`w-full text-xs py-2 rounded-md font-medium transition-colors ${
+                        active
+                          ? "bg-[#a06f3f] text-white"
+                          : "bg-zinc-100 text-zinc-600 active:bg-zinc-200"
+                      }`}
+                    >
+                      {VAT_DEDUCTION_LABELS[v]}
+                    </button>
+                  </form>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-zinc-500">
+              {currentDeduction === null
+                ? "Pozycje mają różne odliczenia — kliknij, by ujednolicić."
+                : "Ile VAT-u z tej faktury realnie odliczasz. Paliwo/samochód zwykle 50%."}
+            </p>
+          </section>
+        )}
 
         <form action={deleteThisInvoice}>
           <ConfirmSubmitButton

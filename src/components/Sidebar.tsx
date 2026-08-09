@@ -32,7 +32,12 @@ const SECTIONS: Section[] = [
   {
     title: "Finanse",
     items: [
+      { href: "/finanse", label: "Pulpit", match: (p) => p === "/finanse", icon: WalletIcon, tone: "accent" },
       { href: "/invoices", label: "Faktury", match: (p) => p.startsWith("/invoices"), icon: ReceiptIcon, tone: "warn" },
+      { href: "/finanse/rentownosc", label: "Rentowność", match: (p) => p.startsWith("/finanse/rentownosc"), icon: ChartIcon, tone: "ok" },
+      { href: "/finanse/ksiegowosc", label: "Księgowość ING", match: (p) => p.startsWith("/finanse/ksiegowosc"), icon: BookIcon, tone: "info" },
+      { href: "/finanse/terminy", label: "Terminy", match: (p) => p.startsWith("/finanse/terminy"), icon: CalendarIcon, tone: "accent" },
+      { href: "/finanse/raporty", label: "Raporty", match: (p) => p.startsWith("/finanse/raporty"), icon: DocIcon, tone: "neutral" },
       { href: "/dashboard", label: "Dashboard", match: (p) => p.startsWith("/dashboard"), icon: ChartIcon, tone: "info" },
     ],
   },
@@ -247,6 +252,24 @@ function ReceiptIcon({ active }: { active: boolean }) {
       <path d="M9 7h6" />
       <path d="M9 11h6" />
       <path d="M9 15h4" />
+    </svg>
+  );
+}
+
+function BookIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h11a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z" />
+      <path d="M20 4h-1a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h1z" />
+    </svg>
+  );
+}
+
+function DocIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
+      <path d="M14 2v4h4M8 13h8M8 17h5" strokeWidth="1.5" />
     </svg>
   );
 }

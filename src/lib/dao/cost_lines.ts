@@ -1,8 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CostLine, CostLineInput } from "./cost_lines.types";
 
-export type { CostLine, CostLineInput, CostCategory } from "./cost_lines.types";
-export { COST_CATEGORIES } from "./cost_lines.types";
+export type { CostLine, CostLineInput, CostCategory, VatDeduction } from "./cost_lines.types";
+export {
+  COST_CATEGORIES,
+  VAT_DEDUCTION_VALUES,
+  VAT_DEDUCTION_LABELS,
+  suggestedVatDeduction,
+} from "./cost_lines.types";
 
 export async function listInvoiceCategoriesMap(): Promise<Record<string, string[]>> {
   const supabase = await createClient();
@@ -106,6 +111,19 @@ export async function updateCostLine(
     .single();
   if (error) throw error;
   return data as CostLine;
+}
+
+// Ustawia odliczenie VAT na wszystkich pozycjach danego dokumentu (widok per-faktura).
+export async function setInvoiceVatDeduction(
+  invoiceId: string,
+  vatDeduction: number
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("cost_lines")
+    .update({ vat_deduction: vatDeduction })
+    .eq("invoice_id", invoiceId);
+  if (error) throw error;
 }
 
 export async function deleteCostLine(id: string): Promise<void> {

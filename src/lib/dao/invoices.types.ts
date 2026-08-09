@@ -1,5 +1,11 @@
 export type OCRStatus = "pending" | "processing" | "done" | "failed" | "manual";
 
+// Status przekazania dokumentu do ING Księgowość (ING = prawda księgowa).
+export type AccountingStatus = "not_sent" | "ready" | "entered" | "verified";
+
+// Status zapłaty (FAKT, nie interpretacja podatkowa).
+export type PaymentStatus = "unpaid" | "paid";
+
 export type Invoice = {
   id: string;
   user_id: string;
@@ -17,6 +23,12 @@ export type Invoice = {
   amount_gross: string | null;
   vat_rate: string | null;
   notes: string | null;
+  // Rozszerzenie modułu Finanse (migracja 0043)
+  paid_date: string | null;
+  payment_status: PaymentStatus;
+  payment_method: string | null;
+  doc_source: string | null;
+  accounting_status: AccountingStatus;
   created_at: string;
   updated_at: string;
 };
@@ -32,6 +44,11 @@ export type InvoiceUpdate = {
   amount_gross?: number | null;
   vat_rate?: number | null;
   notes?: string | null;
+  paid_date?: string | null;
+  payment_status?: PaymentStatus;
+  payment_method?: string | null;
+  doc_source?: string | null;
+  accounting_status?: AccountingStatus;
 };
 
 export const OCR_STATUS_LABELS: Record<OCRStatus, string> = {
@@ -40,4 +57,24 @@ export const OCR_STATUS_LABELS: Record<OCRStatus, string> = {
   done: "Gotowe",
   failed: "Błąd OCR",
   manual: "Ręczne",
+};
+
+export const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
+  not_sent: "Nieprzekazane",
+  ready: "Gotowe do księgowania",
+  entered: "Wprowadzone do ING",
+  verified: "Zweryfikowane",
+};
+
+// Kolejność procesu księgowego — do sortowania i pigułek statusu.
+export const ACCOUNTING_STATUS_ORDER: AccountingStatus[] = [
+  "not_sent",
+  "ready",
+  "entered",
+  "verified",
+];
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  unpaid: "Niezapłacone",
+  paid: "Zapłacone",
 };

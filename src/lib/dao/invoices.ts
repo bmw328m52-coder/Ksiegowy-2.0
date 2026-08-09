@@ -1,8 +1,25 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Invoice, InvoiceUpdate, OCRStatus } from "./invoices.types";
+import type {
+  Invoice,
+  InvoiceUpdate,
+  OCRStatus,
+  AccountingStatus,
+  PaymentStatus,
+} from "./invoices.types";
 
-export type { Invoice, InvoiceUpdate, OCRStatus } from "./invoices.types";
-export { OCR_STATUS_LABELS } from "./invoices.types";
+export type {
+  Invoice,
+  InvoiceUpdate,
+  OCRStatus,
+  AccountingStatus,
+  PaymentStatus,
+} from "./invoices.types";
+export {
+  OCR_STATUS_LABELS,
+  ACCOUNTING_STATUS_LABELS,
+  ACCOUNTING_STATUS_ORDER,
+  PAYMENT_STATUS_LABELS,
+} from "./invoices.types";
 
 export async function listInvoices(): Promise<Invoice[]> {
   const supabase = await createClient();
@@ -67,6 +84,34 @@ export async function updateInvoice(
     .single();
   if (error) throw error;
   return data as Invoice;
+}
+
+export async function setInvoiceAccountingStatus(
+  id: string,
+  status: AccountingStatus
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("invoices")
+    .update({ accounting_status: status })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function setInvoicePayment(
+  id: string,
+  status: PaymentStatus,
+  paidDate: string | null
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("invoices")
+    .update({
+      payment_status: status,
+      paid_date: status === "paid" ? paidDate : null,
+    })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function deleteInvoice(id: string): Promise<void> {

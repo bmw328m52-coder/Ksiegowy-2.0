@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
 import { createClient } from "@/lib/supabase/server";
-import type { Invoice } from "@/lib/dao/invoices.types";
+import type { Invoice, AccountingStatus, PaymentStatus } from "@/lib/dao/invoices.types";
+import {
+  ACCOUNTING_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+} from "@/lib/dao/invoices.types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -88,6 +92,9 @@ export async function GET(request: Request) {
     "VAT",
     "Brutto",
     "Stawka VAT %",
+    "Status ING",
+    "Zapłacone",
+    "Data zapłaty",
     "Plik",
     "Notatki",
   ].join(";");
@@ -131,6 +138,9 @@ export async function GET(request: Request) {
         fmtAmount(inv.amount_vat),
         fmtAmount(inv.amount_gross),
         vatPct,
+        csvEscape(ACCOUNTING_STATUS_LABELS[(inv.accounting_status ?? "not_sent") as AccountingStatus]),
+        csvEscape(PAYMENT_STATUS_LABELS[(inv.payment_status ?? "unpaid") as PaymentStatus]),
+        csvEscape(inv.paid_date),
         csvEscape(fileEntry),
         csvEscape(inv.notes),
       ].join(";"),

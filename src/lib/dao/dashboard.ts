@@ -84,6 +84,7 @@ type CostRow = {
   amount_gross: string | number;
   cost_date: string;
   category?: string | null;
+  vat_deduction?: number | null;
 };
 
 export type CategoryBreakdownRow = {
@@ -154,8 +155,10 @@ function addCost(totals: PeriodTotals, c: CostRow, isVatPayer: boolean): void {
   const net = toNum(c.amount_net);
   const vat = toNum(c.amount_vat);
   const gross = toNum(c.amount_gross);
+  // VAT naliczony = tylko część podlegająca odliczeniu (100% / 50% / 0%).
+  const factor = (c.vat_deduction ?? 100) / 100;
   totals.costsGross += gross;
-  totals.costsVat += vat;
+  totals.costsVat += vat * factor;
   totals.costsNet += isVatPayer ? net : gross;
 }
 
@@ -209,7 +212,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       .lte("deposit_date", yearEnd),
     supabase
       .from("cost_lines")
-      .select("amount_net, amount_vat, amount_gross, cost_date, category")
+      .select("amount_net, amount_vat, amount_gross, cost_date, category, vat_deduction")
       .gte("cost_date", yearStart)
       .lte("cost_date", yearEnd),
   ]);

@@ -12,9 +12,26 @@ export type CostLine = {
   vat_rate: string | null;
   category: string | null;
   cost_date: string;
+  vat_deduction: number;
   created_at: string;
   updated_at: string;
 };
+
+// Odliczenie VAT (%). Auto-podpowiedź 50% dla paliwa/samochodu.
+export type VatDeduction = 0 | 50 | 100;
+
+export const VAT_DEDUCTION_VALUES: VatDeduction[] = [100, 50, 0];
+
+export const VAT_DEDUCTION_LABELS: Record<VatDeduction, string> = {
+  100: "100%",
+  50: "50%",
+  0: "Nie odliczam",
+};
+
+// Kategorie kosztów samochodowych → domyślnie 50% VAT do odliczenia.
+export function suggestedVatDeduction(category: string | null | undefined): VatDeduction {
+  return category === "paliwo" ? 50 : 100;
+}
 
 export type CostLineInput = {
   invoice_id?: string | null;
@@ -28,6 +45,7 @@ export type CostLineInput = {
   vat_rate?: number | null;
   category?: string | null;
   cost_date: string;
+  vat_deduction?: number;
 };
 
 export const COST_CATEGORIES = [

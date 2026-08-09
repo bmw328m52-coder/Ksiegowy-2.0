@@ -18,7 +18,7 @@ const TABS: Tab[] = [
   { href: "/clients", label: "Klienci", match: (p) => p.startsWith("/clients"), icon: UsersIcon, tone: "ok" },
   { href: "/jobs", label: "Zlecenia", match: (p) => p.startsWith("/jobs"), icon: ClipboardListIcon, tone: "info" },
   { href: "/invoices", label: "Faktury", match: (p) => p.startsWith("/invoices"), icon: ReceiptIcon, tone: "warn" },
-  { href: "/dashboard", label: "Dashboard", match: (p) => p.startsWith("/dashboard"), icon: ChartIcon, tone: "info" },
+  { href: "/finanse", label: "Finanse", match: (p) => p.startsWith("/finanse") || p.startsWith("/dashboard"), icon: ChartIcon, tone: "info" },
 ];
 
 const TONE_BG: Record<Tone, string> = {
