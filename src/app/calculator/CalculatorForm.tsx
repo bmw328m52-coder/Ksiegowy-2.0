@@ -645,6 +645,11 @@ export default function CalculatorForm({
         withInvoice={withInvoice}
         profitNoInvoice={profitNoInvoice}
         recoveredVat={recoveredVat}
+        zusForJob={zusForJob}
+        reserveAmount={reserveAmount}
+        netCashFinal={netCashAfterReserves}
+        hours={hours}
+        zusMonthly={zusMonthly}
       />
 
       {jobId && (
@@ -904,6 +909,11 @@ function ResultPanel({
   withInvoice,
   profitNoInvoice,
   recoveredVat,
+  zusForJob,
+  reserveAmount,
+  netCashFinal,
+  hours,
+  zusMonthly,
 }: {
   result: ReturnType<typeof calcDeal>;
   amountGross: number;
@@ -914,27 +924,62 @@ function ResultPanel({
   withInvoice: boolean;
   profitNoInvoice: number;
   recoveredVat: number;
+  zusForJob: number;
+  reserveAmount: number;
+  netCashFinal: number;
+  hours: number;
+  zusMonthly: number;
 }) {
   const { revenueNet, revenueVat, profit, vatToPay, pitDelta, netCash } = result;
   const taxTotal = vatToPay + pitDelta;
   const empty = amountGross === 0 && costsGross === 0;
-  const displayCash = withInvoice ? netCash : profitNoInvoice;
+  // Kwota „na rękę" PRZED odjęciem ZUS/rezerw (po VAT+PIT gdy z fakturą).
+  const cashBeforeZus = withInvoice ? netCash : profitNoInvoice;
+  // Finalna „na czysto" = po ZUS i rezerwach (spójnie z panelem stawki /h).
+  const displayCash = netCashFinal;
   const recovered = recoveredVat > 0;
+  const hasDeductions = zusForJob > 0 || reserveAmount > 0;
+  const zusNeedsHours = zusMonthly > 0 && hours === 0;
 
   return (
     <section className="space-y-3">
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
         <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-          {withInvoice ? "Na czysto (po VAT i PIT)" : "Na czysto (gotówka, bez faktury)"}
+          {withInvoice ? "Na czysto (po VAT, PIT, ZUS)" : "Na czysto (gotówka, po ZUS)"}
         </p>
         <p className="text-3xl font-bold tabular-nums text-emerald-900 mt-1">
           {fmtPLN(displayCash)}
         </p>
-        {!withInvoice && (
+        {!withInvoice && !hasDeductions && (
           <p className="text-[11px] text-emerald-700/80 mt-1">
             {recovered
               ? "kwota − koszty + zwrot VAT · brak PIT"
               : "kwota − koszty · brak VAT i PIT"}
+          </p>
+        )}
+        {hasDeductions && (
+          <div className="mt-2 pt-2 border-t border-emerald-200/70 space-y-0.5 text-[11px] text-emerald-800/90">
+            <div className="flex items-baseline justify-between">
+              <span>{withInvoice ? "Po VAT i PIT" : "Kwota − koszty"}</span>
+              <span className="tabular-nums">{fmtPLN(cashBeforeZus)}</span>
+            </div>
+            {zusForJob > 0 && (
+              <div className="flex items-baseline justify-between">
+                <span>− ZUS (część zlecenia)</span>
+                <span className="tabular-nums">− {fmtPLN(zusForJob)}</span>
+              </div>
+            )}
+            {reserveAmount > 0 && (
+              <div className="flex items-baseline justify-between">
+                <span>− Rezerwa wolnego</span>
+                <span className="tabular-nums">− {fmtPLN(reserveAmount)}</span>
+              </div>
+            )}
+          </div>
+        )}
+        {zusNeedsHours && (
+          <p className="text-[11px] text-amber-700 mt-1.5">
+            Podaj „Liczbę godzin na zlecenie”, aby doliczyć ZUS ({fmtPLN(zusMonthly)}/mies.) do wyniku.
           </p>
         )}
       </div>
@@ -990,6 +1035,15 @@ function ResultPanel({
                 <GroupHeader>Zysk</GroupHeader>
                 <Row label="Zysk netto" value={fmtPLN(profit)} bold />
                 <Row label="Podstawa do PIT" value={fmtPLN(Math.max(0, profit))} sub />
+                <GroupHeader>Na rękę</GroupHeader>
+                <Row label="Na czysto (po VAT i PIT)" value={fmtPLN(netCash)} />
+                {zusForJob > 0 && (
+                  <Row label="− ZUS (część zlecenia)" value={`− ${fmtPLN(zusForJob)}`} sub />
+                )}
+                {reserveAmount > 0 && (
+                  <Row label="− Rezerwa wolnego" value={`− ${fmtPLN(reserveAmount)}`} sub />
+                )}
+                {hasDeductions && <Row label="= Na czysto (po ZUS)" value={fmtPLN(displayCash)} bold />}
               </>
             ) : (
               <>
@@ -1003,7 +1057,18 @@ function ResultPanel({
                     sub
                   />
                 )}
-                <Row label="= Do kieszeni" value={fmtPLN(profitNoInvoice)} bold />
+                <Row
+                  label={hasDeductions ? "= Przed ZUS" : "= Do kieszeni"}
+                  value={fmtPLN(profitNoInvoice)}
+                  bold={!hasDeductions}
+                />
+                {zusForJob > 0 && (
+                  <Row label="− ZUS (część zlecenia)" value={`− ${fmtPLN(zusForJob)}`} sub />
+                )}
+                {reserveAmount > 0 && (
+                  <Row label="− Rezerwa wolnego" value={`− ${fmtPLN(reserveAmount)}`} sub />
+                )}
+                {hasDeductions && <Row label="= Na czysto" value={fmtPLN(displayCash)} bold />}
               </>
             )}
           </div>
