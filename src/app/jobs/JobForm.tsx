@@ -28,6 +28,9 @@ export default function JobForm({
   const vatPctInitial = initial?.vat_rate
     ? Math.round(Number(initial.vat_rate) * 100).toString()
     : "23";
+  // „Bez faktury — nie licz VAT": zapisujemy jako stawka 0 (netto = brutto).
+  // Rozpoznajemy z zapisanej stawki 0 przy edycji.
+  const [noVat, setNoVat] = useState(vatPctInitial === "0");
 
   return (
     <form action={formAction} className="w-full flex flex-col gap-4">
@@ -51,7 +54,7 @@ export default function JobForm({
       {initial && (
         <>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Kwota brutto (PLN)" required>
+            <Field label={noVat ? "Kwota (PLN)" : "Kwota brutto (PLN)"} required>
               <input
                 name="amount_gross"
                 inputMode="decimal"
@@ -61,15 +64,41 @@ export default function JobForm({
                 className={inputCls}
               />
             </Field>
-            <Field label="VAT (%)">
-              <select name="vat_rate" defaultValue={vatPctInitial} className={inputCls}>
-                <option value="23">23%</option>
-                <option value="8">8%</option>
-                <option value="5">5%</option>
-                <option value="0">0%</option>
-              </select>
-            </Field>
+            {noVat ? (
+              <Field label="VAT">
+                <div className={`${inputCls} flex items-center text-zinc-500`}>— bez VAT —</div>
+                <input type="hidden" name="vat_rate" value="0" />
+              </Field>
+            ) : (
+              <Field label="VAT (%)">
+                <select
+                  name="vat_rate"
+                  defaultValue={vatPctInitial === "0" ? "23" : vatPctInitial}
+                  className={inputCls}
+                >
+                  <option value="23">23%</option>
+                  <option value="8">8%</option>
+                  <option value="5">5%</option>
+                  <option value="0">0%</option>
+                </select>
+              </Field>
+            )}
           </div>
+
+          <label className="-mt-1 flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={noVat}
+              onChange={(e) => setNoVat(e.target.checked)}
+              className="h-4 w-4 mt-0.5"
+            />
+            <span className="text-sm text-zinc-700">
+              Bez faktury — nie licz VAT
+              <span className="block text-[11px] text-zinc-500">
+                Kwota jest kwotą końcową. Wycena i rentowność policzą się bez VAT (netto = brutto).
+              </span>
+            </span>
+          </label>
 
           <Field label="Status">
             <select

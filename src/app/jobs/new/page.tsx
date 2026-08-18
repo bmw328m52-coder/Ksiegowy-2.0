@@ -35,7 +35,7 @@ export default async function NewJobPage({
       <main className="flex flex-1 flex-col px-4 py-6">
         <div className="w-full max-w-md mx-auto">
           <PageHeader title="Nowe zlecenie" back={{ href: "/" }} />
-          <p className="text-[13px] text-[#6b6661] -mt-2 mb-3 px-1">
+          <p className="text-[13px] text-[#6f6c66] -mt-2 mb-3 px-1">
             Wybierz klienta lub dodaj nowego — potem wybierzesz tryb pomiaru.
           </p>
           <ClientPicker clients={lite} />
@@ -53,14 +53,14 @@ export default async function NewJobPage({
       <main className="flex flex-1 flex-col px-4 py-6">
         <div className="w-full max-w-md mx-auto">
           <PageHeader title="Tryb pomiaru" back={{ href: "/jobs/new" }} />
-          <p className="text-[13px] text-[#6b6661] -mt-2 mb-4 px-1">
-            Klient: <span className="font-medium text-[#282624]">{client.name}</span>
+          <p className="text-[13px] text-[#6f6c66] -mt-2 mb-4 px-1">
+            Klient: <span className="font-medium text-[#1f1d1b]">{client.name}</span>
           </p>
 
           <div className="flex flex-col gap-3">
             <Link
               href={`/jobs/new?clientId=${client.id}&mode=now${typeParam}`}
-              className="block rounded-2xl border border-[#e6dcc7] bg-white p-5 hover:border-[#a06f3f] active:bg-[#faf7f2] transition-colors"
+              className="block rounded-2xl border border-[#ededea] bg-white p-5 hover:border-[#a06f3f] active:bg-[#f6f6f5] transition-colors"
             >
               <div className="flex items-start gap-3">
                 <span
@@ -74,8 +74,8 @@ export default async function NewJobPage({
                   </svg>
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold text-[#282624]">Pomiar teraz</p>
-                  <p className="text-[12px] text-[#6b6661] mt-1 leading-snug">
+                  <p className="text-[15px] font-semibold text-[#1f1d1b]">Pomiar teraz</p>
+                  <p className="text-[12px] text-[#6f6c66] mt-1 leading-snug">
                     Jestem u klienta — wypełniam wymiary, układ, kolory.
                     Zlecenie trafi od razu do <span className="font-medium">Uzupełnienia</span>.
                   </p>
@@ -86,7 +86,7 @@ export default async function NewJobPage({
 
             <Link
               href={`/jobs/new?clientId=${client.id}&mode=scheduled${typeParam}`}
-              className="block rounded-2xl border border-[#e6dcc7] bg-white p-5 hover:border-[#a06f3f] active:bg-[#faf7f2] transition-colors"
+              className="block rounded-2xl border border-[#ededea] bg-white p-5 hover:border-[#a06f3f] active:bg-[#f6f6f5] transition-colors"
             >
               <div className="flex items-start gap-3">
                 <span
@@ -100,8 +100,8 @@ export default async function NewJobPage({
                   </svg>
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold text-[#282624]">Zaplanuj pomiar</p>
-                  <p className="text-[12px] text-[#6b6661] mt-1 leading-snug">
+                  <p className="text-[15px] font-semibold text-[#1f1d1b]">Zaplanuj pomiar</p>
+                  <p className="text-[12px] text-[#6f6c66] mt-1 leading-snug">
                     Umawiam wizytę — wpiszę tytuł, typ i datę.
                     Zlecenie trafi do <span className="font-medium">Umówionych pomiarów</span>.
                   </p>
@@ -125,8 +125,8 @@ export default async function NewJobPage({
       <main className="flex flex-1 flex-col px-4 py-6">
         <div className="w-full max-w-md mx-auto">
           <PageHeader title="Zaplanuj pomiar" back={{ href: chooseHref }} />
-          <p className="text-[13px] text-[#6b6661] -mt-2 mb-3 px-1">
-            Klient: <span className="font-medium text-[#282624]">{client.name}</span>
+          <p className="text-[13px] text-[#6f6c66] -mt-2 mb-3 px-1">
+            Klient: <span className="font-medium text-[#1f1d1b]">{client.name}</span>
           </p>
           <ScheduleMeasurementForm
             clientId={client.id}

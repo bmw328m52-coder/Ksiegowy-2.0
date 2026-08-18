@@ -1,7 +1,7 @@
 import type { BriefData } from "@/lib/dao/quote_briefs.types";
 import { ROOM_LAYOUT_LABELS, parseRoomLayout, wallVisibility } from "@/app/briefs/roomLayout";
 
-const WALL = "#282624";
+const WALL = "#1f1d1b";
 const WINDOW = "#3b82f6";
 const ROOM_FILL = "#fafaf9";
 const ROOM_OUTLINE = "#e4e4e7";

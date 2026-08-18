@@ -48,29 +48,47 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           action={
             <Link
               href={`/jobs/${id}/edit`}
-              className="text-sm text-[#6b6661] underline-offset-2 hover:underline"
+              className="text-sm text-[#6f6c66] underline-offset-2 hover:underline"
             >
               Edytuj
             </Link>
           }
         />
 
-        <section className="rounded-xl border border-[#e8e4dd] bg-white p-4 space-y-3">
+        <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[#9c9081]">Klient</span>
+            <span className="text-sm text-[#8d8a85]">Klient</span>
             <Link
               href={`/clients/${job.client_id}`}
-              className="text-sm font-medium text-[#282624] underline-offset-2 hover:underline"
+              className="text-sm font-medium text-[#1f1d1b] underline-offset-2 hover:underline"
             >
               {job.client_name}
             </Link>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[#9c9081]">Etap</span>
+            <span className="text-sm text-[#8d8a85]">Etap</span>
             <StatusPill status={job.status} />
           </div>
         </section>
+
+        <Link
+          href={`/jobs/${id}/wycena`}
+          className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[#a06f3f] px-4 py-3.5 text-white shadow-[0_2px_8px_rgba(160,111,63,0.18)] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+        >
+          <span className="flex items-center gap-2.5 min-w-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="4" y="2" width="16" height="20" rx="2" />
+              <path d="M8 6h8" />
+              <path d="M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />
+            </svg>
+            <span className="flex flex-col leading-tight min-w-0">
+              <span className="text-sm font-semibold">Wycena pozycji</span>
+              <span className="text-[11px] text-white/80 truncate">Pozycje, materiały i ceny</span>
+            </span>
+          </span>
+          <span aria-hidden className="text-white/90">→</span>
+        </Link>
 
         <StageActions jobId={id} status={job.status} />
 
@@ -80,38 +98,26 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <Link
-            href={`/jobs/${id}/wycena`}
-            className="block rounded-xl border border-[#e8e4dd] bg-white p-4 text-sm font-medium text-[#282624] active:bg-[#faf7f2] hover:border-[#d8d2c8] transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <span>Wycena pozycji</span>
-              <span className="text-[#9c9081]">→</span>
-            </div>
-            <p className="text-xs text-[#9c9081] mt-1">
-              Lista pozycji i materiały
-            </p>
-          </Link>
-          <Link
             href={`/jobs/${id}/zakupy`}
-            className="block rounded-xl border border-[#e8e4dd] bg-white p-4 text-sm font-medium text-[#282624] active:bg-[#faf7f2] hover:border-[#d8d2c8] transition-colors"
+            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[#f6f6f5] hover:border-[#d8d7d3] transition-colors"
           >
             <div className="flex items-center justify-between">
               <span>Lista zakupów</span>
-              <span className="text-[#9c9081]">→</span>
+              <span className="text-[#8d8a85]">→</span>
             </div>
-            <p className="text-xs text-[#9c9081] mt-1">
+            <p className="text-xs text-[#8d8a85] mt-1">
               Co kupić, wg dostawcy
             </p>
           </Link>
           <Link
             href={`/calculator?job=${id}`}
-            className="block rounded-xl border border-[#e8e4dd] bg-white p-4 text-sm font-medium text-[#282624] active:bg-[#faf7f2] hover:border-[#d8d2c8] transition-colors"
+            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[#f6f6f5] hover:border-[#d8d7d3] transition-colors"
           >
             <div className="flex items-center justify-between">
               <span>Kalkulator wyceny</span>
-              <span className="text-[#9c9081]">→</span>
+              <span className="text-[#8d8a85]">→</span>
             </div>
-            <p className="text-xs text-[#9c9081] mt-1">
+            <p className="text-xs text-[#8d8a85] mt-1">
               Marża, VAT, PIT, ZUS — na czysto
             </p>
           </Link>
@@ -129,11 +135,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {!isCancelled && <MarginSection job={job} />}
 
         {job.notes && (
-          <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-[#9c9081] mb-2">
+          <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
+            <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-2">
               Notatki
             </p>
-            <p className="whitespace-pre-wrap text-sm text-[#524d48]">
+            <p className="whitespace-pre-wrap text-sm text-[#6f6c66]">
               {job.notes}
             </p>
           </section>
@@ -145,7 +151,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               <ConfirmSubmitButton
                 message="Anulować to zlecenie? Status zmieni się na „Anulowane”. Można to później cofnąć."
                 formNoValidate
-                className="w-full text-sm text-[#9c9081] py-3 hover:text-[#3a3633] active:underline"
+                className="w-full text-sm text-[#8d8a85] py-3 hover:text-[#3a3633] active:underline"
               >
                 Anuluj zlecenie
               </ConfirmSubmitButton>
@@ -248,7 +254,7 @@ function buildStages(job: Awaited<ReturnType<typeof getJob>> & object): Stage[] 
 }
 
 const STAGE_KEY_TONE: Record<string, string> = {
-  new_inquiry: "#c4bbac",
+  new_inquiry: "#c9c7c2",
   scheduled_measurement: "#a06f3f",
   to_measure: "#a06f3f",
   after_measure: "#a06f3f",
@@ -260,9 +266,9 @@ const STAGE_KEY_TONE: Record<string, string> = {
   ready_to_install: "#4f8a64",
   installed: "#4f8a64",
   settled: "#3a6b4d",
-  archived: "#c4bbac",
-  cancelled: "#c4bbac",
-  created: "#c4bbac",
+  archived: "#c9c7c2",
+  cancelled: "#c9c7c2",
+  created: "#c9c7c2",
 };
 
 function toneForKey(key: string): string {
@@ -271,8 +277,8 @@ function toneForKey(key: string): string {
 
 function StageTimeline({ stages }: { stages: Stage[] }) {
   return (
-    <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4">
-      <p className="text-[11px] uppercase tracking-wide font-semibold text-[#9c9081] mb-3">
+    <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
+      <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-3">
         Etapy zlecenia
       </p>
       <ol className="relative pl-2">
@@ -294,12 +300,12 @@ function StageTimeline({ stages }: { stages: Stage[] }) {
                     className={[
                       "text-sm font-medium truncate",
                       s.state === "done"
-                        ? "text-[#282624]"
+                        ? "text-[#1f1d1b]"
                         : s.state === "current"
-                          ? "text-[#282624]"
+                          ? "text-[#1f1d1b]"
                           : s.state === "upcoming"
-                            ? "text-[#6b6661]"
-                            : "text-[#c4bbac] line-through",
+                            ? "text-[#6f6c66]"
+                            : "text-[#c9c7c2] line-through",
                     ].join(" ")}
                   >
                     {s.label}
@@ -312,13 +318,13 @@ function StageTimeline({ stages }: { stages: Stage[] }) {
                     )}
                   </p>
                   {s.date && (
-                    <span className="text-[11px] tabular-nums text-[#9c9081] shrink-0">
+                    <span className="text-[11px] tabular-nums text-[#8d8a85] shrink-0">
                       {fmtDate(s.date)}
                     </span>
                   )}
                 </div>
                 {s.hint && (
-                  <p className="text-[11px] text-[#9c9081] mt-0.5">{s.hint}</p>
+                  <p className="text-[11px] text-[#8d8a85] mt-0.5">{s.hint}</p>
                 )}
               </div>
             </li>
@@ -352,14 +358,14 @@ function StageDot({ state, tone }: { state: StageState; tone: string }) {
     );
   }
   if (state === "skipped") {
-    return <span aria-hidden className="w-3 h-3 rounded-full border-2 bg-[#f5f3ef] border-[#e8e4dd]" />;
+    return <span aria-hidden className="w-3 h-3 rounded-full border-2 bg-[#f0f0ee] border-[#ededea]" />;
   }
-  return <span aria-hidden className="w-3 h-3 rounded-full border-2 bg-white border-[#e8e4dd]" />;
+  return <span aria-hidden className="w-3 h-3 rounded-full border-2 bg-white border-[#ededea]" />;
 }
 
 function StageConnector({ state, tone }: { state: StageState; tone: string }) {
   const style =
-    state === "done" ? { backgroundColor: tone } : { backgroundColor: "#e8e4dd" };
+    state === "done" ? { backgroundColor: tone } : { backgroundColor: "#ededea" };
   return <span aria-hidden className="mt-0.5 w-0.5 flex-1 min-h-[14px]" style={style} />;
 }
 
@@ -375,7 +381,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
     <form action={revert}>
       <button
         type="submit"
-        className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#6f6457] bg-[#faf7f2] border border-[#e8e4dd] hover:bg-[#f1ede5] active:opacity-80 transition-colors"
+        className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#6f6c66] bg-[#f6f6f5] border border-[#ededea] hover:bg-[#eeeeed] active:opacity-80 transition-colors"
       >
         <span aria-hidden>←</span>
         <span>Cofnij do: {prevLabel}</span>
@@ -385,7 +391,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
 
   if (status === "scheduled_measurement") {
     return (
-      <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+      <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
         <Link
           href={`/jobs/${jobId}/pomiar/edit`}
           className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
@@ -393,7 +399,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
           <span>Wykonaj pomiar →</span>
           <span aria-hidden>→</span>
         </Link>
-        <p className="text-[11px] text-[#9c9081]">
+        <p className="text-[11px] text-[#8d8a85]">
           Wypełnij brief po wizycie u klienta — po zapisaniu zlecenie trafi od razu do „Uzupełnienia”.
         </p>
         {revertBtn}
@@ -404,7 +410,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
   if (status === "to_measure") {
     const confirmPomiar = confirmPomiarAction.bind(null, jobId);
     return (
-      <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+      <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
         <form action={confirmPomiar}>
           <button
             type="submit"
@@ -414,7 +420,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
             <span aria-hidden>→</span>
           </button>
         </form>
-        <p className="text-[11px] text-[#9c9081]">
+        <p className="text-[11px] text-[#8d8a85]">
           Po zatwierdzeniu zlecenie trafi do etapu „Uzupełnienie” — tam dopiszesz ilości okuć, szuflad, LED-ów itd. dla wyceny.
         </p>
         {revertBtn}
@@ -425,7 +431,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
   if (status === "after_measure") {
     const confirmUzup = confirmUzupelnienieAction.bind(null, jobId);
     return (
-      <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+      <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
         <form action={confirmUzup}>
           <button
             type="submit"
@@ -435,7 +441,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
             <span aria-hidden>→</span>
           </button>
         </form>
-        <p className="text-[11px] text-[#9c9081]">
+        <p className="text-[11px] text-[#8d8a85]">
           Po zatwierdzeniu zlecenie trafi do „Wyceny” — gotowy komplet danych do kalkulatora i listy zakupów.
         </p>
         {revertBtn}
@@ -449,7 +455,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
   const advance = advanceJobStatusAction.bind(null, jobId);
 
   return (
-    <section className="mt-3 rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+    <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
       {canAdvance && (
         <form action={advance} className="flex-1">
           <button
@@ -472,7 +478,7 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
 
 function StatusPill({ status }: { status: JobStatus }) {
   const styles: Record<JobStatus, string> = {
-    new_inquiry: "bg-[#f5f3ef] text-[#9c9081]",
+    new_inquiry: "bg-[#f0f0ee] text-[#8d8a85]",
     scheduled_measurement: "bg-[#f1e5d2] text-[#7d5530]",
     to_measure: "bg-[#f1e5d2] text-[#7d5530]",
     after_measure: "bg-[#f1e5d2] text-[#7d5530]",
@@ -484,8 +490,8 @@ function StatusPill({ status }: { status: JobStatus }) {
     ready_to_install: "bg-[#e3efe5] text-[#4f8a64]",
     installed: "bg-[#e3efe5] text-[#4f8a64]",
     settled: "bg-[#e3efe5] text-[#3a6b4d]",
-    archived: "bg-[#f5f3ef] text-[#9c9081]",
-    cancelled: "bg-[#f5f3ef] text-[#9c9081] line-through",
+    archived: "bg-[#f0f0ee] text-[#8d8a85]",
+    cancelled: "bg-[#f0f0ee] text-[#8d8a85] line-through",
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>

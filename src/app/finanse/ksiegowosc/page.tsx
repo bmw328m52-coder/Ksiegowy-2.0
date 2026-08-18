@@ -22,7 +22,7 @@ const FILTERS: { key: string; label: string }[] = [
 ];
 
 const STATUS_PILL: Record<AccountingStatus, string> = {
-  not_sent: "bg-[#f5f3ef] text-[#6f6457]",
+  not_sent: "bg-[#f0f0ee] text-[#6f6c66]",
   ready: "bg-[#f1e5d2] text-[#7d5530]",
   entered: "bg-[#dde5ef] text-[#5a7898]",
   verified: "bg-[#e3efe5] text-[#3a6b4d]",
@@ -58,13 +58,13 @@ export default async function KsiegowoscPage({
       <div className="w-full max-w-md mx-auto space-y-4">
         <PageHeader title="Księgowość ING" back={{ href: "/finanse" }} />
 
-        <section className="rounded-2xl border border-[#e8e4dd] bg-white p-4">
-          <p className="text-[11px] text-[#6f6457]">
-            <span className="font-semibold text-[#282624]">ING = prawda księgowa.</span> Tu tylko
+        <section className="rounded-2xl border border-[#ededea] bg-white p-4">
+          <p className="text-[11px] text-[#6f6c66]">
+            <span className="font-semibold text-[#1f1d1b]">ING = prawda księgowa.</span> Tu tylko
             pilnujesz, co jeszcze trzeba tam wprowadzić i eksportujesz paczkę dokumentów.
           </p>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-sm text-[#6f6457]">Do wprowadzenia ({pendingCount})</span>
+            <span className="text-sm text-[#6f6c66]">Do wprowadzenia ({pendingCount})</span>
             <Money className="text-base font-semibold tabular-nums text-[#a06f3f]">
               {fmtPLN(pendingSum)}
             </Money>
@@ -76,7 +76,7 @@ export default async function KsiegowoscPage({
         <FilterTabs current={filter} />
 
         {docs.length === 0 ? (
-          <p className="text-sm text-[#9c9081] text-center py-10">
+          <p className="text-sm text-[#8d8a85] text-center py-10">
             Brak dokumentów w tym widoku.
           </p>
         ) : (
@@ -84,18 +84,18 @@ export default async function KsiegowoscPage({
             {docs.map((inv) => (
               <li
                 key={inv.id}
-                className="rounded-2xl border border-[#e8e4dd] bg-white p-4 space-y-3"
+                className="rounded-2xl border border-[#ededea] bg-white p-4 space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <Link href={`/invoices/${inv.id}`} className="min-w-0">
-                    <p className="text-sm font-semibold text-[#282624] truncate">
+                    <p className="text-sm font-semibold text-[#1f1d1b] truncate">
                       {inv.supplier_name ?? "Dokument bez sprzedawcy"}
                     </p>
-                    <p className="text-[11px] text-[#9c9081] mt-0.5 truncate">
+                    <p className="text-[11px] text-[#8d8a85] mt-0.5 truncate">
                       {inv.invoice_number ?? "—"} · {fmtDate(inv.issue_date)}
                     </p>
                   </Link>
-                  <Money className="text-sm font-semibold tabular-nums text-[#282624] shrink-0">
+                  <Money className="text-sm font-semibold tabular-nums text-[#1f1d1b] shrink-0">
                     {fmtPLN(inv.amount_gross)}
                   </Money>
                 </div>
@@ -133,7 +133,7 @@ function StatusStepper({ id, current }: { id: string; current: AccountingStatus 
               className={`w-full text-[10px] py-1.5 rounded-md font-medium transition-colors ${
                 active
                   ? "bg-[#a06f3f] text-white"
-                  : "bg-[#f5f3ef] text-[#6f6457] active:bg-[#ece7de]"
+                  : "bg-[#f0f0ee] text-[#6f6c66] active:bg-[#ece7de]"
               }`}
             >
               {ACCOUNTING_STATUS_LABELS[s].split(" ")[0]}
@@ -174,7 +174,7 @@ function FilterTabs({ current }: { current: string }) {
             key={t.key}
             href={`/finanse/ksiegowosc?f=${t.key}`}
             className={`flex-1 whitespace-nowrap text-center text-xs py-2 px-2 rounded-md font-medium transition-colors ${
-              active ? "bg-white text-[#282624] shadow-sm" : "text-zinc-600 active:bg-zinc-50"
+              active ? "bg-white text-[#1f1d1b] shadow-sm" : "text-zinc-600 active:bg-zinc-50"
             }`}
           >
             {t.label}

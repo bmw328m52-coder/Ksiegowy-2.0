@@ -17,26 +17,26 @@ export default async function RaportyPage() {
       <div className="w-full max-w-md mx-auto space-y-4">
         <PageHeader title="Raporty" back={{ href: "/finanse" }} />
 
-        <section className="rounded-2xl border border-[#e8e4dd] bg-white overflow-hidden">
+        <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
               Raport miesięczny
             </p>
-            <h2 className="text-sm font-semibold text-[#282624]">
+            <h2 className="text-sm font-semibold text-[#1f1d1b]">
               LUVIANO · {monthName} {d.year}
             </h2>
           </header>
           <div className="px-4 pb-4 space-y-2">
             <ReportRow label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
             <ReportRow label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
-            <div className="h-px bg-[#f1ede5] my-1" />
+            <div className="h-px bg-[#eeeeed] my-1" />
             <ReportRow
               label="Wynik miesiąca"
               value={fmtPLN(d.month.profit)}
               tone={d.month.profit >= 0 ? "gold" : "negative"}
               bold
             />
-            <div className="h-px bg-[#f1ede5] my-1" />
+            <div className="h-px bg-[#eeeeed] my-1" />
             <ReportRow label="Należności (do zapłaty przez klientów)" value={fmtPLN(d.pendingRevenueGross)} sub />
             <ReportRow label="Zaliczki otwarte" value={fmtPLN(d.openDepositsTotal)} sub />
             {d.vat && (
@@ -47,7 +47,7 @@ export default async function RaportyPage() {
 
           {d.costsByCategoryMonth.length > 0 && (
             <div className="px-4 pb-4">
-              <p className="text-[10px] font-semibold text-[#9c9081] uppercase tracking-wide mb-2">
+              <p className="text-[10px] font-semibold text-[#8d8a85] uppercase tracking-wide mb-2">
                 Koszty wg kategorii
               </p>
               <ul className="space-y-1.5">
@@ -56,13 +56,13 @@ export default async function RaportyPage() {
                     <span className="flex items-center gap-1.5 text-[#3a3633] capitalize">
                       <span
                         className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: CATEGORY_COLORS[r.category] ?? "#9c9081" }}
+                        style={{ backgroundColor: CATEGORY_COLORS[r.category] ?? "#8d8a85" }}
                       />
                       {r.category}
                     </span>
-                    <Money className="tabular-nums text-[#6f6457]">
+                    <Money className="tabular-nums text-[#6f6c66]">
                       {fmtPLN(r.amountNet)}{" "}
-                      <span className="text-[#9c9081]">· {Math.round(r.share * 100)}%</span>
+                      <span className="text-[#8d8a85]">· {Math.round(r.share * 100)}%</span>
                     </Money>
                   </li>
                 ))}
@@ -72,14 +72,14 @@ export default async function RaportyPage() {
         </section>
 
         <section className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081] px-1">
+          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
             Paczka dokumentów (dla ING / księgowej)
           </p>
           <ExportMonthCard />
         </section>
 
-        <section className="rounded-2xl border border-[#e8e4dd] bg-white p-4">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081] mb-2">
+        <section className="rounded-2xl border border-[#ededea] bg-white p-4">
+          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-2">
             Rok {d.year}
           </p>
           <ReportRow label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />
@@ -116,11 +116,11 @@ function ReportRow({
       : tone === "negative"
         ? "text-[#b8523a]"
         : sub
-          ? "text-[#9c9081]"
+          ? "text-[#8d8a85]"
           : "text-[#3a3633]";
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className={`text-sm ${sub ? "text-[#9c9081]" : "text-[#6f6457]"}`}>{label}</span>
+      <span className={`text-sm ${sub ? "text-[#8d8a85]" : "text-[#6f6c66]"}`}>{label}</span>
       <Money className={`tabular-nums ${bold ? "text-base font-semibold" : "text-sm"} ${color}`}>
         {value}
       </Money>

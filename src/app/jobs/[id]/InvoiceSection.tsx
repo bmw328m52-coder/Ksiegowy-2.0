@@ -37,15 +37,15 @@ export default function InvoiceSection({
 
   if (invoiced) {
     return (
-      <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4 space-y-2">
+      <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] uppercase tracking-wide font-semibold text-[#9c9081]">
+          <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">
             Faktura sprzedaży
           </p>
           <form action={unmarkJobInvoicedAction.bind(null, jobId)}>
             <button
               type="submit"
-              className="text-[11px] text-[#9c9081] hover:text-[#3a3633] underline-offset-2 hover:underline"
+              className="text-[11px] text-[#8d8a85] hover:text-[#3a3633] underline-offset-2 hover:underline"
             >
               Cofnij
             </button>
@@ -53,10 +53,10 @@ export default function InvoiceSection({
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-[#282624] truncate">
+            <p className="text-sm font-semibold text-[#1f1d1b] truncate">
               FV {invoiceNumber}
             </p>
-            <p className="text-[11px] text-[#9c9081]">
+            <p className="text-[11px] text-[#8d8a85]">
               {invoiceDate ? fmtDate(invoiceDate) : "brak daty"}
             </p>
           </div>
@@ -71,12 +71,12 @@ export default function InvoiceSection({
   }
 
   return (
-    <section className="mt-4 rounded-xl border border-[#e8e4dd] bg-white p-4 space-y-3">
+    <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-3">
       <div>
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#9c9081]">
+        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">
           Faktura sprzedaży
         </p>
-        <p className="text-xs text-[#6f6457] mt-0.5">
+        <p className="text-xs text-[#6f6c66] mt-0.5">
           Wystawiłeś już FV w iFirma / Fakturowni? Zanotuj numer i datę tutaj —
           potrzebne do rozliczenia.
         </p>
@@ -84,7 +84,7 @@ export default function InvoiceSection({
       <form action={action} className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-wide text-[#9c9081]">
+            <span className="text-[10px] uppercase tracking-wide text-[#8d8a85]">
               Numer
             </span>
             <input
@@ -93,11 +93,11 @@ export default function InvoiceSection({
               onChange={(e) => setNumber(e.target.value)}
               placeholder="FV/05/2026"
               required
-              className="h-[42px] px-3 rounded-lg border border-[#e8e4dd] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
+              className="h-[42px] px-3 rounded-lg border border-[#ededea] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-wide text-[#9c9081]">
+            <span className="text-[10px] uppercase tracking-wide text-[#8d8a85]">
               Data
             </span>
             <input
@@ -106,7 +106,7 @@ export default function InvoiceSection({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               max={today}
-              className="h-[42px] px-3 rounded-lg border border-[#e8e4dd] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
+              className="h-[42px] px-3 rounded-lg border border-[#ededea] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
             />
           </label>
         </div>

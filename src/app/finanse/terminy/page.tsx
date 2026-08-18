@@ -53,24 +53,24 @@ export default async function TerminyPage() {
       <div className="w-full max-w-md mx-auto space-y-4">
         <PageHeader title="Terminy" back={{ href: "/finanse" }} />
 
-        <section className="rounded-2xl border border-[#e8e4dd] bg-white overflow-hidden">
+        <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
               Podatkowe · liczone automatycznie
             </p>
-            <h2 className="text-sm font-semibold text-[#282624]">Bieżący okres</h2>
+            <h2 className="text-sm font-semibold text-[#1f1d1b]">Bieżący okres</h2>
           </header>
           <ul>
             {tax.map((t, i) => (
               <li
                 key={i}
-                className="px-4 py-3 border-t border-[#f1ede5] flex items-center justify-between gap-3"
+                className="px-4 py-3 border-t border-[#eeeeed] flex items-center justify-between gap-3"
               >
                 <div className="min-w-0 flex items-center gap-2">
                   <CatDot category={t.category} />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-[#282624]">{t.label}</p>
-                    <p className="text-[11px] text-[#9c9081]">{t.periodLabel}</p>
+                    <p className="text-sm font-medium text-[#1f1d1b]">{t.label}</p>
+                    <p className="text-[11px] text-[#8d8a85]">{t.periodLabel}</p>
                   </div>
                 </div>
                 <DuePill due={t.due} />
@@ -82,11 +82,11 @@ export default async function TerminyPage() {
         <AddDeadlineForm today={today} />
 
         <section className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081] px-1">
+          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
             Własne terminy {open.length > 0 && `(${open.length})`}
           </p>
           {open.length === 0 ? (
-            <p className="text-sm text-[#9c9081] text-center py-6 rounded-2xl border border-dashed border-[#e6dcc7]">
+            <p className="text-sm text-[#8d8a85] text-center py-6 rounded-2xl border border-dashed border-[#ededea]">
               Brak własnych terminów. Dodaj np. przegląd auta, składkę, wizytę w urzędzie.
             </p>
           ) : (
@@ -96,7 +96,7 @@ export default async function TerminyPage() {
 
         {done.length > 0 && (
           <section className="space-y-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081] px-1">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
               Wykonane ({done.length})
             </p>
             {done.map((d) => (
@@ -113,7 +113,7 @@ function DeadlineCard({ d }: { d: Deadline }) {
   const due = new Date(d.due_date + "T00:00:00");
   return (
     <div
-      className={`rounded-2xl border border-[#e8e4dd] bg-white p-4 flex items-center gap-3 ${
+      className={`rounded-2xl border border-[#ededea] bg-white p-4 flex items-center gap-3 ${
         d.done ? "opacity-60" : ""
       }`}
     >
@@ -126,21 +126,21 @@ function DeadlineCard({ d }: { d: Deadline }) {
           className={`w-6 h-6 rounded-md border flex items-center justify-center text-xs ${
             d.done
               ? "bg-[#3a6b4d] border-[#3a6b4d] text-white"
-              : "border-[#cfc7b8] text-transparent active:bg-[#f5f0e8]"
+              : "border-[#cfc7b8] text-transparent active:bg-[#f0f0ee]"
           }`}
         >
           ✓
         </button>
       </form>
       <div className="min-w-0 flex-1">
-        <p className={`text-sm font-medium text-[#282624] ${d.done ? "line-through" : ""}`}>
+        <p className={`text-sm font-medium text-[#1f1d1b] ${d.done ? "line-through" : ""}`}>
           {d.title}
         </p>
-        <p className="text-[11px] text-[#9c9081] flex items-center gap-1.5">
+        <p className="text-[11px] text-[#8d8a85] flex items-center gap-1.5">
           <CatDot category={d.category} />
           {DEADLINE_CATEGORY_LABELS[d.category]} · {fmtDate(due)}
         </p>
-        {d.note && <p className="text-[11px] text-[#6f6457] mt-0.5">{d.note}</p>}
+        {d.note && <p className="text-[11px] text-[#6f6c66] mt-0.5">{d.note}</p>}
       </div>
       {!d.done && <DuePill due={due} />}
       <form action={deleteDeadlineAction}>
@@ -161,13 +161,13 @@ function DeadlineCard({ d }: { d: Deadline }) {
 
 function AddDeadlineForm({ today }: { today: string }) {
   return (
-    <details className="rounded-2xl border border-[#e8e4dd] bg-white overflow-hidden">
+    <details className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
       <summary className="px-4 py-3 text-sm font-semibold text-[#a06f3f] cursor-pointer select-none">
         + Dodaj własny termin
       </summary>
       <form action={createDeadlineAction} className="px-4 pb-4 space-y-3">
         <div>
-          <label className="text-[11px] text-[#9c9081]">Nazwa</label>
+          <label className="text-[11px] text-[#8d8a85]">Nazwa</label>
           <input
             name="title"
             required
@@ -177,7 +177,7 @@ function AddDeadlineForm({ today }: { today: string }) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[11px] text-[#9c9081]">Kategoria</label>
+            <label className="text-[11px] text-[#8d8a85]">Kategoria</label>
             <select
               name="category"
               defaultValue="inne"
@@ -191,7 +191,7 @@ function AddDeadlineForm({ today }: { today: string }) {
             </select>
           </div>
           <div>
-            <label className="text-[11px] text-[#9c9081]">Data</label>
+            <label className="text-[11px] text-[#8d8a85]">Data</label>
             <input
               type="date"
               name="due_date"
@@ -202,7 +202,7 @@ function AddDeadlineForm({ today }: { today: string }) {
           </div>
         </div>
         <div>
-          <label className="text-[11px] text-[#9c9081]">Notatka (opcjonalnie)</label>
+          <label className="text-[11px] text-[#8d8a85]">Notatka (opcjonalnie)</label>
           <input
             name="note"
             className="w-full rounded-md border border-zinc-300 bg-white text-sm px-3 py-2 mt-0.5"
@@ -236,7 +236,7 @@ function DuePill({ due }: { due: Date }) {
     ? "bg-[#f4e0d9] text-[#b8523a] border-[#e6c4b9]"
     : urgent
       ? "bg-[#f1e5d2] text-[#7d5530] border-[#e3d4b6]"
-      : "bg-[#faf7f2] text-[#9c9081] border-[#e8e4dd]";
+      : "bg-[#f6f6f5] text-[#8d8a85] border-[#ededea]";
   const suffix = overdue
     ? `${Math.abs(days)} dni po`
     : days === 0

@@ -39,10 +39,10 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Szukaj istniejącego klienta…"
-          className="w-full rounded-xl border border-[#e6dcc7] bg-white pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="w-full rounded-xl border border-[#ededea] bg-white pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-[#a06f3f]"
           autoFocus
         />
-        <span aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9c9081]">
+        <span aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8d8a85]">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" />
             <path d="m21 21-4.3-4.3" />
@@ -51,16 +51,16 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#d8d2c8] bg-white/60 px-4 py-6 text-center">
-          <p className="text-[13px] font-medium text-[#6b6661]">
+        <div className="rounded-xl border border-dashed border-[#d8d7d3] bg-white/60 px-4 py-6 text-center">
+          <p className="text-[13px] font-medium text-[#6f6c66]">
             {q ? "Brak wyników" : "Nie masz jeszcze klientów"}
           </p>
-          <p className="text-[11px] text-[#9c9081] mt-1">
+          <p className="text-[11px] text-[#8d8a85] mt-1">
             Dodaj nowego klienta przyciskiem powyżej
           </p>
         </div>
       ) : (
-        <ul className="rounded-xl border border-[#e6dcc7] bg-white divide-y divide-[#f0ece5] overflow-hidden">
+        <ul className="rounded-xl border border-[#ededea] bg-white divide-y divide-[#eeeeed] overflow-hidden">
           {filtered.map((c) => {
             const tone = avatarTone(c.name);
             return (
@@ -68,7 +68,7 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
                 <button
                   type="button"
                   onClick={() => router.push(`/jobs/new?clientId=${c.id}`)}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-[#faf7f2] hover:bg-[#faf7f2]"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-[#f6f6f5] hover:bg-[#f6f6f5]"
                 >
                   <span
                     className="inline-flex w-9 h-9 rounded-full items-center justify-center text-[13px] font-bold shrink-0"
@@ -77,16 +77,16 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
                     {clientInitials(c.name)}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold text-[#282624] truncate">
+                    <span className="block text-[14px] font-semibold text-[#1f1d1b] truncate">
                       {c.name}
                     </span>
                     {c.phone && (
-                      <span className="block text-[11px] text-[#9c9081] truncate mt-0.5">
+                      <span className="block text-[11px] text-[#8d8a85] truncate mt-0.5">
                         {c.phone}
                       </span>
                     )}
                   </span>
-                  <span className="text-[#c4bbac] shrink-0" aria-hidden>→</span>
+                  <span className="text-[#c9c7c2] shrink-0" aria-hidden>→</span>
                 </button>
               </li>
             );

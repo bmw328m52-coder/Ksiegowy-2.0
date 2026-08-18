@@ -63,9 +63,9 @@ export default function PomiarSection({
         <h2 className="text-sm font-semibold text-zinc-700">Pomiar</h2>
         <Link
           href={`/jobs/${jobId}/pomiar/edit`}
-          className="text-xs text-zinc-600 underline-offset-2 hover:underline"
+          className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-[#a06f3f] text-[#a06f3f] text-xs font-medium px-2.5 py-1.5 active:bg-[#f1e5d2] hover:bg-[#faf5ed] transition-colors"
         >
-          Edytuj
+          ✎ Edytuj pomiar
         </Link>
       </div>
 
@@ -86,7 +86,7 @@ export default function PomiarSection({
 
       {(typeof data.visit_address === "string" && data.visit_address) ||
       (typeof data.visit_phone === "string" && data.visit_phone) ? (
-        <div className="rounded-lg bg-[#faf7f2] border border-[#e6dcc7] px-3 py-2 text-xs flex flex-col gap-1">
+        <div className="rounded-lg bg-[#f6f6f5] border border-[#ededea] px-3 py-2 text-xs flex flex-col gap-1">
           {typeof data.visit_address === "string" && data.visit_address && (
             <div className="flex items-baseline gap-2">
               <span className="text-zinc-500 shrink-0">Adres:</span>

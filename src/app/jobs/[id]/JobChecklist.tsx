@@ -90,7 +90,7 @@ export default function JobChecklist({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="text-sm text-[#282624] underline-offset-2 hover:underline"
+            className="text-sm text-[#1f1d1b] underline-offset-2 hover:underline"
           >
             + Dodaj pozycję
           </button>

@@ -33,18 +33,18 @@ export default function ScheduleMeasurementForm({
       <input type="hidden" name="client_id" value={clientId} />
 
       <label className="flex flex-col gap-1">
-        <span className="text-[12px] font-medium text-[#6b6661]">Tytuł zlecenia</span>
+        <span className="text-[12px] font-medium text-[#6f6c66]">Tytuł zlecenia</span>
         <input
           type="text"
           name="title"
           required
           placeholder="np. Kuchnia — Kowalscy, Wrocław"
-          className="rounded-lg border border-[#e6dcc7] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
         />
       </label>
 
       <div className="flex flex-col gap-1">
-        <span className="text-[12px] font-medium text-[#6b6661]">Typ projektu</span>
+        <span className="text-[12px] font-medium text-[#6f6c66]">Typ projektu</span>
         <div className="flex gap-2">
           {projectTypeOptions.map((opt) => {
             const active = projectType === opt.value;
@@ -57,7 +57,7 @@ export default function ScheduleMeasurementForm({
                   "flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors",
                   active
                     ? "border-[#a06f3f] bg-[#f1e5d2] text-[#7d5530]"
-                    : "border-[#e6dcc7] bg-white text-[#524d48] hover:bg-[#faf7f2]",
+                    : "border-[#ededea] bg-white text-[#6f6c66] hover:bg-[#f6f6f5]",
                 ].join(" ")}
               >
                 {opt.label}
@@ -70,56 +70,56 @@ export default function ScheduleMeasurementForm({
 
       <div className="flex gap-2">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="text-[12px] font-medium text-[#6b6661]">Data pomiaru</span>
+          <span className="text-[12px] font-medium text-[#6f6c66]">Data pomiaru</span>
           <input
             type="date"
             name="visit_date"
             required
             defaultValue={todayIso}
             min={todayIso}
-            className="rounded-lg border border-[#e6dcc7] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+            className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
           />
         </label>
         <label className="flex w-[110px] flex-col gap-1">
-          <span className="text-[12px] font-medium text-[#6b6661]">Godzina</span>
+          <span className="text-[12px] font-medium text-[#6f6c66]">Godzina</span>
           <input
             type="time"
             name="visit_time"
-            className="rounded-lg border border-[#e6dcc7] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+            className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
           />
         </label>
       </div>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[12px] font-medium text-[#6b6661]">Adres pomiaru</span>
+        <span className="text-[12px] font-medium text-[#6f6c66]">Adres pomiaru</span>
         <input
           type="text"
           name="visit_address"
           defaultValue={defaultAddress ?? ""}
           placeholder="ul. Przykładowa 12, Wrocław"
-          className="rounded-lg border border-[#e6dcc7] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
         />
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[12px] font-medium text-[#6b6661]">Telefon do klienta</span>
+        <span className="text-[12px] font-medium text-[#6f6c66]">Telefon do klienta</span>
         <input
           type="tel"
           name="visit_phone"
           defaultValue={defaultPhone ?? ""}
           placeholder="+48 ..."
           inputMode="tel"
-          className="rounded-lg border border-[#e6dcc7] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
         />
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[12px] font-medium text-[#6b6661]">Notatka (opcjonalnie)</span>
+        <span className="text-[12px] font-medium text-[#6f6c66]">Notatka (opcjonalnie)</span>
         <textarea
           name="notes"
           rows={3}
           placeholder="np. dojazd 2 ścianami, parking od strony podwórka"
-          className="rounded-lg border border-[#e6dcc7] bg-white px-3 py-2 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#ededea] bg-white px-3 py-2 text-[14px] focus:outline-none focus:border-[#a06f3f]"
         />
       </label>
 
