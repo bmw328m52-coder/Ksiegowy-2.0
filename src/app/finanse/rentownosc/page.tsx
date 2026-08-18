@@ -2,7 +2,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { Money } from "@/components/Money";
 import { listJobProfitability } from "@/lib/dao/finance";
-import { JOB_STATUS_LABELS } from "@/lib/dao/jobs.types";
+import { JOB_STATUS_LABELS, jobCountsForProfitability } from "@/lib/dao/jobs.types";
 import { fmtPLN } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,12 @@ export default async function RentownoscPage({
   // Kwoty netto sensowne tylko dla VAT-owca; dla nie-VAT-owca netto = brutto.
   const useNet = basis === "net" && isVatPayer;
 
-  const active = rows.filter((r) => r.job.status !== "cancelled");
+  // Rentowność liczymy dopiero od etapu „Materiały zamówione" — wcześniejsze zlecenia
+  // (wycena/akceptacja) to oferty, nie realny wynik. Ile ich pominięto pokazujemy niżej.
+  const active = rows.filter((r) => jobCountsForProfitability(r.job.status));
+  const pendingCount = rows.filter(
+    (r) => r.job.status !== "cancelled" && !jobCountsForProfitability(r.job.status)
+  ).length;
   const totalRevenue = active.reduce(
     (a, r) => a + (useNet ? r.margin.revenueNet : r.margin.revenueGross),
     0
@@ -55,7 +60,9 @@ export default async function RentownoscPage({
 
         {active.length === 0 ? (
           <p className="text-sm text-[#8d8a85] text-center py-10">
-            Brak zleceń. Dodaj zlecenie i wycenę, żeby liczyć marżę.
+            {pendingCount > 0
+              ? `Żadne zlecenie nie jest jeszcze na etapie „Materiały zamówione" ani dalej. ${pendingCount} ${pendingCount === 1 ? "zlecenie czeka" : "zleceń czeka"} we wcześniejszych etapach (wycena/akceptacja) — policzą się tu po zamówieniu materiałów.`
+              : "Brak zleceń. Dodaj zlecenie i wycenę, żeby liczyć marżę."}
           </p>
         ) : (
           <ul className="space-y-3">
@@ -65,8 +72,16 @@ export default async function RentownoscPage({
           </ul>
         )}
 
+        {pendingCount > 0 && active.length > 0 && (
+          <p className="text-[11px] text-[#8d8a85] text-center">
+            + {pendingCount} {pendingCount === 1 ? "zlecenie" : "zleceń"} na wcześniejszym etapie
+            (wycena/akceptacja) — jeszcze nie liczone do rentowności.
+          </p>
+        )}
+
         <p className="text-[11px] text-[#8d8a85] text-center pt-1">
-          Koszt „plan” = materiały z wyceny. Koszt „realny” = faktury kosztowe przypięte do zlecenia.
+          Liczone od etapu „Materiały zamówione”. Koszt „plan” = materiały z wyceny; koszt „realny” =
+          faktury kosztowe przypięte do zlecenia.
         </p>
       </div>
     </main>

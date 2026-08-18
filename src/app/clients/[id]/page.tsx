@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getClient } from "@/lib/dao/clients";
 import { listJobsByClient } from "@/lib/dao/jobs";
+import { jobCountsForProfitability } from "@/lib/dao/jobs.types";
 import { listMaterialCostsByClient } from "@/lib/dao/cost_lines";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { getJobMarginsMap } from "@/lib/jobMargin";
@@ -52,7 +53,9 @@ export default async function ClientDetailPage({
     0
   );
 
-  const billableJobs = jobs.filter((j) => j.status !== "cancelled");
+  // Do marży wliczamy zlecenia dopiero od etapu „Materiały zamówione" — wcześniejsze
+  // (wycena/akceptacja) to oferta, nie realny wynik klienta (spójnie z /finanse/rentownosc).
+  const billableJobs = jobs.filter((j) => jobCountsForProfitability(j.status));
   const jobIds = billableJobs.map((j) => j.id);
   // Koszty z DWÓCH źródeł: faktury kosztowe (cost_lines) jeśli są, w przeciwnym razie
   // szacunek z wyceny (job_materials). Bez tego karta klienta pokazywała zysk = cała
@@ -161,7 +164,7 @@ export default async function ClientDetailPage({
           <Card className="mb-2.5">
             <p className="text-[11px] uppercase tracking-[0.06em] font-semibold text-[#9ea29c] mb-2">
               Marża {settings.is_vat_payer ? "(netto)" : "(brutto, bez VAT)"}
-              {jobs.length !== billableJobs.length && " · pomija anulowane"}
+              {jobs.length !== billableJobs.length && " · od zamówienia materiałów"}
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>

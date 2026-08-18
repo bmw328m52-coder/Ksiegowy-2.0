@@ -53,6 +53,17 @@ export const JOB_STATUS_WORKFLOW: JobStatus[] = [
 // Statusy zlecenia traktowane jako "wykonane" (przychód księgowany)
 export const JOB_STATUS_DONE: JobStatus[] = ["installed", "settled", "archived"];
 
+// Od tego etapu zlecenie liczy się do RENTOWNOŚCI. Wcześniejsze etapy (zapytanie,
+// pomiar, wycena, akceptacja) to jeszcze oferta — bez realnego zaangażowania kosztów,
+// więc nie zaniżają/zawyżają wyniku firmy. Realne koszty ruszają od zamówienia materiałów.
+export const JOB_STATUS_PROFITABILITY_START: JobStatus = "materials_ordered";
+
+export function jobCountsForProfitability(status: JobStatus): boolean {
+  const i = JOB_STATUS_WORKFLOW.indexOf(status);
+  const start = JOB_STATUS_WORKFLOW.indexOf(JOB_STATUS_PROFITABILITY_START);
+  return i >= start; // 'cancelled' nie ma w workflow (indexOf = -1) → wykluczone
+}
+
 // Statusy zamknięte (nie pojawiają się jako aktywne)
 export const JOB_STATUS_CLOSED: JobStatus[] = ["settled", "archived", "cancelled"];
 
