@@ -6,6 +6,7 @@ import { fmtPLN, parseAmount } from "@/lib/format";
 import type { QuoteTemplate } from "@/lib/dao/quote_templates.types";
 import { saveQuoteTemplateAction, deleteQuoteTemplateAction } from "./actions";
 import { applyQuoteToJobAction } from "@/app/jobs/actions";
+import type { CalcQuote } from "@/lib/dao/jobs.types";
 import { useRouter } from "next/navigation";
 
 type JobOption = {
@@ -137,7 +138,18 @@ export default function CalculatorForm({
     setApplyPending(true);
     setApplyError(undefined);
     try {
-      const res = await applyQuoteToJobAction(jobId, amountNum, vatRate);
+      const snapshot: CalcQuote = {
+        amountGross: amountNum,
+        vatRate,
+        withInvoice,
+        costsGross,
+        zus: zusForJob,
+        reserve: reserveAmount,
+        hours,
+        profit: netCashAfterReserves,
+        savedAt: new Date().toISOString(),
+      };
+      const res = await applyQuoteToJobAction(jobId, amountNum, vatRate, snapshot);
       if (res.error) {
         setApplyError(res.error);
         return;
@@ -661,19 +673,22 @@ export default function CalculatorForm({
             className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors disabled:opacity-50"
           >
             <span>
-              {applyPending
-                ? "Zapisuję…"
-                : `Zapisz kwotę w zleceniu: ${fmtPLN(amount)}`}
+              {applyPending ? "Przenoszę…" : "Przenieś wycenę do zlecenia"}
             </span>
             <span aria-hidden>→</span>
           </button>
           {applyError && (
             <p className="text-xs text-red-600">{applyError}</p>
           )}
-          <p className="text-[11px] text-[#8d8a85]">
-            Ustawi <span className="font-medium text-[#3a3633]">amount_gross</span>{" "}
-            i <span className="font-medium text-[#3a3633]">vat_rate</span> na zleceniu.
-            Jeśli etap jest wcześniejszy niż „Do wyceny”, przejdzie do tego etapu.
+          <div className="text-[11px] text-[#8d8a85] space-y-0.5">
+            <div className="flex justify-between"><span>Kwota zlecenia</span><span className="tabular-nums text-[#3a3633] font-medium">{fmtPLN(amount)}</span></div>
+            <div className="flex justify-between"><span>Koszty</span><span className="tabular-nums">{fmtPLN(costsGross)}</span></div>
+            {zusForJob > 0 && <div className="flex justify-between"><span>ZUS (część zlecenia)</span><span className="tabular-nums">{fmtPLN(zusForJob)}</span></div>}
+            {reserveAmount > 0 && <div className="flex justify-between"><span>Rezerwa urlop/L4</span><span className="tabular-nums">{fmtPLN(reserveAmount)}</span></div>}
+            <div className="flex justify-between pt-0.5 border-t border-[#f0efec]"><span>Zysk na czysto</span><span className="tabular-nums text-[#3a6b4d] font-semibold">{fmtPLN(netCashAfterReserves)}</span></div>
+          </div>
+          <p className="text-[10px] text-[#b3b0aa]">
+            Ta wycena (kwota, koszty, ZUS, urlop, zysk) pojawi się na karcie zlecenia 1:1.
           </p>
         </div>
       )}

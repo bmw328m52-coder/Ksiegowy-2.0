@@ -67,6 +67,20 @@ export function jobCountsForProfitability(status: JobStatus): boolean {
 // Statusy zamknięte (nie pojawiają się jako aktywne)
 export const JOB_STATUS_CLOSED: JobStatus[] = ["settled", "archived", "cancelled"];
 
+// Migawka wyceny przeniesionej z kalkulatora (pole jobs.calc_quote, jsonb).
+// Wszystkie kwoty brutto w PLN; profit = „na czysto" po ZUS i rezerwach.
+export type CalcQuote = {
+  amountGross: number;
+  vatRate: number;
+  withInvoice: boolean;
+  costsGross: number;
+  zus: number;
+  reserve: number;
+  hours: number;
+  profit: number;
+  savedAt: string;
+};
+
 export type Job = {
   id: string;
   user_id: string;
@@ -75,6 +89,7 @@ export type Job = {
   amount_gross: string;
   vat_rate: string;
   status: JobStatus;
+  calc_quote: CalcQuote | null;
   start_date: string | null;
   due_date: string | null;
   completed_date: string | null;

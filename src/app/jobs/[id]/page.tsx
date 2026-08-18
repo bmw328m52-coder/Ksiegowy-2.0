@@ -4,8 +4,8 @@ import PageHeader from "@/components/PageHeader";
 import { ButtonLink } from "@/components/ui";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getJob } from "@/lib/dao/jobs";
-import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus } from "@/lib/dao/jobs.types";
-import { fmtDate } from "@/lib/format";
+import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus, type CalcQuote } from "@/lib/dao/jobs.types";
+import { fmtDate, fmtPLN } from "@/lib/format";
 import {
   advanceJobStatusAction,
   cancelJobAction,
@@ -69,6 +69,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <StatusPill status={job.status} />
           </div>
         </section>
+
+        {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
 
         <Link
           href={`/jobs/${id}/wycena`}
@@ -495,5 +497,59 @@ function StatusPill({ status }: { status: JobStatus }) {
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
       {JOB_STATUS_LABELS[status]}
     </span>
+  );
+}
+
+// Wycena przeniesiona z kalkulatora — pokazuje kwotę/koszty/zysk 1:1 z kalkulatorem
+// (z ZUS-em i rezerwą urlop/L4, jeśli były policzone). Źródło: jobs.calc_quote.
+function CalcQuoteCard({ q }: { q: CalcQuote }) {
+  const marginPct = q.amountGross > 0 ? (q.profit / q.amountGross) * 100 : null;
+  return (
+    <section className="mt-3 rounded-xl border border-[#e2c79c] bg-[linear-gradient(160deg,#fbf1dd,#fff8e9)] p-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#a18653]">
+          Wycena z kalkulatora
+        </p>
+        <span className="text-[10px] text-[#a18653]">
+          {q.withInvoice ? "z fakturą" : "bez faktury"}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <p className="text-[10px] text-[#8d8a85] uppercase tracking-wide">Kwota</p>
+          <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(q.amountGross)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#8d8a85] uppercase tracking-wide">Koszty</p>
+          <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(q.costsGross)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#8d8a85] uppercase tracking-wide">Zysk</p>
+          <p className="font-semibold text-sm tabular-nums text-[#3a6b4d]">{fmtPLN(q.profit)}</p>
+        </div>
+      </div>
+      {(q.zus > 0 || q.reserve > 0) && (
+        <div className="mt-2.5 pt-2.5 border-t border-[#e7d3b3] text-[11px] text-[#7d5530] space-y-0.5">
+          {q.zus > 0 && (
+            <div className="flex justify-between">
+              <span>ZUS (część zlecenia{q.hours > 0 ? `, ${q.hours} h` : ""})</span>
+              <span className="tabular-nums">− {fmtPLN(q.zus)}</span>
+            </div>
+          )}
+          {q.reserve > 0 && (
+            <div className="flex justify-between">
+              <span>Rezerwa urlop/L4</span>
+              <span className="tabular-nums">− {fmtPLN(q.reserve)}</span>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mt-2.5 flex items-center justify-between">
+        {marginPct !== null && (
+          <span className="text-[11px] font-medium text-[#a18653]">marża {marginPct.toFixed(1)}%</span>
+        )}
+        <span className="text-[10px] text-[#b3b0aa]">przeniesione z kalkulatora · {fmtDate(q.savedAt)}</span>
+      </div>
+    </section>
   );
 }

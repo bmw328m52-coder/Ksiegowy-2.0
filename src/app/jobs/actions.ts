@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createJob, updateJob, deleteJob, getJob, type JobInput, type JobStatus } from "@/lib/dao/jobs";
-import { JOB_STATUS_WORKFLOW } from "@/lib/dao/jobs.types";
+import { JOB_STATUS_WORKFLOW, type CalcQuote } from "@/lib/dao/jobs.types";
 import { parseAmount } from "@/lib/format";
 import {
   countChecklistByJob,
@@ -432,6 +432,7 @@ export async function applyQuoteToJobAction(
   id: string,
   amount_gross: number,
   vat_rate: number,
+  calc_quote?: CalcQuote | null,
 ): Promise<Result> {
   if (!id) return { error: "Brak ID zlecenia." };
   if (!Number.isFinite(amount_gross) || amount_gross < 0)
@@ -448,6 +449,10 @@ export async function applyQuoteToJobAction(
     amount_gross,
     vat_rate,
   };
+  // Migawka z kalkulatora (opcjonalna) — pozwala pokazać na zleceniu zysk 1:1 z kalkulatorem.
+  if (calc_quote !== undefined) {
+    update.calc_quote = calc_quote;
+  }
   const earlyStages: JobStatus[] = ["new_inquiry", "scheduled_measurement", "to_measure", "after_measure"];
   if (earlyStages.includes(job.status)) {
     update.status = "to_quote";
