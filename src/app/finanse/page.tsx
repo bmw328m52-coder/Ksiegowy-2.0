@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import AttentionPanel from "@/components/AttentionPanel";
-import { getFinanceAttention } from "@/lib/dao/finance";
+import { getFinanceAttention, getMonthEstimatedCost } from "@/lib/dao/finance";
 import { getDashboardData, MONTH_NAMES_PL } from "@/lib/dao/dashboard";
 import { fmtPLN } from "@/lib/format";
 import { PageContainer, SectionHeading, StatCard, Card } from "@/components/ui";
@@ -111,8 +111,13 @@ const TONE_BOX = {
 };
 
 export default async function FinansePage() {
-  const [attention, d] = await Promise.all([getFinanceAttention(), getDashboardData()]);
+  const [attention, d, est] = await Promise.all([
+    getFinanceAttention(),
+    getDashboardData(),
+    getMonthEstimatedCost(),
+  ]);
   const monthName = MONTH_NAMES_PL[d.month_index];
+  const estProfit = d.month.revenueNet - est.estCostNet;
 
   return (
     <PageContainer>
@@ -132,14 +137,33 @@ export default async function FinansePage() {
         </SectionHeading>
         <div className="grid grid-cols-3 gap-2.5">
           <StatCard label="Przychód" value={fmtPLN(d.month.revenueNet)} tone="neutral" money />
-          <StatCard label="Koszty" value={fmtPLN(d.month.costsNet)} tone="info" money />
+          <StatCard label="Koszt (faktury)" value={fmtPLN(d.month.costsNet)} tone="info" money hint="z faktur kosztowych" />
           <StatCard
-            label="Wynik"
+            label="Wynik ks."
             value={fmtPLN(d.month.profit)}
             tone={d.month.profit >= 0 ? "ok" : "warn"}
             money
           />
         </div>
+
+        {/* Szacunek z wyceny — realny koszt materiałów, gdy nie podpinasz faktur kosztowych. */}
+        <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+          <StatCard
+            label="Koszt (wycena)"
+            value={fmtPLN(est.estCostNet)}
+            tone="accent"
+            money
+            hint={est.count > 0 ? `z wyceny · ${est.count} zlec.` : "brak wycenionych zleceń"}
+          />
+          <StatCard
+            label="Wynik (wycena)"
+            value={fmtPLN(estProfit)}
+            tone={estProfit >= 0 ? "ok" : "warn"}
+            money
+            hint="przychód − materiały z wyceny"
+          />
+        </div>
+
         {(d.pendingRevenueGross > 0 || d.openDepositsTotal > 0) && (
           <div className="mt-2.5 grid grid-cols-2 gap-2.5">
             {d.pendingRevenueGross > 0 && (

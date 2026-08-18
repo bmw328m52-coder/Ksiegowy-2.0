@@ -52,6 +52,53 @@ export async function getJobMaterialCostMap(
   return out;
 }
 
+// Szacunkowy koszt z WYCENY (job_materials) dla zleceń, których przychód wpada
+// w bieżący miesiąc (opłacone/zamontowane/rozliczone) — odpowiednik kosztu z faktur
+// (cost_lines), gdy faktur kosztowych brak. Ta sama data przychodu co w dashboardzie.
+export async function getMonthEstimatedCost(
+  now: Date = new Date()
+): Promise<{ estCostNet: number; estCostGross: number; count: number }> {
+  const supabase = await createClient();
+  const settings = await getUserSettingsOrDefault();
+  const year = now.getFullYear();
+  const monthIdx = now.getMonth();
+  const monthStart = `${year}-${String(monthIdx + 1).padStart(2, "0")}-01`;
+  const last = new Date(year, monthIdx + 1, 0);
+  const monthEnd = `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id, vat_rate, paid_date, completed_date")
+    .in("status", ["installed", "settled", "archived"]);
+  if (error) throw error;
+
+  const rows = (data ?? []) as {
+    id: string;
+    vat_rate: string | number;
+    paid_date: string | null;
+    completed_date: string | null;
+  }[];
+  const monthJobs = rows.filter((j) => {
+    const d = j.paid_date ?? j.completed_date ?? null;
+    return d !== null && d >= monthStart && d <= monthEnd;
+  });
+
+  const matMap = await getJobMaterialCostMap(monthJobs.map((j) => j.id));
+  let estCostNet = 0;
+  let estCostGross = 0;
+  let count = 0;
+  for (const j of monthJobs) {
+    const mat = matMap.get(j.id);
+    if (!mat || mat.gross <= 0) continue;
+    const rate = toNum(j.vat_rate);
+    const net = settings.is_vat_payer && rate > 0 ? mat.gross / (1 + rate) : mat.gross;
+    estCostGross += mat.gross;
+    estCostNet += net;
+    count += 1;
+  }
+  return { estCostNet, estCostGross, count };
+}
+
 export type JobProfitability = {
   job: Job & { client_name: string };
   margin: JobMarginFull;
