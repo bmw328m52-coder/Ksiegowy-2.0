@@ -45,7 +45,7 @@ export default function TrendChart({
           const costH = (p.costsNet / max) * chartH;
           const baseY = padTop + chartH;
           const isHL = i === highlightMonth;
-          const revFill = isHL ? "#282624" : "#3f3d3a";
+          const revFill = isHL ? "#1f1d1b" : "#3f3d3a";
           const costFill = isHL ? "#d97706" : "#f59e0b";
           return (
             <g key={i}>
@@ -70,7 +70,7 @@ export default function TrendChart({
                 y={H - 6}
                 textAnchor="middle"
                 fontSize={9}
-                fill={isHL ? "#282624" : "#71717a"}
+                fill={isHL ? "#1f1d1b" : "#71717a"}
                 fontWeight={isHL ? 600 : 400}
               >
                 {MONTH_ABBR[i]}

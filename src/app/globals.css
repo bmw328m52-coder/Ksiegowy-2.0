@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4eee2;
-  --foreground: #282624;
+  /* Motyw „Śnieżna biel" — czysta jasna biel, karty białe z lekkim cieniem, złoto jako akcent */
+  --background: #ffffff;
+  --foreground: #1f1d1b;
   --surface: #ffffff;
-  --surface-2: #faf5e9;
-  --border: #e6dcc7;
-  --muted: #524d48;
+  --surface-2: #f7f7f6;
+  --border: #ededea;
+  --muted: #8d8a85;
   --accent: #a06f3f;
   --accent-2: #7d5530;
-  --accent-soft: #f1e5d2;
-  --ink-2: #6f6457;
+  --accent-soft: #fbf5ed;
+  --ink-2: #6f6c66;
   --ok: #4f8a64;
   --ok-soft: #e3efe5;
   --warn: #b8523a;
@@ -39,20 +40,20 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Ocieplenie palety: nadpisujemy wbudowany zinc Tailwinda na ciepły taupe
-     dostrojony do kremu (#f4eee2) i złota (#a06f3f). Dzięki temu wszystkie
-     podstrony używające zinc-* dziedziczą ciepły feel bez przepisywania klas.
-     Punkty zaczepienia spięte z tokenami: 200 = border, 500 = ink-2, 900 = foreground. */
-  --color-zinc-50: #faf6ee;
-  --color-zinc-100: #f3ecdf;
-  --color-zinc-200: #e6dcc7;
-  --color-zinc-300: #d5c9b2;
-  --color-zinc-400: #ab9f88;
-  --color-zinc-500: #6f6457;
-  --color-zinc-600: #5b5249;
-  --color-zinc-700: #463f39;
-  --color-zinc-800: #332e29;
-  --color-zinc-900: #282624;
+  /* Motyw „Śnieżna biel": neutralne szarości zamiast ciepłego taupe. Nadpisujemy
+     wbudowany zinc Tailwinda tak, aby wszystkie podstrony używające zinc-*
+     dziedziczyły chłodny, minimalny feel bez przepisywania klas.
+     Punkty zaczepienia spięte z tokenami: 200 = border, 500 = muted, 900 = foreground. */
+  --color-zinc-50: #f8f8f7;
+  --color-zinc-100: #f2f2f1;
+  --color-zinc-200: #ededea;
+  --color-zinc-300: #dad9d5;
+  --color-zinc-400: #a9a7a2;
+  --color-zinc-500: #8d8a85;
+  --color-zinc-600: #6d6a65;
+  --color-zinc-700: #494743;
+  --color-zinc-800: #2f2d2a;
+  --color-zinc-900: #1f1d1b;
 }
 
 html {
@@ -81,6 +82,15 @@ input,
 select,
 textarea {
   color: var(--foreground);
+}
+
+/* Ukrywa pasek przewijania przy poziomych listach filtrów/segmentów */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Private mode — blurs any element marked with .money */

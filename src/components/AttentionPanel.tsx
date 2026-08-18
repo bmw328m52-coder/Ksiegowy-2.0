@@ -6,7 +6,7 @@ import type { AttentionItem, AttentionSeverity } from "@/lib/dao/finance";
 const TONE: Record<AttentionSeverity, { box: string; dot: string; label: string }> = {
   high: { box: "border-[#e6c4b9] bg-[#f9ece7]", dot: "bg-[#b8523a]", label: "text-[#7a2f1e]" },
   medium: { box: "border-[#e3d4b6] bg-[#f6efe1]", dot: "bg-[#a06f3f]", label: "text-[#5a3d1f]" },
-  low: { box: "border-[#e8e4dd] bg-white", dot: "bg-[#9c9081]", label: "text-[#3a3633]" },
+  low: { box: "border-[#ededea] bg-white", dot: "bg-[#8d8a85]", label: "text-[#3a3633]" },
 };
 
 export default function AttentionPanel({ items }: { items: AttentionItem[] }) {
@@ -23,13 +23,13 @@ export default function AttentionPanel({ items }: { items: AttentionItem[] }) {
   }
 
   return (
-    <section className="rounded-2xl border border-[#e8e4dd] bg-white overflow-hidden">
+    <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
       <header className="px-4 pt-4 pb-2 flex items-baseline justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
             Kontrola
           </p>
-          <h2 className="text-sm font-semibold text-[#282624]">Wymaga uwagi</h2>
+          <h2 className="text-sm font-semibold text-[#1f1d1b]">Wymaga uwagi</h2>
         </div>
         <span className="text-[11px] font-semibold text-[#b8523a] bg-[#f9ece7] rounded-full px-2 py-0.5">
           {items.length}
@@ -39,15 +39,15 @@ export default function AttentionPanel({ items }: { items: AttentionItem[] }) {
         {items.map((it, i) => {
           const tone = TONE[it.severity];
           return (
-            <li key={`${it.kind}-${i}`} className="border-t border-[#f1ede5] first:border-t-0">
+            <li key={`${it.kind}-${i}`} className="border-t border-[#eeeeed] first:border-t-0">
               <Link
                 href={it.href}
-                className="flex items-start gap-3 px-4 py-3 hover:bg-[#faf7f2] active:bg-[#f5f0e8] transition-colors"
+                className="flex items-start gap-3 px-4 py-3 hover:bg-[#f6f6f5] active:bg-[#f0f0ee] transition-colors"
               >
                 <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${tone.dot}`} />
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm font-medium ${tone.label}`}>{it.title}</p>
-                  <p className="text-[11px] text-[#9c9081] mt-0.5">{it.hint}</p>
+                  <p className="text-[11px] text-[#8d8a85] mt-0.5">{it.hint}</p>
                 </div>
                 {it.amount !== null && (
                   <Money className="text-sm font-semibold tabular-nums text-[#3a3633] shrink-0">

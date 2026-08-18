@@ -65,7 +65,7 @@ export default async function RightPanel() {
 
   return (
     <aside
-      className="hidden lg:flex lg:flex-col lg:sticky lg:top-[18px] lg:h-[calc(100vh-36px)] lg:w-[300px] lg:rounded-[18px] lg:border lg:border-[#e6dcc7] lg:bg-white lg:px-4 lg:py-5 lg:z-20 lg:overflow-y-auto"
+      className="hidden lg:flex lg:flex-col lg:sticky lg:top-[18px] lg:h-[calc(100vh-36px)] lg:w-[300px] lg:rounded-[18px] lg:border lg:border-[#ededea] lg:bg-white lg:px-4 lg:py-5 lg:z-20 lg:overflow-y-auto"
       aria-label="Panel pomocniczy"
     >
       <PanelHeader>Szybkie narzędzia</PanelHeader>
@@ -88,11 +88,11 @@ export default async function RightPanel() {
 
       <PanelHeader className="mt-5">Najbliższe terminy</PanelHeader>
       {upcoming.length === 0 ? (
-        <div className="rounded-xl border border-[#e8e4dd] bg-white px-3 py-4 text-center text-[12px] text-[#9c9081]">
+        <div className="rounded-xl border border-[#ededea] bg-white px-3 py-4 text-center text-[12px] text-[#8d8a85]">
           Brak nadchodzących terminów
         </div>
       ) : (
-        <div className="rounded-xl border border-[#e8e4dd] bg-white divide-y divide-[#f0ece5] overflow-hidden">
+        <div className="rounded-xl border border-[#ededea] bg-white divide-y divide-[#eeeeed] overflow-hidden">
           {upcoming.map((u, i) => (
             <UpcomingRow key={`${u.jobId}-${u.kind}-${i}`} item={u} when={whenLabel(u.dateIso, todayIso)} />
           ))}
@@ -103,7 +103,7 @@ export default async function RightPanel() {
 
       <Link
         href="/jobs"
-        className="mt-5 text-center text-[12px] font-semibold text-[#a06f3f] py-2 rounded-lg border border-[#e8e4dd] bg-white active:bg-[#faf7f2] hover:border-[#a06f3f]"
+        className="mt-5 text-center text-[12px] font-semibold text-[#a06f3f] py-2 rounded-lg border border-[#ededea] bg-white active:bg-[#f6f6f5] hover:border-[#a06f3f]"
       >
         Wszystkie zlecenia →
       </Link>
@@ -114,7 +114,7 @@ export default async function RightPanel() {
 function PanelHeader({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <p
-      className={`text-[10px] uppercase tracking-[2px] font-semibold text-[#9c9081] mb-2 px-1 ${className ?? ""}`}
+      className={`text-[10px] uppercase tracking-[2px] font-semibold text-[#8d8a85] mb-2 px-1 ${className ?? ""}`}
     >
       {children}
     </p>
@@ -143,14 +143,14 @@ function ToolRow({
   return (
     <Link
       href={href}
-      className="rounded-xl border border-[#e6dcc7] bg-white px-3 py-3 flex items-center gap-3 active:bg-[#faf7f2] hover:border-[#c4bbac] transition-colors"
+      className="rounded-xl border border-[#ededea] bg-white px-3 py-3 flex items-center gap-3 active:bg-[#f6f6f5] hover:border-[#c9c7c2] transition-colors"
     >
       <span className={`inline-flex items-center justify-center w-9 h-9 rounded-lg shrink-0 ${toneClasses}`}>
         {icon}
       </span>
       <span className="min-w-0 flex flex-col">
-        <span className="text-[10px] uppercase tracking-wide text-[#9c9081]">{label}</span>
-        <span className="text-[13px] font-semibold text-[#282624] truncate">{name}</span>
+        <span className="text-[10px] uppercase tracking-wide text-[#8d8a85]">{label}</span>
+        <span className="text-[13px] font-semibold text-[#1f1d1b] truncate">{name}</span>
       </span>
     </Link>
   );
@@ -176,18 +176,18 @@ function UpcomingRow({
   return (
     <Link
       href={`/jobs/${item.jobId}`}
-      className="flex items-start gap-2.5 px-3 py-2.5 active:bg-[#faf7f2]"
+      className="flex items-start gap-2.5 px-3 py-2.5 active:bg-[#f6f6f5]"
     >
       <span aria-hidden className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${dot}`} />
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-semibold text-[#282624] truncate leading-tight">
+        <p className="text-[12px] font-semibold text-[#1f1d1b] truncate leading-tight">
           {kindLabel} · {item.title}
         </p>
-        <p className="text-[11px] text-[#9c9081] truncate mt-0.5">
+        <p className="text-[11px] text-[#8d8a85] truncate mt-0.5">
           {item.clientName}
         </p>
       </div>
-      <span className="text-[11px] font-medium text-[#6b6661] shrink-0 tabular-nums">
+      <span className="text-[11px] font-medium text-[#6f6c66] shrink-0 tabular-nums">
         {when}
       </span>
     </Link>
