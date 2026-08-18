@@ -238,6 +238,7 @@ export default async function WycenaPage({
           {brief && (
             <section className="mb-4 rounded-xl border border-zinc-200 bg-white p-4">
               <WycenaTotals
+                jobId={id}
                 amountGross={Number(job.amount_gross) || 0}
                 vatRate={Number(job.vat_rate) || 0}
                 isVatPayer={settings.is_vat_payer}

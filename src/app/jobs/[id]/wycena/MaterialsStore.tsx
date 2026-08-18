@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import type { JobMaterial } from "@/lib/dao/material_catalog";
 import { fmtPLN } from "@/lib/format";
 
@@ -94,10 +95,12 @@ export function GroupTotal({ keys }: { keys: string[] }) {
 // Ceny w wycenie to ceny ZAKUPU z cennika = koszt materiałów; wartość sprzedaży to job.amount_gross.
 // VAT-owiec z niezerową stawką: przeliczamy obie kwoty na netto TĄ SAMĄ stawką (jak w MarginSection).
 export function WycenaTotals({
+  jobId,
   amountGross,
   vatRate,
   isVatPayer,
 }: {
+  jobId: string;
   amountGross: number;
   vatRate: number;
   isVatPayer: boolean;
@@ -156,9 +159,17 @@ export function WycenaTotals({
           {marginPct !== null && <MarginBadge pct={marginPct} />}
         </div>
       ) : (
-        <p className="mt-3 pt-3 border-t border-zinc-100 text-[11px] text-[#b08968]">
-          Ustaw wartość zlecenia (przez „Edytuj”), aby zobaczyć marżę.
-        </p>
+        <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between gap-3">
+          <p className="text-[11px] text-[#b08968]">
+            Ustaw wartość zlecenia, aby zobaczyć marżę.
+          </p>
+          <Link
+            href={`/jobs/${jobId}/edit`}
+            className="shrink-0 rounded-lg bg-[#a06f3f] px-3 py-1.5 text-[12px] font-semibold text-white active:opacity-80 hover:bg-[#7d5530] transition-colors"
+          >
+            Ustaw kwotę →
+          </Link>
+        </div>
       )}
     </>
   );

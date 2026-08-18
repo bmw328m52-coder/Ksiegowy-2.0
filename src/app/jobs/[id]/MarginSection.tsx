@@ -36,10 +36,18 @@ export default async function MarginSection({
       </p>
 
       {!hasData ? (
-        <p className="text-sm text-[#8d8a85]">
-          Brak danych. Ustaw wartość zlecenia (przez „Edytuj”) i dodaj pozycje w wycenie — zysk
-          szacunkowy policzy się od razu.
-        </p>
+        <div className="space-y-2.5">
+          <p className="text-sm text-[#8d8a85]">
+            Brak danych. Ustaw wartość zlecenia i dodaj pozycje w wycenie — zysk szacunkowy
+            policzy się od razu.
+          </p>
+          <Link
+            href={`/jobs/${job.id}/edit`}
+            className="inline-flex rounded-lg bg-[#a06f3f] px-3 py-1.5 text-[12px] font-semibold text-white active:opacity-80 hover:bg-[#7d5530] transition-colors"
+          >
+            Ustaw wartość zlecenia →
+          </Link>
+        </div>
       ) : (
         <>
           {/* Szacunek z wyceny */}
@@ -83,7 +91,11 @@ export default async function MarginSection({
 
           {m.revenueGross === 0 && (
             <p className="mt-2 text-[11px] text-[#b08968]">
-              Wartość zlecenia = 0 — ustaw ją przez „Edytuj”, żeby zysk był miarodajny.
+              Wartość zlecenia = 0 —{" "}
+              <Link href={`/jobs/${job.id}/edit`} className="font-semibold text-[#a06f3f] underline-offset-2 hover:underline">
+                ustaw kwotę
+              </Link>
+              , żeby zysk był miarodajny.
             </p>
           )}
 

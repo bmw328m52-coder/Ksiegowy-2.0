@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import { ButtonLink } from "@/components/ui";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getJob } from "@/lib/dao/jobs";
 import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus } from "@/lib/dao/jobs.types";
@@ -46,12 +47,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           title={job.title}
           back={{ href: `/clients/${job.client_id}` }}
           action={
-            <Link
-              href={`/jobs/${id}/edit`}
-              className="text-sm text-[#6f6c66] underline-offset-2 hover:underline"
-            >
+            <ButtonLink href={`/jobs/${id}/edit`} variant="secondary" size="sm">
               Edytuj
-            </Link>
+            </ButtonLink>
           }
         />
 
