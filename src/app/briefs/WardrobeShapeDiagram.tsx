@@ -195,7 +195,7 @@ export default function WardrobeShapeDiagram({
             y1={yFloor}
             x2={xRight + 10}
             y2={yFloor}
-            stroke="#282624"
+            stroke="#1f1d1b"
             strokeWidth="1.2"
           />
 
@@ -203,7 +203,7 @@ export default function WardrobeShapeDiagram({
           <polygon
             points={points}
             fill="#fafaf9"
-            stroke="#282624"
+            stroke="#1f1d1b"
             strokeWidth="1.8"
             strokeLinejoin="round"
           />
@@ -237,7 +237,7 @@ export default function WardrobeShapeDiagram({
             x={xLeft - 20}
             y={(yTop + yFloor) / 2 + 3}
             fontSize="10"
-            fill="#282624"
+            fill="#1f1d1b"
             textAnchor="end"
             fontWeight="700"
           >
@@ -273,7 +273,7 @@ export default function WardrobeShapeDiagram({
             x={(xLeft + xRight) / 2}
             y={yFloor + 26}
             fontSize="10"
-            fill="#282624"
+            fill="#1f1d1b"
             textAnchor="middle"
             fontWeight="700"
           >

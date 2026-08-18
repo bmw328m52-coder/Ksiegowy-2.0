@@ -399,7 +399,7 @@ function WallSection({
             width={WW}
             height={WH}
             fill="#fafaf9"
-            stroke="#282624"
+            stroke="#1f1d1b"
             strokeWidth="1.8"
           />
 
@@ -452,7 +452,7 @@ function WallSection({
             y1={FLOOR_Y}
             x2={WX + WW + 8}
             y2={FLOOR_Y}
-            stroke="#282624"
+            stroke="#1f1d1b"
             strokeWidth="1.4"
           />
           <text
@@ -503,7 +503,7 @@ function WallSection({
             x={WX + WW}
             y={FLOOR_Y + 16}
             fontSize="10"
-            fill="#282624"
+            fill="#1f1d1b"
             fontWeight="700"
             textAnchor="end"
           >
@@ -570,7 +570,7 @@ function WallSection({
                   width={mw}
                   height={mh}
                   fill={u.color}
-                  stroke="#282624"
+                  stroke="#1f1d1b"
                   strokeWidth="0.6"
                   rx="1.5"
                 />

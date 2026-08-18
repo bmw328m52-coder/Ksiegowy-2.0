@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { PageContainer } from "@/components/ui";
 import CalculatorForm from "./CalculatorForm";
 import { listJobs } from "@/lib/dao/jobs";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
@@ -59,12 +60,11 @@ export default async function CalculatorPage({
     ? jobOptions.find((j) => j.id === initialJobId)
     : undefined;
 
-  const backHref = presetJob ? `/jobs/${presetJob.id}` : "/";
+  const backHref = presetJob ? `/jobs/${presetJob.id}` : "/wiecej";
 
   return (
-    <main className="flex flex-1 flex-col px-6 py-6">
-      <div className="w-full max-w-md sm:max-w-2xl mx-auto">
-        <PageHeader title="Kalkulator" back={{ href: backHref }} />
+    <PageContainer width="narrow">
+      <PageHeader title="Kalkulator" back={{ href: backHref }} />
         <Link
           href="/calculator/moduly"
           className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#e2c79c] bg-gradient-to-br from-[#fbf1dd] to-[#fff8e9] px-3.5 py-2.5 active:opacity-90 hover:border-[#a06f3f] transition-colors"
@@ -85,13 +85,13 @@ export default async function CalculatorPage({
         {presetJob && (
           <div className="mb-3 rounded-xl border border-[#f1e5d2] bg-[#faf5e9] px-3.5 py-2.5 flex items-baseline justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9c9081]">
+              <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
                 Wycena dla zlecenia
               </p>
-              <p className="text-sm font-medium text-[#282624] truncate">
+              <p className="text-sm font-medium text-[#1f1d1b] truncate">
                 {presetJob.title}
               </p>
-              <p className="text-[11px] text-[#6b6661] truncate">
+              <p className="text-[11px] text-[#6f6c66] truncate">
                 {presetJob.client_name}
               </p>
             </div>
@@ -116,7 +116,6 @@ export default async function CalculatorPage({
           defaultZusUlga={settings.zus_ulga ?? 397.16}
           initialJobId={initialJobId}
         />
-      </div>
-    </main>
+    </PageContainer>
   );
 }

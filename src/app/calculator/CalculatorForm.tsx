@@ -641,7 +641,7 @@ export default function CalculatorForm({
       />
 
       {jobId && (
-        <div className="rounded-xl border border-[#e8e4dd] bg-white p-3 flex flex-col gap-2">
+        <div className="rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
           <button
             type="button"
             onClick={applyToJob}
@@ -658,7 +658,7 @@ export default function CalculatorForm({
           {applyError && (
             <p className="text-xs text-red-600">{applyError}</p>
           )}
-          <p className="text-[11px] text-[#9c9081]">
+          <p className="text-[11px] text-[#8d8a85]">
             Ustawi <span className="font-medium text-[#3a3633]">amount_gross</span>{" "}
             i <span className="font-medium text-[#3a3633]">vat_rate</span> na zleceniu.
             Jeśli etap jest wcześniejszy niż „Do wyceny”, przejdzie do tego etapu.
@@ -681,7 +681,7 @@ export default function CalculatorForm({
           font-size: 16px;
         }
         .input:focus {
-          outline: 2px solid #282624;
+          outline: 2px solid #1f1d1b;
           outline-offset: 1px;
         }
       `}</style>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type Layout = "lin" | "l" | "u" | "wneka";
 
-const WALL = "#282624";
+const WALL = "#1f1d1b";
 const ROOM = "#fafaf9";
 
 export default function BathroomLayoutDiagram({

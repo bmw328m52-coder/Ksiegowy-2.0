@@ -1,4 +1,5 @@
 import PageHeader from "@/components/PageHeader";
+import { PageContainer } from "@/components/ui";
 import SettingsForm, { type SettingsInitial } from "./SettingsForm";
 import { saveSettings } from "./actions";
 import { getUserSettings, DEFAULT_SETTINGS } from "@/lib/dao/user_settings";
@@ -38,18 +39,16 @@ export default async function SettingsPage({
       };
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md mx-auto space-y-4">
-        <PageHeader title="Ustawienia" back={{ href: "/" }} />
+    <PageContainer width="narrow">
+      <PageHeader title="Ustawienia" back={{ href: "/wiecej" }} />
 
-        {sp.saved === "1" && (
-          <p className="rounded-md bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2">
-            Zapisano ustawienia.
-          </p>
-        )}
+      {sp.saved === "1" && (
+        <p className="rounded-xl bg-[#e3efe5] border border-[#cfe4d4] text-[#3a6b4d] text-sm px-3.5 py-2.5 font-medium">
+          Zapisano ustawienia.
+        </p>
+      )}
 
-        <SettingsForm action={saveSettings} initial={initial} />
-      </div>
-    </main>
+      <SettingsForm action={saveSettings} initial={initial} />
+    </PageContainer>
   );
 }

@@ -5,7 +5,7 @@ import { type RoomLayout as Layout, isRoomLayout, wallVisibility } from "./roomL
 
 type Wall = "a" | "b" | "c" | "d";
 
-const WALL = "#282624";
+const WALL = "#1f1d1b";
 const WALL_ACTIVE = "#fbbf24";
 const ROOM = "#fafaf9";
 const WINDOW = "#3b82f6";
@@ -99,7 +99,7 @@ export default function KitchenLayoutDiagram({
             fill={windowWall === "a" ? WALL_ACTIVE : WALL}
           />
           <text x="19" y={12 + wallAH / 2 + 4} textAnchor="middle"
-            fill={windowWall === "a" ? "#282624" : "#fff"}
+            fill={windowWall === "a" ? "#1f1d1b" : "#fff"}
             fontSize="10" fontWeight="700">A</text>
           {windowWall === "a" && !shortAC && (
             <rect x="12" y="62" width="14" height="36" fill={WINDOW} stroke={WINDOW_BORDER} strokeWidth="0.8" />
@@ -117,7 +117,7 @@ export default function KitchenLayoutDiagram({
               fill={windowWall === "b" ? WALL_ACTIVE : WALL}
             />
             <text x={showC ? 100 : 107} y="22" textAnchor="middle"
-              fill={windowWall === "b" ? "#282624" : "#fff"}
+              fill={windowWall === "b" ? "#1f1d1b" : "#fff"}
               fontSize="10" fontWeight="700">B</text>
             {windowWall === "b" && (
               <rect x={showC ? 80 : 87} y="12" width="40" height="14" fill={WINDOW} stroke={WINDOW_BORDER} strokeWidth="0.8" />
@@ -136,7 +136,7 @@ export default function KitchenLayoutDiagram({
               fill={windowWall === "c" ? WALL_ACTIVE : WALL}
             />
             <text x="181" y={12 + wallCH / 2 + 4} textAnchor="middle"
-              fill={windowWall === "c" ? "#282624" : "#fff"}
+              fill={windowWall === "c" ? "#1f1d1b" : "#fff"}
               fontSize="10" fontWeight="700">C</text>
             {windowWall === "c" && !shortAC && (
               <rect x="174" y="62" width="14" height="36" fill={WINDOW} stroke={WINDOW_BORDER} strokeWidth="0.8" />
@@ -155,7 +155,7 @@ export default function KitchenLayoutDiagram({
               fill={windowWall === "d" ? WALL_ACTIVE : WALL}
             />
             <text x={dTextX} y="144" textAnchor="middle"
-              fill={windowWall === "d" ? "#282624" : "#fff"}
+              fill={windowWall === "d" ? "#1f1d1b" : "#fff"}
               fontSize="10" fontWeight="700">D</text>
             {windowWall === "d" && (
               <rect x={dWinX} y="134" width="40" height="14" fill={WINDOW} stroke={WINDOW_BORDER} strokeWidth="0.8" />

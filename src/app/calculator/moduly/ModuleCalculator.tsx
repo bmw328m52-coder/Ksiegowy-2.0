@@ -140,7 +140,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
       </Section>
 
       <Section title="Moduły">
-        <p className="text-[11px] text-[#6b6661] -mt-1">
+        <p className="text-[11px] text-[#6f6c66] -mt-1">
           Kliknij moduł, by dodać do wyceny. Edytuj ilość niżej.
         </p>
         <div className="flex flex-col gap-3">
@@ -158,10 +158,10 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
                       key={m.code}
                       type="button"
                       onClick={() => addModule(m.code)}
-                      className="rounded-lg border border-[#e6dcc7] bg-white px-2.5 py-1.5 text-[12px] text-[#282624] hover:border-[#a06f3f] hover:bg-[#faf7f2] active:bg-[#f1e5d2] transition-colors"
+                      className="rounded-lg border border-[#ededea] bg-white px-2.5 py-1.5 text-[12px] text-[#1f1d1b] hover:border-[#a06f3f] hover:bg-[#f6f6f5] active:bg-[#f1e5d2] transition-colors"
                     >
                       <span className="font-semibold">{m.code}</span>
-                      <span className="text-[#6b6661] ml-1">· {m.width_mm}mm</span>
+                      <span className="text-[#6f6c66] ml-1">· {m.width_mm}mm</span>
                     </button>
                   ))}
                 </div>
@@ -171,7 +171,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
         </div>
 
         {selectedModules.length > 0 ? (
-          <div className="mt-2 rounded-2xl border border-[#e8e4dd] bg-white divide-y divide-[#f0ece5] overflow-hidden">
+          <div className="mt-2 rounded-2xl border border-[#ededea] bg-white divide-y divide-[#eeeeed] overflow-hidden">
             {selectedModules.map(({ sel, mod, cost }) => (
               <ModuleRow
                 key={sel.code}
@@ -183,7 +183,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-[#9c9081] italic">
+          <p className="text-[12px] text-[#8d8a85] italic">
             Brak modułów. Kliknij coś z listy wyżej.
           </p>
         )}
@@ -239,7 +239,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
             />
           </Field>
         </div>
-        <p className="text-[11px] text-[#9c9081] -mt-1">
+        <p className="text-[11px] text-[#8d8a85] -mt-1">
           Godziny liczone z czasu modułowego (suma BOM × labor_min).
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -277,7 +277,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
           border: 1px solid #e4e4e7;
           background: white;
           font-size: 16px;
-          color: #282624;
+          color: #1f1d1b;
         }
         .input:focus {
           outline: 2px solid #a06f3f;
@@ -285,7 +285,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
         }
         .input:disabled {
           background: #f5f1ea;
-          color: #6b6661;
+          color: #6f6c66;
         }
       `}</style>
     </div>
@@ -306,10 +306,10 @@ function ModuleRow({
   return (
     <div className="flex items-center gap-2 px-3 py-2.5">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-[#282624] truncate leading-tight">
+        <p className="text-sm font-semibold text-[#1f1d1b] truncate leading-tight">
           <span className="text-[#a06f3f]">{mod.code}</span> · {mod.name}
         </p>
-        <p className="text-[10.5px] text-[#9c9081] truncate mt-0.5">
+        <p className="text-[10.5px] text-[#8d8a85] truncate mt-0.5">
           {mod.width_mm}×{mod.height_mm}×{mod.depth_mm}mm · koszt {fmtPLN(unitCost)}/szt
         </p>
       </div>
@@ -317,7 +317,7 @@ function ModuleRow({
         <button
           type="button"
           onClick={() => onChangeQty(qty - 1)}
-          className="w-8 h-8 rounded-md border border-[#e6dcc7] text-[#6b6661] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
+          className="w-8 h-8 rounded-md border border-[#ededea] text-[#6f6c66] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
           aria-label="Zmniejsz"
         >
           −
@@ -326,13 +326,13 @@ function ModuleRow({
         <button
           type="button"
           onClick={() => onChangeQty(qty + 1)}
-          className="w-8 h-8 rounded-md border border-[#e6dcc7] text-[#6b6661] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
+          className="w-8 h-8 rounded-md border border-[#ededea] text-[#6f6c66] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
           aria-label="Zwiększ"
         >
           +
         </button>
       </div>
-      <p className="w-24 text-right tabular-nums text-sm font-semibold text-[#282624] shrink-0">
+      <p className="w-24 text-right tabular-nums text-sm font-semibold text-[#1f1d1b] shrink-0">
         {fmtPLN(unitCost * qty)}
       </p>
     </div>
@@ -362,7 +362,7 @@ function ResultPanel({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-[#e8e4dd] bg-white overflow-hidden">
+      <div className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
         <GroupHeader>Koszt własny</GroupHeader>
         <Row label="Moduły (materiał + okucia)" value={fmtPLN(breakdown.modulesNet)} />
         <Row label="Blat" value={fmtPLN(breakdown.blatNet)} />
@@ -407,7 +407,7 @@ function ResultPanel({
         </p>
       </div>
 
-      <p className="text-[11px] text-[#9c9081] text-center">
+      <p className="text-[11px] text-[#8d8a85] text-center">
         MVP — dane modułów i materiałów to wartości startowe. W kolejnym kroku podstawimy twoje ceny z faktur.
       </p>
     </section>
@@ -417,7 +417,7 @@ function ResultPanel({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-[#524d48]">{title}</h2>
+      <h2 className="text-sm font-semibold text-[#6f6c66]">{title}</h2>
       {children}
     </section>
   );
@@ -426,7 +426,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs text-[#6b6661]">{label}</span>
+      <span className="text-xs text-[#6f6c66]">{label}</span>
       {children}
     </label>
   );
@@ -434,7 +434,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function GroupHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#9c9081] bg-[#faf7f2] border-b border-[#f0ece5]">
+    <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d8a85] bg-[#f6f6f5] border-b border-[#eeeeed]">
       {children}
     </div>
   );
@@ -453,19 +453,19 @@ function Row({
   highlight?: boolean;
   bold?: boolean;
 }) {
-  const bg = highlight ? "bg-[#faf5e9]" : bold ? "bg-[#faf7f2]" : "";
+  const bg = highlight ? "bg-[#faf5e9]" : bold ? "bg-[#f6f6f5]" : "";
   return (
     <div
-      className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b last:border-b-0 border-[#f0ece5] ${bg}`}
+      className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b last:border-b-0 border-[#eeeeed] ${bg}`}
     >
-      <span className={`text-sm ${sub ? "text-[#9c9081]" : "text-[#524d48]"}`}>{label}</span>
+      <span className={`text-sm ${sub ? "text-[#8d8a85]" : "text-[#6f6c66]"}`}>{label}</span>
       <span
         className={`tabular-nums ${
           highlight
             ? "text-[#7d5530] text-lg font-bold"
             : bold
-              ? "text-[#282624] text-base font-semibold"
-              : "text-[#282624] font-medium"
+              ? "text-[#1f1d1b] text-base font-semibold"
+              : "text-[#1f1d1b] font-medium"
         }`}
       >
         {value}

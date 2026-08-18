@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { PageContainer, Card } from "@/components/ui";
 import { fmtPLN } from "@/lib/format";
 import { listCatalog } from "@/lib/dao/material_catalog";
 import { listBindings, SLOTS } from "@/lib/dao/calculator_bindings";
@@ -15,14 +16,13 @@ export default async function CalcSettingsPage() {
   const bindingMap = new Map(bindings.map((b) => [b.slot, b.catalog_id] as const));
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md mx-auto">
-        <PageHeader title="Ustawienia cen" back={{ href: "/calculator/moduly" }} />
-        <p className="text-[12px] text-[#6b6661] -mt-1 mb-4">
-          Przypisz pozycję katalogu do każdego slotu BOM. Brak wyboru = używamy wartości domyślnej.
-        </p>
+    <PageContainer width="narrow">
+      <PageHeader title="Ustawienia cen" back={{ href: "/calculator/moduly" }} />
+      <p className="text-[12px] text-[#6f6c66] -mt-2">
+        Przypisz pozycję katalogu do każdego slotu BOM. Brak wyboru = używamy wartości domyślnej.
+      </p>
 
-        <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
           {SLOTS.map((slot) => {
             const items = catalog.filter((c) => c.unit === slot.unit);
             const preferred = items.filter((c) =>
@@ -39,13 +39,10 @@ export default async function CalcSettingsPage() {
                 : PRICES[slot.key];
 
             return (
-              <section
-                key={slot.key}
-                className="rounded-xl border border-zinc-200 bg-white p-3"
-              >
+              <Card key={slot.key} className="p-3">
                 <div className="flex items-baseline justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-[#282624]">{slot.label}</h2>
-                  <span className="text-[10px] uppercase tracking-wide text-[#9c9081]">
+                  <h2 className="text-sm font-semibold text-[#1f1d1b]">{slot.label}</h2>
+                  <span className="text-[10px] uppercase tracking-wide text-[#8d8a85]">
                     {slot.unit}
                   </span>
                 </div>
@@ -55,7 +52,7 @@ export default async function CalcSettingsPage() {
                   <select
                     name="catalog_id"
                     defaultValue={selectedId}
-                    className="w-full h-11 px-3 rounded-lg border border-zinc-300 bg-white text-sm text-[#282624]"
+                    className="w-full h-11 px-3 rounded-lg border border-zinc-300 bg-white text-sm text-[#1f1d1b]"
                   >
                     <option value="">
                       — brak (użyj domyślnej {fmtPLN(PRICES[slot.key])}/{slot.unit}) —
@@ -69,7 +66,7 @@ export default async function CalcSettingsPage() {
                   </select>
 
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] text-[#6b6661]">
+                    <p className="text-[11px] text-[#6f6c66]">
                       W kalkulatorze: <strong>{fmtPLN(effectiveNet)}/{slot.unit}</strong> netto
                       {selectedItem ? " (z katalogu)" : " (domyślna)"}
                     </p>
@@ -81,22 +78,21 @@ export default async function CalcSettingsPage() {
                     </button>
                   </div>
                 </form>
-              </section>
+              </Card>
             );
           })}
-        </div>
-
-        {catalog.length === 0 && (
-          <p className="text-center text-sm text-zinc-500 py-6">
-            Katalog jest pusty.{" "}
-            <Link href="/materials" className="text-[#a06f3f] underline">
-              Dodaj materiały
-            </Link>{" "}
-            albo wgraj starter.
-          </p>
-        )}
       </div>
-    </main>
+
+      {catalog.length === 0 && (
+        <p className="text-center text-sm text-[#8d8a85] py-6">
+          Katalog jest pusty.{" "}
+          <Link href="/materials" className="text-[#a06f3f] underline">
+            Dodaj materiały
+          </Link>{" "}
+          albo wgraj starter.
+        </p>
+      )}
+    </PageContainer>
   );
 }
 

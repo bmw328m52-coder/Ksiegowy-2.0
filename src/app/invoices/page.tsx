@@ -4,6 +4,13 @@ import { listInvoices, getSignedThumbnailUrl } from "@/lib/dao/invoices";
 import { listInvoiceCategoriesMap, COST_CATEGORIES } from "@/lib/dao/cost_lines";
 import ExportMonthCard from "./ExportMonthCard";
 import InvoicesListClient from "./InvoicesListClient";
+import {
+  PageContainer,
+  SegmentedNav,
+  EmptyState,
+  ButtonLink,
+  type SegmentItem,
+} from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Faktury" };
@@ -69,103 +76,65 @@ export default async function InvoicesPage({
     return qs ? `/invoices?${qs}` : "/invoices";
   };
 
-  return (
-    <main className="flex flex-1 flex-col px-6 py-6">
-      <div className="w-full max-w-md mx-auto">
-        <PageHeader
-          title="Faktury"
-          back={{ href: "/" }}
-          action={
-            <Link
-              href="/invoices/new"
-              className="rounded-lg bg-accent text-white text-sm px-3 py-2 font-medium active:opacity-80"
-            >
-              + Dodaj
-            </Link>
-          }
-        />
-
-        {all.length > 0 && (
-          <>
-            <ExportMonthCard />
-            <FilterTabs current={filter} counts={counts} buildHref={buildHref} />
-            {availableCats.length > 0 && (
-              <CategoryPills
-                current={cat}
-                available={availableCats}
-                buildHref={buildHref}
-              />
-            )}
-          </>
-        )}
-
-        {all.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-300 p-6 text-center">
-            <p className="text-sm text-zinc-600 mb-3">Brak faktur. Dodaj pierwszą.</p>
-            <Link
-              href="/invoices/new"
-              className="inline-block rounded-lg bg-accent text-white text-sm px-4 py-2 font-medium"
-            >
-              Wgraj fakturę
-            </Link>
-          </div>
-        ) : invoices.length === 0 ? (
-          <div className="text-center py-12 text-zinc-500 space-y-3">
-            <p>
-              {cat
-                ? `Brak faktur w kategorii "${cat}".`
-                : filter === "todo"
-                  ? "Brak faktur do uzupełnienia."
-                  : "Brak gotowych faktur."}
-            </p>
-            <Link
-              href="/invoices"
-              className="inline-block text-sm text-zinc-600 underline-offset-2 hover:underline"
-            >
-              Pokaż wszystkie
-            </Link>
-          </div>
-        ) : (
-          <InvoicesListClient invoices={invoices} categoriesMap={categoriesMap} thumbsMap={thumbsMap} />
-        )}
-      </div>
-    </main>
-  );
-}
-
-function FilterTabs({
-  current,
-  counts,
-  buildHref,
-}: {
-  current: Filter;
-  counts: { all: number; todo: number; done: number };
-  buildHref: (next: { filter?: Filter; cat?: string | null }) => string;
-}) {
-  const tabs: { key: Filter; label: string; count: number }[] = [
-    { key: "all", label: "Wszystkie", count: counts.all },
-    { key: "todo", label: "Do uzupełnienia", count: counts.todo },
-    { key: "done", label: "Gotowe", count: counts.done },
+  const segments: SegmentItem[] = [
+    { key: "all", label: "Wszystkie", href: buildHref({ filter: "all" }), count: counts.all },
+    {
+      key: "todo",
+      label: "Do uzupełnienia",
+      href: buildHref({ filter: "todo" }),
+      count: counts.todo,
+      tone: counts.todo > 0 ? "warn" : undefined,
+    },
+    { key: "done", label: "Gotowe", href: buildHref({ filter: "done" }), count: counts.done },
   ];
+
   return (
-    <nav className="flex gap-1 mb-3 p-1 rounded-lg bg-zinc-100">
-      {tabs.map((t) => {
-        const active = t.key === current;
-        return (
-          <Link
-            key={t.key}
-            href={buildHref({ filter: t.key })}
-            className={`flex-1 text-center text-xs py-2 px-2 rounded-md font-medium transition-colors ${
-              active
-                ? "bg-white text-[#282624] shadow-sm"
-                : "text-zinc-600 active:bg-zinc-50"
-            }`}
-          >
-            {t.label} <span className="text-zinc-400">({t.count})</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <PageContainer width="narrow">
+      <PageHeader
+        title="Faktury"
+        back={{ href: "/finanse" }}
+        action={
+          <ButtonLink href="/invoices/new" size="sm" icon={<span className="text-[15px] leading-none">+</span>}>
+            Dodaj
+          </ButtonLink>
+        }
+      />
+
+      {all.length > 0 && (
+        <>
+          <ExportMonthCard />
+          <SegmentedNav items={segments} activeKey={filter} />
+          {availableCats.length > 0 && (
+            <CategoryPills current={cat} available={availableCats} buildHref={buildHref} />
+          )}
+        </>
+      )}
+
+      {all.length === 0 ? (
+        <EmptyState
+          icon={<InvoiceGlyph />}
+          title="Brak faktur"
+          hint="Wgraj pierwszą fakturę — OCR odczyta dane automatycznie."
+          cta={{ href: "/invoices/new", label: "Wgraj fakturę" }}
+          tone="accent"
+        />
+      ) : invoices.length === 0 ? (
+        <EmptyState
+          icon={<InvoiceGlyph />}
+          title={
+            cat
+              ? `Brak faktur w kategorii „${cat}”`
+              : filter === "todo"
+                ? "Brak faktur do uzupełnienia"
+                : "Brak gotowych faktur"
+          }
+          cta={{ href: "/invoices", label: "Pokaż wszystkie" }}
+          tone="neutral"
+        />
+      ) : (
+        <InvoicesListClient invoices={invoices} categoriesMap={categoriesMap} thumbsMap={thumbsMap} />
+      )}
+    </PageContainer>
   );
 }
 
@@ -179,35 +148,33 @@ function CategoryPills({
   buildHref: (next: { filter?: Filter; cat?: string | null }) => string;
 }) {
   const allActive = current === null;
+  const pill = (active: boolean) =>
+    `text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-semibold transition-colors ${
+      active
+        ? "bg-[#a06f3f] text-white"
+        : "bg-white border border-[#ededea] text-[#6f6c66] active:bg-[#f6f6f5] hover:border-[#d8d7d3]"
+    }`;
   return (
-    <div className="mb-3 -mx-6 px-6 overflow-x-auto">
+    <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 overflow-x-auto">
       <div className="flex gap-1.5 w-max pb-1">
-        <Link
-          href={buildHref({ cat: null })}
-          className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
-            allActive ? "bg-accent text-white" : "bg-white border border-zinc-200 text-zinc-600 active:bg-zinc-50"
-          }`}
-        >
+        <Link href={buildHref({ cat: null })} className={pill(allActive)}>
           Wszystkie kategorie
         </Link>
-        {available.map((c) => {
-          const active = c === current;
-          return (
-            <Link
-              key={c}
-              href={buildHref({ cat: c })}
-              className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-medium ${
-                active
-                  ? "bg-accent text-white"
-                  : "bg-white border border-zinc-200 text-zinc-600 active:bg-zinc-50"
-              }`}
-            >
-              {c}
-            </Link>
-          );
-        })}
+        {available.map((c) => (
+          <Link key={c} href={buildHref({ cat: c })} className={pill(c === current)}>
+            {c}
+          </Link>
+        ))}
       </div>
     </div>
   );
 }
 
+function InvoiceGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 2v20l3-2 3 2 3-2 3 2V2z" />
+      <path d="M8 7h8M8 11h8M8 15h5" />
+    </svg>
+  );
+}

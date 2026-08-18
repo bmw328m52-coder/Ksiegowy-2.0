@@ -1,4 +1,5 @@
 import PageHeader from "@/components/PageHeader";
+import { PageContainer } from "@/components/ui";
 import { listJobs } from "@/lib/dao/jobs";
 import { getActiveTimer, listRecentEntries, sumMinutesByJob } from "@/lib/dao/time_entries";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
@@ -24,19 +25,17 @@ export default async function TimerPage() {
   const activeJob = active ? (jobMap.get(active.job_id) ?? null) : null;
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md mx-auto">
-        <PageHeader title="Licznik czasu" back={{ href: "/" }} />
-        <TimerPanel
-          jobs={jobs}
-          active={active}
-          activeJob={activeJob}
-          recent={recentWithMeta}
-          minutesByJob={minutesByJob}
-          isVatPayer={settings.is_vat_payer}
-          targetRate={settings.default_hourly_rate}
-        />
-      </div>
-    </main>
+    <PageContainer width="narrow">
+      <PageHeader title="Licznik czasu" back={{ href: "/wiecej" }} />
+      <TimerPanel
+        jobs={jobs}
+        active={active}
+        activeJob={activeJob}
+        recent={recentWithMeta}
+        minutesByJob={minutesByJob}
+        isVatPayer={settings.is_vat_payer}
+        targetRate={settings.default_hourly_rate}
+      />
+    </PageContainer>
   );
 }

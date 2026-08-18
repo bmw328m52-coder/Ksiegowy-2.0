@@ -50,7 +50,7 @@ export default function SinkDiagram() {
           width="80"
           height="44"
           fill="#fafaf9"
-          stroke="#282624"
+          stroke="#1f1d1b"
           strokeWidth="1.5"
           rx="3"
         />
@@ -83,7 +83,7 @@ export default function SinkDiagram() {
           width="60"
           height="22"
           fill="#fafaf9"
-          stroke="#282624"
+          stroke="#1f1d1b"
           strokeWidth="1.5"
           rx="2"
         />

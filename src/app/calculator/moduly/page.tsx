@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { PageContainer } from "@/components/ui";
 import ModuleCalculator from "./ModuleCalculator";
 import {
   BOARDS as BOARDS_FALLBACK,
@@ -48,11 +49,10 @@ export default async function ModulyCalculatorPage() {
   const prices = resolvePrices(bindings, priceById);
 
   return (
-    <main className="flex flex-1 flex-col px-6 py-6">
-      <div className="w-full max-w-md sm:max-w-2xl mx-auto">
-        <PageHeader title="Wycena modułowa" back={{ href: "/calculator" }} />
-        <div className="flex items-center justify-between -mt-1 mb-4 gap-3">
-          <p className="text-[12px] text-[#6b6661] flex-1">
+    <PageContainer width="narrow">
+      <PageHeader title="Wycena modułowa" back={{ href: "/calculator" }} />
+      <div className="flex items-center justify-between -mt-1 gap-3">
+          <p className="text-[12px] text-[#6f6c66] flex-1">
             Klikasz moduły → wybierasz materiały → masz cenę.
             Po wstępnym OK, dokładny rozrys robisz w PRO100.
           </p>
@@ -70,7 +70,6 @@ export default async function ModulyCalculatorPage() {
           uchwyty={uchwyty.length > 0 ? uchwyty : UCHWYTY_FALLBACK}
           prices={prices}
         />
-      </div>
-    </main>
+    </PageContainer>
   );
 }

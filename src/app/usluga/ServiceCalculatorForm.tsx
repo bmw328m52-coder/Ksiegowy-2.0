@@ -477,7 +477,7 @@ export default function ServiceCalculatorForm({
           font-size: 16px;
         }
         .input:focus {
-          outline: 2px solid #282624;
+          outline: 2px solid #1f1d1b;
           outline-offset: 1px;
         }
         .input:disabled {

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import { PageContainer } from "@/components/ui";
 import { getBrief } from "@/lib/dao/quote_briefs";
 import { getClient } from "@/lib/dao/clients";
 import BriefForm from "../../BriefForm";
@@ -21,16 +22,14 @@ export default async function EditBriefPage({
   const bound = updateBriefAction.bind(null, id);
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md mx-auto">
-        <PageHeader title="Edycja briefu" back={{ href: `/briefs/${id}` }} />
-        <BriefForm
-          action={bound}
-          clientId={client.id}
-          clientName={client.name}
-          initial={brief}
-        />
-      </div>
-    </main>
+    <PageContainer width="narrow">
+      <PageHeader title="Edycja briefu" back={{ href: `/briefs/${id}` }} />
+      <BriefForm
+        action={bound}
+        clientId={client.id}
+        clientName={client.name}
+        initial={brief}
+      />
+    </PageContainer>
   );
 }

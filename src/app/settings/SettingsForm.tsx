@@ -69,7 +69,7 @@ export default function SettingsForm({
             name="is_vat_payer"
             checked={isVatPayer}
             onChange={(e) => setIsVatPayer(e.target.checked)}
-            className="h-5 w-5 accent-[#282624]"
+            className="h-5 w-5 accent-[#1f1d1b]"
           />
         </label>
 
