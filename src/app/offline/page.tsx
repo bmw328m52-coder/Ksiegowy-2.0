@@ -7,7 +7,7 @@ export default function OfflinePage() {
     <main className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
       <div className="w-full max-w-sm space-y-4">
         <div className="text-4xl">📴</div>
-        <h1 className="text-xl font-semibold text-[#282624]">
+        <h1 className="text-xl font-semibold text-[#1f1d1b]">
           Brak połączenia z internetem
         </h1>
         <p className="text-sm text-zinc-600">
@@ -25,7 +25,7 @@ export default function OfflinePage() {
           </button>
           <Link
             href="/"
-            className="rounded-lg border border-zinc-300 py-2 text-sm font-medium text-[#282624]"
+            className="rounded-lg border border-zinc-300 py-2 text-sm font-medium text-[#1f1d1b]"
           >
             Strona główna
           </Link>
