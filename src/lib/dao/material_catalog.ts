@@ -253,6 +253,36 @@ export async function listMaterialsByJob(jobId: string): Promise<JobMaterial[]> 
   return (data ?? []).map(normalizeJobMat);
 }
 
+/**
+ * Suma kosztu materiałów z wyceny (qty × cena brutto) per zlecenie, dla wielu zleceń
+ * naraz. Używane na karcie klienta, żeby koszty/zysk liczyły się z wyceny (job_materials),
+ * a nie tylko z faktur kosztowych. Pozycje bez ceny liczą się jako 0.
+ */
+export async function getJobMaterialGrossMap(
+  jobIds: string[]
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (jobIds.length === 0) return out;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("job_materials")
+    .select("job_id, qty, unit_price_gross")
+    .in("job_id", jobIds);
+  if (error) throw error;
+  for (const r of (data ?? []) as {
+    job_id: string;
+    qty: string | number;
+    unit_price_gross: string | number | null;
+  }[]) {
+    const qty = Number(r.qty);
+    const price = r.unit_price_gross === null ? 0 : Number(r.unit_price_gross);
+    const g = qty * price;
+    if (!Number.isFinite(g)) continue;
+    out.set(r.job_id, (out.get(r.job_id) ?? 0) + g);
+  }
+  return out;
+}
+
 export async function createJobMaterial(input: JobMaterialInput): Promise<JobMaterial> {
   const userId = await uid();
   const supabase = await createClient();

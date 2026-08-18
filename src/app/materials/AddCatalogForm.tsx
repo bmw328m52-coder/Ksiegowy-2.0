@@ -31,8 +31,36 @@ export default function AddCatalogForm() {
           placeholder="Cena brutto"
           className={inputCls}
         />
-        <input name="category" placeholder="Kategoria" className={inputCls} />
+        <input
+          name="category"
+          placeholder="Kategoria"
+          list="catalog-categories"
+          className={inputCls}
+        />
       </div>
+      <datalist id="catalog-categories">
+        <option value="Płyty laminowane" />
+        <option value="Obrzeża ABS" />
+        <option value="Blaty" />
+        <option value="Łączenia blatu" />
+        <option value="Fronty lakierowane MDF (JUKA)" />
+        <option value="Uchwyty" />
+        <option value="Zawiasy" />
+        <option value="Aventos" />
+        <option value="Siłowniki" />
+        <option value="Tip-on" />
+        <option value="Szuflady" />
+        <option value="Kosze cargo wysokie" />
+        <option value="Cargo narożne" />
+        <option value="Nogi i cokoły" />
+        <option value="Zawieszki" />
+        <option value="LED" />
+        <option value="Profile LED" />
+        <option value="AGD" />
+        <option value="Kołki" />
+        <option value="Silikony" />
+        <option value="Wkręty" />
+      </datalist>
       <select name="supplier" defaultValue="" className={inputCls}>
         <option value="">Dostawca — auto z kategorii</option>
         {SUPPLIERS.map((s) => (

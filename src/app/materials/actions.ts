@@ -8,6 +8,7 @@ import {
   updateCatalogItem,
   deleteCatalogItem,
   syncMercuryCatalog,
+  bulkCreateCatalogItems,
   createJobMaterial,
   updateJobMaterial,
   deleteJobMaterial,
@@ -16,6 +17,7 @@ import {
   type JobMaterial,
 } from "@/lib/dao/material_catalog";
 import { MERCURY_STARTER } from "./mercury_starter";
+import { ZIMEX_STARTER } from "./zimex_starter";
 
 type Result = { error?: string };
 type ImportResult = { error?: string; message?: string };
@@ -94,6 +96,33 @@ export async function syncMercuryCatalogAction(
     if (updated) parts.push(`zaktualizowano ${updated}`);
     if (deleted) parts.push(`usunięto ${deleted} nieaktualnych`);
     return { message: `Synchronizacja cennika Mercury: ${parts.join(", ")}.` };
+  } catch (e) {
+    return { error: humanizeSupabaseError(e) };
+  }
+}
+
+export async function importZimexMaterialsAction(
+  _prev: ImportResult,
+  _formData: FormData
+): Promise<ImportResult> {
+  try {
+    const items: MaterialCatalogInput[] = ZIMEX_STARTER.map((it) => ({
+      name: it.name,
+      unit: it.unit,
+      default_price_gross: it.default_price_gross,
+      category: it.category,
+      supplier: "Zimex",
+      notes: it.notes ?? null,
+    }));
+    const { inserted, skipped } = await bulkCreateCatalogItems(items);
+    revalidatePath("/materials");
+    if (inserted === 0)
+      return { message: `Materiały Zimex już w cenniku — nic nie dodano (${skipped}).` };
+    return {
+      message: `Dodano ${inserted} pozycji Zimex (płyty, blaty, obrzeża)${
+        skipped ? `, pominięto ${skipped} istniejących` : ""
+      }. Ceny sprawdź/popraw w cenniku.`,
+    };
   } catch (e) {
     return { error: humanizeSupabaseError(e) };
   }
