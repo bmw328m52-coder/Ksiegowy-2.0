@@ -14,7 +14,16 @@ type JobOption = {
   client_name: string;
   costs_net: number;
   costs_vat: number;
+  /** Suma pozycji wyceny (job_materials) brutto — koszt materiałów, gdy brak faktur kosztowych. */
+  materials_gross: number;
 };
+
+// Koszt zlecenia do kalkulatora: najpierw realne faktury kosztowe (cost_lines),
+// a gdy ich brak — szacunek z wyceny (job_materials). Spójne z modelem kosztów Artura.
+function jobCostGross(job: JobOption): number {
+  const invoices = job.costs_net + job.costs_vat;
+  return invoices > 0 ? invoices : job.materials_gross;
+}
 
 type BomLine = { id: string; category: string; amountStr: string };
 
@@ -54,9 +63,7 @@ export default function CalculatorForm({
   initialJobId?: string;
 }) {
   const presetJob = initialJobId ? jobs.find((j) => j.id === initialJobId) : undefined;
-  const presetCostsGross = presetJob
-    ? presetJob.costs_net + presetJob.costs_vat
-    : 0;
+  const presetCostsGross = presetJob ? jobCostGross(presetJob) : 0;
 
   const [amountStr, setAmountStr] = useState("");
   const [vatPct, setVatPct] = useState(String(Math.round(defaultVatRate * 100)));
@@ -116,7 +123,7 @@ export default function CalculatorForm({
     if (!id) return;
     const job = jobs.find((j) => j.id === id);
     if (!job) return;
-    const gross = job.costs_net + job.costs_vat;
+    const gross = jobCostGross(job);
     setCostsGrossStr(gross > 0 ? gross.toFixed(2) : "");
   }
 
@@ -343,7 +350,7 @@ export default function CalculatorForm({
             ))}
           </select>
           <p className="text-[11px] text-zinc-500 mt-1">
-            Po wyborze zlecenia pola kosztów uzupełnią się automatycznie sumą faktur kosztowych. Możesz je nadpisać.
+            Po wyborze zlecenia koszty uzupełnią się automatycznie: z faktur kosztowych, a gdy ich brak — z pozycji wyceny. Możesz je nadpisać.
           </p>
         </Field>
         <div className="grid grid-cols-2 gap-3">

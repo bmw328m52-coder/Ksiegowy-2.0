@@ -6,6 +6,7 @@ import { listJobs } from "@/lib/dao/jobs";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { listQuoteTemplates } from "@/lib/dao/quote_templates";
 import { getDashboardData } from "@/lib/dao/dashboard";
+import { getJobMaterialCostMap } from "@/lib/dao/finance";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,9 @@ export default async function CalculatorPage({
     getDashboardData(),
   ]);
 
+  // Suma pozycji wyceny (job_materials) per zlecenie — koszt materiałów, gdy brak faktur kosztowych.
+  const materialCosts = await getJobMaterialCostMap(jobs.map((j) => j.id));
+
   const jobOptions = jobs.map((j) => {
     const c = costSummaries.get(j.id);
     return {
@@ -53,6 +57,7 @@ export default async function CalculatorPage({
       client_name: j.client_name,
       costs_net: c?.net ?? 0,
       costs_vat: c?.vat ?? 0,
+      materials_gross: materialCosts.get(j.id)?.gross ?? 0,
     };
   });
 
