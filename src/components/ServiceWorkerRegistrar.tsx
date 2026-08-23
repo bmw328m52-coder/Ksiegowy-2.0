@@ -13,6 +13,8 @@ export default function ServiceWorkerRegistrar() {
     window.addEventListener("online", up);
     window.addEventListener("offline", down);
 
+    let onVisible: (() => void) | undefined;
+
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       // Gdy nowy service worker przejmie kontrolę (po deployu), przeładuj raz,
       // żeby apka pobrała świeże pliki zamiast trzymać nieaktualny cache.
@@ -24,21 +26,33 @@ export default function ServiceWorkerRegistrar() {
         window.location.reload();
       });
 
+      let registration: ServiceWorkerRegistration | undefined;
       const reg = () =>
         navigator.serviceWorker
           .register("/sw.js", { scope: "/", updateViaCache: "none" })
           .then((r) => {
+            registration = r;
             // Sprawdź od razu, czy jest nowsza wersja workera.
             r.update().catch(() => {});
           })
           .catch(() => {});
       if (document.readyState === "complete") reg();
       else window.addEventListener("load", reg, { once: true });
+
+      // Po powrocie do apki (odblokowanie PWA, przełączenie kart) sprawdź,
+      // czy jest nowszy build — nowy SW podłapie się bez ręcznego czyszczenia.
+      onVisible = () => {
+        if (document.visibilityState === "visible") {
+          registration?.update().catch(() => {});
+        }
+      };
+      document.addEventListener("visibilitychange", onVisible);
     }
 
     return () => {
       window.removeEventListener("online", up);
       window.removeEventListener("offline", down);
+      if (onVisible) document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
