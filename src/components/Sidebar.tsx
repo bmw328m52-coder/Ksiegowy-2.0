@@ -56,7 +56,7 @@ export default function Sidebar() {
         className="px-3 pb-4 block rounded-lg hover:bg-[#f0f0ee] transition-colors"
       >
         <div className="text-[18px] font-bold tracking-[4px] text-[#1f1d1b]">LUVIANO</div>
-        <div className="text-[10px] tracking-[2px] uppercase text-[#8d8a85] mt-1">Manager Firmy</div>
+        <div className="text-[10px] tracking-[2px] uppercase text-[#8d8a85] mt-1">app</div>
       </Link>
 
       <Link

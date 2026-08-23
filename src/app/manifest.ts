@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Manager Firmy — LUVIANO",
-    short_name: "Manager Firmy",
+    name: "LUVIANO app",
+    short_name: "LUVIANO",
     description:
       "Centrum zarządzania firmą LUVIANO: faktury, klienci, koszty, kalkulatory podatków, terminy VAT.",
     start_url: "/",

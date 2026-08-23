@@ -21,7 +21,7 @@ export default async function LoginPage({
           className="w-full h-auto max-w-[220px]"
         />
         <div className="text-center">
-          <h1 className="text-xl font-semibold">Manager Firmy</h1>
+          <h1 className="text-xl font-semibold">LUVIANO app</h1>
           <p className="text-sm text-zinc-500">Zaloguj się, aby kontynuować.</p>
         </div>
         {error === "link" && (

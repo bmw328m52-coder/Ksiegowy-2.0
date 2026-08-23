@@ -19,24 +19,24 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL("https://meble-app-three.vercel.app"),
   title: {
-    default: "Manager Firmy — LUVIANO",
-    template: "%s | Manager Firmy",
+    default: "LUVIANO app",
+    template: "%s | LUVIANO app",
   },
   description:
     "Centrum zarządzania firmą LUVIANO: faktury, klienci, koszty, kalkulatory podatków i terminy VAT.",
-  applicationName: "Manager Firmy",
+  applicationName: "LUVIANO app",
   openGraph: {
-    title: "Manager Firmy — LUVIANO",
+    title: "LUVIANO app",
     description:
       "Centrum zarządzania firmą LUVIANO: faktury, klienci, koszty, kalkulatory podatków i terminy VAT.",
-    siteName: "Manager Firmy",
+    siteName: "LUVIANO app",
     locale: "pl_PL",
     type: "website",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "LUVIANO" }],
   },
   appleWebApp: {
     capable: true,
-    title: "Manager Firmy",
+    title: "LUVIANO app",
     statusBarStyle: "default",
   },
   formatDetection: { telephone: false },
