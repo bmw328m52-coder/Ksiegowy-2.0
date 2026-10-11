@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { ScanData } from "@/lib/dao/room_scans.types";
-import { convexHull, openingSpans, wallAxis, wallPieces } from "@/lib/scan3d";
+import { openingSpans, planModel, wallAxis, wallPieces } from "@/lib/scan2d";
 import { wallLetter } from "./RoomScanPlan";
 
 const WALL = 0xf2f1ee;
@@ -93,7 +93,7 @@ export default function RoomScan3D({ data }: { data: ScanData }) {
       [w.x1, w.y1],
       [w.x2, w.y2],
     ]);
-    const hull = convexHull(corners);
+    const hull = planModel(data).floor;
     if (hull.length >= 3) {
       const shape = new THREE.Shape(hull.map(([x, y]) => new THREE.Vector2(x / 1000, -y / 1000)));
       const floor = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshStandardMaterial({ color: FLOOR, roughness: 1 }));

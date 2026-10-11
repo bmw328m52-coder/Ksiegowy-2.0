@@ -4,6 +4,7 @@ import { SCAN_OBJECT_LABELS, SCAN_OPENING_LABELS } from "@/lib/dao/room_scans.ty
 import { fmtDate } from "@/lib/format";
 import { wallLetter } from "./RoomScanPlan";
 import RoomScanViews from "./RoomScanViews";
+import { planModel, planStats } from "@/lib/scan2d";
 import { deleteScanAction } from "./scanActions";
 
 const mm = (v: number) => `${Math.round(v)} mm`;
@@ -16,6 +17,8 @@ export default function RoomScanSection({ jobId, scans }: { jobId: string; scans
       {scans.map((scan) => {
         const { walls, openings, objects } = scan.data;
         const wallIndex = new Map(walls.map((w, i) => [w.id, i]));
+        const stats = planStats(planModel(scan.data));
+        const n2 = (v: number) => v.toFixed(2).replace(".", ",");
         return (
           <section key={scan.id} className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-3">
             <div className="flex items-baseline justify-between gap-2">
@@ -23,7 +26,21 @@ export default function RoomScanSection({ jobId, scans }: { jobId: string; scans
               <span className="text-[11px] text-zinc-500">{fmtDate(scan.created_at)}</span>
             </div>
 
-            <RoomScanViews data={scan.data} />
+            <RoomScanViews id={scan.id} data={scan.data} name={scan.name} />
+
+            <div className="grid grid-cols-4 gap-2 rounded-lg bg-[#f6f5f2] p-2 text-center">
+              {[
+                [`${n2(stats.areaM2)} m²`, "Podłoga"],
+                [`${n2(stats.wallAreaM2)} m²`, "Ściany"],
+                [`${n2(stats.perimeterM)} m`, "Obwód"],
+                [`${stats.volumeM3.toFixed(1).replace(".", ",")} m³`, "Kubatura"],
+              ].map(([v, l]) => (
+                <div key={l}>
+                  <div className="text-sm font-semibold tabular-nums">{v}</div>
+                  <div className="text-[10px] text-zinc-500">{l}</div>
+                </div>
+              ))}
+            </div>
 
             <p className="text-[11px] text-zinc-500">
               Dokładność skanu ±2–5 cm — wymiary produkcyjne potwierdź dalmierzem.

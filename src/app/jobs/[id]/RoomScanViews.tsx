@@ -11,7 +11,7 @@ const RoomScan3D = dynamic(() => import("./RoomScan3D"), {
   loading: () => <div className="h-[420px] w-full animate-pulse rounded-lg bg-[#f4f2ee]" />,
 });
 
-export default function RoomScanViews({ data }: { data: ScanData }) {
+export default function RoomScanViews({ id, data, name }: { id: string; data: ScanData; name: string }) {
   const [mode, setMode] = useState<"2d" | "3d">("2d");
 
   return (
@@ -28,7 +28,7 @@ export default function RoomScanViews({ data }: { data: ScanData }) {
           </button>
         ))}
       </div>
-      {mode === "2d" ? <RoomScanPlan data={data} /> : <RoomScan3D data={data} />}
+      {mode === "2d" ? <RoomScanPlan data={data} name={name} uid={id} /> : <RoomScan3D data={data} />}
     </div>
   );
 }
