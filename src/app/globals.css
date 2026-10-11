@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  /* Motyw „Śnieżna biel" — czysta jasna biel, karty białe z lekkim cieniem, złoto jako akcent */
-  --background: #ffffff;
+  /* Motyw „Jasna pracownia" (jak MagicPlan): jasnoszare tło, białe karty, złoto jako jedyny akcent */
+  --background: #f2f2f1;
   --foreground: #1f1d1b;
   --surface: #ffffff;
   --surface-2: #f7f7f6;

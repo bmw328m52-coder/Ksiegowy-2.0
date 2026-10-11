@@ -16,7 +16,7 @@ const TONE: Record<NonNullable<CardProps["tone"]>, string> = {
   default: "border-[#ededea] bg-white",
   accent: "border-[#e2c79c] bg-[linear-gradient(160deg,#fbf1dd_0%,#fff8e9_100%)]",
   warn: "border-[#ecccc0] bg-[#fdf4f1]",
-  muted: "border-[#ededea] bg-[#f7f7f6]",
+  muted: "border-[#ededea] bg-[#fafaf9]",
 };
 
 const BASE =

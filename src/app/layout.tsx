@@ -46,7 +46,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#f2f2f1",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -59,13 +59,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pl" translate="no" className={`notranslate h-full antialiased ${inter.variable}`}>
-      <body className="min-h-full text-[#1f1d1b] pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 bg-white">
+      <body className="min-h-full text-[#1f1d1b] pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 bg-[#f2f2f1]">
         <PrivateModeProvider>
           <div className="flex flex-col min-h-full md:max-w-[1500px] md:mx-auto md:p-[18px] md:grid md:gap-[18px] md:items-start md:[grid-template-columns:240px_minmax(0,1fr)] lg:[grid-template-columns:240px_minmax(0,1fr)_300px]">
             <Suspense fallback={null}>
               <Sidebar />
             </Suspense>
-            <div className="flex flex-col min-w-0 md:rounded-[18px] md:bg-white md:border md:border-[#ededea] md:overflow-hidden">
+            <div className="flex flex-col min-w-0">
               {children}
             </div>
             <RightPanel />
