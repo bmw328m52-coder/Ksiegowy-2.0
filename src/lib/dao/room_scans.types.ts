@@ -10,6 +10,8 @@ export type ScanWall = {
   y2: number;
   length_mm: number;
   height_mm: number;
+  /** Wymiar potwierdzony ręcznie / dalmierzem na iPadzie. */
+  measured?: boolean;
 };
 
 export type ScanOpeningKind = "door" | "window" | "opening";
@@ -50,6 +52,8 @@ export type ScanData = {
   objects: ScanObject[];
   /** Wysokość pomieszczenia (najwyższa ściana), mm. */
   room_height_mm?: number;
+  /** Ściany tworzą zamknięty obrys (kolejność = obieg pomieszczenia). */
+  closed?: boolean;
 };
 
 export type RoomScan = {

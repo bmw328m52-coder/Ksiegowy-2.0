@@ -7,40 +7,44 @@ import simd
 
 struct ScanWall: Encodable {
     let id: String
-    let x1, y1, x2, y2: Double
-    let lengthMm: Double
-    let heightMm: Double
+    var x1, y1, x2, y2: Double
+    var lengthMm: Double
+    var heightMm: Double
+    /// Wymiar potwierdzony ręcznie / dalmierzem.
+    var measured: Bool?
 }
 
 struct ScanOpening: Encodable {
     let id: String
-    let kind: String
-    let wallId: String?
-    let x1, y1, x2, y2: Double
-    let widthMm: Double
-    let heightMm: Double
-    let sillMm: Double
+    var kind: String
+    var wallId: String?
+    var x1, y1, x2, y2: Double
+    var widthMm: Double
+    var heightMm: Double
+    var sillMm: Double
 }
 
 struct ScanObject: Encodable {
     let id: String
-    let category: String
-    let cx, cy: Double
-    let widthMm: Double
-    let depthMm: Double
-    let heightMm: Double
+    var category: String
+    var cx, cy: Double
+    var widthMm: Double
+    var depthMm: Double
+    var heightMm: Double
     /// Dolna krawędź od podłogi (szafki wiszące > 0).
-    let elevationMm: Double
-    let rotationDeg: Double
+    var elevationMm: Double
+    var rotationDeg: Double
 }
 
 struct ScanPayload: Encodable {
     var version = 1
-    let scannedAt: String
-    let walls: [ScanWall]
-    let openings: [ScanOpening]
-    let objects: [ScanObject]
-    let roomHeightMm: Double?
+    var scannedAt: String
+    var walls: [ScanWall]
+    var openings: [ScanOpening]
+    var objects: [ScanObject]
+    var roomHeightMm: Double?
+    /// Ściany tworzą zamknięty obrys (kolejność = obieg pomieszczenia).
+    var closed: Bool = false
 }
 
 /// CapturedRoom (metry, 3D) → rzut 2D w mm. Rzut obracamy tak, żeby najdłuższa
@@ -116,12 +120,14 @@ enum ScanExport {
             )
         }
 
+        let chain = PlanGeom.normalize(walls)
         return ScanPayload(
             scannedAt: ISO8601DateFormatter().string(from: Date()),
-            walls: walls,
+            walls: chain.walls,
             openings: openings,
             objects: objects,
-            roomHeightMm: room.walls.map { Double($0.dimensions.y) * 1000 }.max().map(r)
+            roomHeightMm: room.walls.map { Double($0.dimensions.y) * 1000 }.max().map(r),
+            closed: chain.closed
         )
     }
 
