@@ -45,6 +45,8 @@ struct ScanPayload: Encodable {
     var roomHeightMm: Double?
     /// Ściany tworzą zamknięty obrys (kolejność = obieg pomieszczenia).
     var closed: Bool = false
+    /// Obrys podłogi wyliczony przez RoomPlan [[x, y]] (mm) — także gdy ściany się nie domykają.
+    var floor: [[Double]]?
 }
 
 /// CapturedRoom (metry, 3D) → rzut 2D w mm. Rzut obracamy tak, żeby najdłuższa
@@ -76,6 +78,22 @@ enum ScanExport {
         var openingSegs = openingSurfaces.map { ($0.0, $0.1, segment($0.0)) }
         var objectCenters = room.objects.map { rot(center($0.transform)) * 1000 }
 
+        // Obrys podłogi z RoomPlan (największa podłoga): narożniki w układzie lokalnym powierzchni.
+        func polyArea(_ p: [SIMD2<Double>]) -> Double {
+            guard p.count >= 3 else { return 0 }
+            var a = 0.0
+            for i in p.indices { let q = p[(i + 1) % p.count]; a += p[i].x * q.y - q.x * p[i].y }
+            return abs(a) / 2
+        }
+        var floorPts: [SIMD2<Double>] = room.floors
+            .map { f in
+                f.polygonCorners.map { c -> SIMD2<Double> in
+                    let w = f.transform * SIMD4<Float>(c.x, c.y, c.z, 1)
+                    return rot(SIMD2(Double(w.x), Double(w.z))) * 1000
+                }
+            }
+            .max { polyArea($0) < polyArea($1) } ?? []
+
         // Przesunięcie do (0,0).
         let allX = wallSegs.flatMap { [$0.1.p1.x, $0.1.p2.x] } + objectCenters.map(\.x)
         let allY = wallSegs.flatMap { [$0.1.p1.y, $0.1.p2.y] } + objectCenters.map(\.y)
@@ -83,6 +101,7 @@ enum ScanExport {
         wallSegs = wallSegs.map { ($0.0, Seg(p1: $0.1.p1 - shift, p2: $0.1.p2 - shift)) }
         openingSegs = openingSegs.map { ($0.0, $0.1, Seg(p1: $0.2.p1 - shift, p2: $0.2.p2 - shift)) }
         objectCenters = objectCenters.map { $0 - shift }
+        floorPts = floorPts.map { $0 - shift }
 
         let walls = wallSegs.map { w, s in
             ScanWall(
@@ -127,7 +146,8 @@ enum ScanExport {
             openings: openings,
             objects: objects,
             roomHeightMm: room.walls.map { Double($0.dimensions.y) * 1000 }.max().map(r),
-            closed: chain.closed
+            closed: chain.closed,
+            floor: floorPts.count >= 3 ? floorPts.map { [r($0.x), r($0.y)] } : nil
         )
     }
 

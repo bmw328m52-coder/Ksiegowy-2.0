@@ -54,6 +54,8 @@ export type ScanData = {
   room_height_mm?: number;
   /** Ściany tworzą zamknięty obrys (kolejność = obieg pomieszczenia). */
   closed?: boolean;
+  /** Obrys podłogi wyliczony przez RoomPlan [x, y] (mm) — także gdy ściany się nie domykają. */
+  floor?: [number, number][];
 };
 
 export type RoomScan = {

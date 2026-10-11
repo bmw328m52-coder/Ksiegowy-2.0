@@ -150,6 +150,7 @@ enum PlanGeom {
         scan.walls[i].setB(w.b + d)
         var cur = i
         var movedWalls: [String] = []
+        var movedCorners: [V2] = [w.b]
 
         for _ in 0..<scan.walls.count {
             guard let nxt = scan.walls.indices.first(where: { $0 != cur && $0 != i && dist(scan.walls[$0].a, corner) < 1 }) else { break }
@@ -158,11 +159,20 @@ enum PlanGeom {
             let parallel = abs(cross(nw.dir, u)) < 0.26
             if parallel || dist(nw.b, start) < 1 { break }
             corner = nw.b
+            movedCorners.append(nw.b)
             scan.walls[nxt].setB(nw.b + d)
             movedWalls.append(nw.id)
             cur = nxt
         }
 
+        // Obrys RoomPlan idzie za przesuniętymi narożnikami.
+        if var fl = scan.floor {
+            for k in fl.indices where fl[k].count >= 2 {
+                let p = V2(fl[k][0], fl[k][1])
+                if movedCorners.contains(where: { dist($0, p) < 300 }) { fl[k] = [p.x + d.x, p.y + d.y] }
+            }
+            scan.floor = fl
+        }
         for k in scan.openings.indices where movedWalls.contains(scan.openings[k].wallId ?? "") {
             scan.openings[k].x1 += d.x; scan.openings[k].y1 += d.y
             scan.openings[k].x2 += d.x; scan.openings[k].y2 += d.y
@@ -245,6 +255,8 @@ struct PlanModel {
             }
         }
         let corners = ws.flatMap { [$0.a, $0.b] }
+        let rpFloor = (scan.floor ?? []).compactMap { $0.count >= 2 ? V2($0[0], $0[1]) : nil }
+        if !isClosed && rpFloor.count >= 3 { loop = rpFloor; openGap = nil }
         let floorPoly = loop.count >= 3 ? loop : PlanGeom.convexHull(corners)
         let pts = floorPoly.isEmpty ? corners : floorPoly
         let c = pts.isEmpty ? V2(0, 0) : pts.reduce(V2(0, 0), +) / Double(pts.count)

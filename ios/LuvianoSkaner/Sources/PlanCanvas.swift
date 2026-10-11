@@ -149,6 +149,12 @@ enum PlanDraw {
             }
         }
 
+        // Obrys z RoomPlan tam, gdzie brakuje ścian (pod ścianami — widać tylko w lukach).
+        if !m.closed && m.gap == nil && m.floor.count >= 3 {
+            ctx.stroke(Draft.poly(m.floor.map(L.pt)), with: .color(Color(white: 0.5)),
+                       style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+        }
+
         // Szary pas zewnętrzny + czarna ściana (narożniki na ucios).
         for i in m.walls.indices {
             let (o1a, o1b) = m.outer(i, T)
