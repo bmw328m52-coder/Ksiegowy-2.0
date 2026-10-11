@@ -137,9 +137,20 @@ struct ScanResultView: View {
         let windows = scan.openings.filter { $0.kind == "window" }.count
         let doors = scan.openings.filter { $0.kind == "door" }.count
         return VStack(alignment: .leading, spacing: 18) {
-            TextField("Nazwa pomieszczenia", text: $name)
-                .font(.title3.weight(.semibold))
-                .textFieldStyle(.roundedBorder)
+            HStack {
+                TextField("Nazwa pomieszczenia", text: $name)
+                    .font(.title3.weight(.semibold))
+                    .textFieldStyle(.roundedBorder)
+                Menu {
+                    ForEach(["Kuchnia", "Kuchnia z jadalnią", "Salon z aneksem", "Jadalnia", "Spiżarnia",
+                             "Pralnia", "Garderoba", "Łazienka", "Przedpokój", "Sypialnia"], id: \.self) { t in
+                        Button(t) { name = t }
+                    }
+                } label: {
+                    Image(systemName: "list.bullet").padding(10)
+                }
+                .buttonStyle(.bordered)
+            }
 
             HStack(spacing: 0) {
                 stat(String(format: "%.2f m²", m.areaM2), "Podłoga")
@@ -160,6 +171,7 @@ struct ScanResultView: View {
                 .padding(14)
                 .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
             }
+            .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text("Ściany — „Wymiar” wpisuje pomiar z dalmierza")

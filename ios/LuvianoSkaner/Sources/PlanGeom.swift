@@ -199,6 +199,8 @@ struct PlanModel {
     /// Obrys podłogi (zamknięty łańcuch ścian, w innym razie otoczka wypukła).
     let floor: [V2]
     let closed: Bool
+    /// Domknięcie otwartego obrysu (rysowane linią przerywaną).
+    let gap: (V2, V2)?
     let center: V2
     let roomHeight: Double
 
@@ -218,11 +220,36 @@ struct PlanModel {
             if idx != 0 { loop = [] }
         }
         let isClosed = loop.count >= 3
+        // Obrys otwarty (przejście do innego pomieszczenia): bierzemy łańcuch ścian
+        // od pierwszej bez poprzedniczki i domykamy go linią „otwarcia".
+        var openGap: (V2, V2)?
+        if !isClosed, ws.count >= 2 {
+            let start = ws.indices.first { i in
+                !ws.indices.contains { j in j != i && PlanGeom.dist(ws[j].b, ws[i].a) < 1 }
+            } ?? 0
+            var idx = start
+            var visited = Set<Int>()
+            var pts: [V2] = []
+            while !visited.contains(idx) {
+                visited.insert(idx)
+                pts.append(ws[idx].a)
+                guard let n = ws.indices.first(where: { $0 != idx && PlanGeom.dist(ws[$0].a, ws[idx].b) < 1 }) else {
+                    pts.append(ws[idx].b)
+                    break
+                }
+                idx = n
+            }
+            if pts.count >= 3 {
+                loop = pts
+                openGap = (pts[pts.count - 1], pts[0])
+            }
+        }
         let corners = ws.flatMap { [$0.a, $0.b] }
-        let floorPoly = isClosed ? loop : PlanGeom.convexHull(corners)
+        let floorPoly = loop.count >= 3 ? loop : PlanGeom.convexHull(corners)
         let pts = floorPoly.isEmpty ? corners : floorPoly
         let c = pts.isEmpty ? V2(0, 0) : pts.reduce(V2(0, 0), +) / Double(pts.count)
         closed = isClosed
+        gap = openGap
         floor = floorPoly
         center = c
         roomHeight = scan.roomHeightMm ?? ws.map(\.heightMm).max() ?? 2500
@@ -232,7 +259,7 @@ struct PlanModel {
             let n = V2(-dir.y, dir.x)
             let mid = (w.a + w.b) / 2
             let inward: V2
-            if isClosed {
+            if floorPoly.count >= 3 {
                 inward = PlanGeom.pointInPolygon(mid + n * 40, floorPoly) ? n : -n
             } else {
                 inward = PlanGeom.dot(c - mid, n) >= 0 ? n : -n

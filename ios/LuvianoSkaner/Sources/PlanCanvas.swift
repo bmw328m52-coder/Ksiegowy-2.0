@@ -182,7 +182,7 @@ enum PlanDraw {
                         let f = Double(k) / 24 * .pi / 2
                         arc.addLine(to: L.pt(hinge + g.inN * (w * cos(f)) + g.dir * (w * sin(f))))
                     }
-                    ctx.stroke(arc, with: .color(Color(white: 0.45)), style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
+                    ctx.stroke(arc, with: ink, lineWidth: 0.9)
                     ctx.stroke(Draft.line(L.pt(g.at(s.t0, 0)), L.pt(g.at(s.t0, T))), with: ink, lineWidth: 1)
                     ctx.stroke(Draft.line(L.pt(g.at(s.t1, 0)), L.pt(g.at(s.t1, T))), with: ink, lineWidth: 1)
                 default:
@@ -191,17 +191,20 @@ enum PlanDraw {
             }
         }
 
-        // Sprzęty / meble z RoomPlan.
+        // Sprzęty / meble jako symbole architektoniczne.
         for o in m.objects {
             var t = ctx
-            t.translateBy(x: L.pt(V2(o.cx, o.cy)).x, y: L.pt(V2(o.cx, o.cy)).y)
+            let c = L.pt(V2(o.cx, o.cy))
+            t.translateBy(x: c.x, y: c.y)
             t.rotate(by: .degrees(o.rotationDeg))
             let r = CGRect(x: -o.widthMm * L.scale / 2, y: -o.depthMm * L.scale / 2, width: o.widthMm * L.scale, height: o.depthMm * L.scale)
-            t.fill(Path(roundedRect: r, cornerRadius: 2), with: .color(Color(red: 0.96, green: 0.93, blue: 0.89)))
-            t.stroke(Path(roundedRect: r, cornerRadius: 2), with: .color(Color(red: 0.63, green: 0.44, blue: 0.25).opacity(0.8)), lineWidth: 1)
-            if r.width > 44 {
-                t.draw(Text(scanObjectLabels[o.category] ?? o.category).font(.system(size: 10)).foregroundColor(Color(white: 0.35)), at: .zero)
-            }
+            Symbols.draw(t, o.category, r, widthMm: o.widthMm)
+        }
+
+        // Otwarte przejście — domknięcie obrysu linią przerywaną.
+        if let gap = m.gap {
+            ctx.stroke(Draft.line(L.pt(gap.0), L.pt(gap.1)), with: .color(Color(white: 0.5)),
+                       style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
         }
 
         // Wymiary: odcinki przy otworach + długość wewnętrzna ściany.
@@ -213,7 +216,7 @@ enum PlanDraw {
                 var cuts = [0.0]
                 for s in g.spans { cuts += [s.t0, s.t1] }
                 cuts.append(g.len)
-                for k in 0..<(cuts.count - 1) where cuts[k + 1] - cuts[k] > 5 {
+                for k in 0..<(cuts.count - 1) where (cuts[k + 1] - cuts[k]) * L.scale > 30 {
                     Draft.dimension(ctx, L.pt(g.at(cuts[k], T * 1.9)) + out * -base, L.pt(g.at(cuts[k + 1], T * 1.9)) + out * -base,
                                     out: out, off: base + 18, text: "\(Int((cuts[k + 1] - cuts[k]).rounded()))",
                                     color: PlanStyle.dim, bg: PlanStyle.canvas)
@@ -225,10 +228,11 @@ enum PlanDraw {
                             text: "\(Int(g.len.rounded()))", color: locked ? PlanStyle.measured : PlanStyle.wall,
                             locked: locked, bg: PlanStyle.canvas)
 
-            // Litera ściany wewnątrz pomieszczenia.
+            // Litera tylko przy zaznaczonej ścianie (jak w MagicPlan — czysty rzut).
+            guard selected == i else { continue }
             let mid = L.pt(g.at(g.len / 2)) + CGVector(g.inN) * 20
             let badge = Path(ellipseIn: CGRect(x: mid.x - 10, y: mid.y - 10, width: 20, height: 20))
-            ctx.fill(badge, with: .color(selected == i ? PlanStyle.selected : PlanStyle.wall))
+            ctx.fill(badge, with: .color(PlanStyle.selected))
             ctx.draw(Text(wallLetter(i)).font(.system(size: 11, weight: .bold)).foregroundColor(.white), at: mid)
         }
 
@@ -261,4 +265,68 @@ enum PlanDraw {
         let x = a.x + t * dx - p.x, y = a.y + t * dy - p.y
         return (x * x + y * y).squareRoot()
     }
+}
+
+/// Symbole mebli/sprzętów w lokalnym układzie (środek = 0,0; szerokość wzdłuż x).
+enum Symbols {
+    static func draw(_ ctx: GraphicsContext, _ category: String, _ r: CGRect, widthMm: Double) {
+        let ink = GraphicsContext.Shading.color(PlanStyle.wall)
+        let thin = 0.8
+        let outline = Path(r)
+        ctx.fill(outline, with: .color(.white))
+        ctx.stroke(outline, with: ink, lineWidth: 1)
+        let s = min(r.width, r.height)
+
+        switch category {
+        case "storage":
+            // Szafka: przekątna + linia frontu.
+            ctx.stroke(Draft.line(CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY)), with: ink, lineWidth: thin)
+            ctx.stroke(Draft.line(CGPoint(x: r.minX, y: r.maxY - s * 0.12), CGPoint(x: r.maxX, y: r.maxY - s * 0.12)), with: ink, lineWidth: thin)
+        case "refrigerator":
+            ctx.stroke(Path(r.insetBy(dx: s * 0.08, dy: s * 0.08)), with: ink, lineWidth: thin)
+            ctx.draw(Text("LOD").font(.system(size: max(7, min(11, s * 0.22)), weight: .semibold)).foregroundColor(PlanStyle.wall), at: .zero)
+        case "stove":
+            let rr = s * 0.17
+            for (dx, dy) in [(-1.0, -1.0), (1, -1), (-1, 1), (1, 1)] {
+                let c = CGPoint(x: dx * r.width / 4, y: dy * r.height / 4)
+                ctx.stroke(Path(ellipseIn: CGRect(x: c.x - rr, y: c.y - rr, width: rr * 2, height: rr * 2)), with: ink, lineWidth: thin)
+            }
+        case "oven":
+            ctx.stroke(Path(r.insetBy(dx: s * 0.12, dy: s * 0.12)), with: ink, lineWidth: thin)
+        case "dishwasher":
+            ctx.stroke(Path(r.insetBy(dx: s * 0.1, dy: s * 0.1)), with: ink, lineWidth: thin)
+            ctx.draw(Text("ZM").font(.system(size: max(7, min(10, s * 0.22)), weight: .semibold)).foregroundColor(PlanStyle.wall), at: .zero)
+        case "sink":
+            let basin = r.insetBy(dx: r.width * 0.14, dy: r.height * 0.18)
+            ctx.stroke(Path(roundedRect: basin, cornerRadius: s * 0.12), with: ink, lineWidth: thin)
+            ctx.stroke(Path(ellipseIn: CGRect(x: -2.5, y: -2.5, width: 5, height: 5)), with: ink, lineWidth: thin)
+        case "washerDryer":
+            let rr = s * 0.32
+            ctx.stroke(Path(ellipseIn: CGRect(x: -rr, y: -rr, width: rr * 2, height: rr * 2)), with: ink, lineWidth: thin)
+        case "sofa":
+            let inner = CGRect(x: r.minX + r.width * 0.1, y: r.minY + r.height * 0.28, width: r.width * 0.8, height: r.height * 0.72)
+            ctx.stroke(Path(inner), with: ink, lineWidth: thin)
+            let seats = max(1, Int((widthMm / 700).rounded()))
+            for k in stride(from: 1, to: seats, by: 1) {
+                let x = inner.minX + inner.width * Double(k) / Double(seats)
+                ctx.stroke(Draft.line(CGPoint(x: x, y: inner.minY), CGPoint(x: x, y: inner.maxY)), with: ink, lineWidth: thin)
+            }
+        case "bed":
+            let pw = r.width * 0.38, ph = r.height * 0.14
+            for dx in [-1.0, 1.0] {
+                let p = CGRect(x: dx * r.width / 4 - pw / 2, y: r.minY + r.height * 0.05, width: pw, height: ph)
+                ctx.stroke(Path(roundedRect: p, cornerRadius: 3), with: ink, lineWidth: thin)
+            }
+            ctx.stroke(Draft.line(CGPoint(x: r.minX, y: r.minY + r.height * 0.25), CGPoint(x: r.maxX, y: r.minY + r.height * 0.25)), with: ink, lineWidth: thin)
+        case "chair":
+            ctx.stroke(Draft.line(CGPoint(x: r.minX, y: r.minY + r.height * 0.2), CGPoint(x: r.maxX, y: r.minY + r.height * 0.2)), with: ink, lineWidth: thin)
+        case "toilet":
+            ctx.stroke(Path(ellipseIn: r.insetBy(dx: r.width * 0.15, dy: r.height * 0.1).offsetBy(dx: 0, dy: r.height * 0.1)), with: ink, lineWidth: thin)
+        case "bathtub":
+            ctx.stroke(Path(roundedRect: r.insetBy(dx: s * 0.12, dy: s * 0.12), cornerRadius: s * 0.2), with: ink, lineWidth: thin)
+        default:
+            break
+        }
+    }
+
 }
