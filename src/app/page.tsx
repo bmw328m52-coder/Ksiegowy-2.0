@@ -119,7 +119,7 @@ export default async function Home() {
   agendaItems.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
   const agenda = agendaItems.slice(0, 5);
 
-  const vatToPay = dash?.vat?.vatToPay ?? null;
+  const vatInfo = dash?.vat ?? null;
 
   return (
     <PageContainer width="wide">
@@ -308,16 +308,27 @@ export default async function Home() {
               money
               href="/finanse/rentownosc"
             />
-            {vatToPay !== null && (
+            {vatInfo && (
               <div className="col-span-2 lg:col-span-1">
-                <StatCard
-                  label={`VAT do zapłaty · ${dash.vat!.label}`}
-                  value={fmtPLN(vatToPay)}
-                  hint={`do ${fmtDate(dash.vat!.deadline)}`}
-                  tone="accent"
-                  money
-                  href="/finanse"
-                />
+                {vatInfo.vatToReclaim > 0 ? (
+                  <StatCard
+                    label={`VAT do odzyskania · ${vatInfo.label}`}
+                    value={fmtPLN(vatInfo.vatToReclaim)}
+                    hint={`JPK do ${fmtDate(vatInfo.deadline)}`}
+                    tone="ok"
+                    money
+                    href="/finanse"
+                  />
+                ) : (
+                  <StatCard
+                    label={`VAT do zapłaty · ${vatInfo.label}`}
+                    value={fmtPLN(vatInfo.vatToPay)}
+                    hint={`do ${fmtDate(vatInfo.deadline)}`}
+                    tone="accent"
+                    money
+                    href="/finanse"
+                  />
+                )}
               </div>
             )}
           </div>

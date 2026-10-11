@@ -24,6 +24,12 @@ export default async function SettingsPage({
         is_vat_payer: current.is_vat_payer,
         default_vat_rate: Number(current.default_vat_rate),
         zus_monthly: current.zus_monthly == null ? null : Number(current.zus_monthly),
+        zus_start_date: current.zus_start_date ?? null,
+        zus_ulga: current.zus_ulga == null ? null : Number(current.zus_ulga),
+        zus_maly: current.zus_maly == null ? null : Number(current.zus_maly),
+        zus_pelny: current.zus_pelny == null ? null : Number(current.zus_pelny),
+        health_insurance_min:
+          current.health_insurance_min == null ? null : Number(current.health_insurance_min),
         default_hourly_rate:
           current.default_hourly_rate == null ? null : Number(current.default_hourly_rate),
       }
@@ -35,6 +41,11 @@ export default async function SettingsPage({
         is_vat_payer: DEFAULT_SETTINGS.is_vat_payer,
         default_vat_rate: DEFAULT_SETTINGS.default_vat_rate,
         zus_monthly: DEFAULT_SETTINGS.zus_monthly,
+        zus_start_date: DEFAULT_SETTINGS.zus_start_date,
+        zus_ulga: DEFAULT_SETTINGS.zus_ulga,
+        zus_maly: DEFAULT_SETTINGS.zus_maly,
+        zus_pelny: DEFAULT_SETTINGS.zus_pelny,
+        health_insurance_min: DEFAULT_SETTINGS.health_insurance_min,
         default_hourly_rate: DEFAULT_SETTINGS.default_hourly_rate,
       };
 

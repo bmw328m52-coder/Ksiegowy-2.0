@@ -28,6 +28,12 @@ export default async function RaportyPage() {
           </header>
           <div className="px-4 pb-4 space-y-2">
             <ReportRow label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
+            {d.monthRevenueSplit && (
+              <>
+                <ReportRow label="— z faktur (podatkowy)" value={fmtPLN(d.monthRevenueSplit.invoicedNet)} sub />
+                <ReportRow label="— bez faktury (symulacja)" value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)} sub />
+              </>
+            )}
             <ReportRow label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
             <div className="h-px bg-[#eeeeed] my-1" />
             <ReportRow
@@ -39,10 +45,21 @@ export default async function RaportyPage() {
             <div className="h-px bg-[#eeeeed] my-1" />
             <ReportRow label="Należności (do zapłaty przez klientów)" value={fmtPLN(d.pendingRevenueGross)} sub />
             <ReportRow label="Zaliczki otwarte" value={fmtPLN(d.openDepositsTotal)} sub />
-            {d.vat && (
-              <ReportRow label={`VAT do zapłaty (${d.vat.label})`} value={fmtPLN(d.vat.vatToPay)} sub />
-            )}
+            {d.vat &&
+              (d.vat.vatToReclaim > 0 ? (
+                <ReportRow
+                  label={`VAT do odzyskania (${d.vat.label})`}
+                  value={fmtPLN(d.vat.vatToReclaim)}
+                  tone="gold"
+                  sub
+                />
+              ) : (
+                <ReportRow label={`VAT do zapłaty (${d.vat.label})`} value={fmtPLN(d.vat.vatToPay)} sub />
+              ))}
             <ReportRow label="Zaliczka PIT (miesiąc)" value={fmtPLN(d.pit.pitMonth)} sub />
+            <p className="text-[11px] text-[#8d8a85] pt-1 leading-relaxed">
+              PIT, VAT i ZUS liczone tylko z przychodu z faktur. „Bez faktury" to symulacja — poza podatkiem.
+            </p>
           </div>
 
           {d.costsByCategoryMonth.length > 0 && (

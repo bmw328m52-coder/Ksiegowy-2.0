@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserSettingsOrDefault } from "./user_settings";
 import { pitFor, type TaxForm } from "@/lib/tax";
 import { pitMonthlyDeadline, vatDeadline, zusDeadline } from "@/lib/taxDeadlines";
+import { zusForMonth } from "@/lib/zus";
 
 export type PeriodTotals = {
   revenueNet: number;
@@ -20,6 +21,8 @@ export type VatPeriodInfo = {
   vatDue: number;
   vatInput: number;
   vatToPay: number;
+  // Nadwyżka VAT naliczonego nad należnym → do przeniesienia na następny okres lub zwrotu.
+  vatToReclaim: number;
   deadline: string;
 };
 
@@ -46,6 +49,17 @@ export type UninvoicedSummary = {
   amountVat: number;
 };
 
+// Rozbicie przychodu bieżącego miesiąca na zlecenia z fakturą i bez faktury.
+// null, gdy tabela jobs nie ma jeszcze kolumny `invoiced` (stary schemat).
+export type RevenueSplit = {
+  invoicedNet: number;
+  invoicedGross: number;
+  invoicedCount: number;
+  uninvoicedNet: number;
+  uninvoicedGross: number;
+  uninvoicedCount: number;
+};
+
 export type DashboardData = {
   ytd: PeriodTotals & { pit: number };
   month: PeriodTotals;
@@ -54,6 +68,7 @@ export type DashboardData = {
   pendingRevenueGross: number;
   openDepositsTotal: number;
   uninvoicedMonth: UninvoicedSummary | null;
+  monthRevenueSplit: RevenueSplit | null;
   monthlyTrend: MonthlyPoint[];
   costsByCategoryMonth: CategoryBreakdownRow[];
   reminders: ReminderItem[];
@@ -270,7 +285,15 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
 
   const ytd = emptyTotals();
   const month = emptyTotals();
+  const monthInvoiced = emptyTotals();
+  const monthUninvoiced = emptyTotals();
+  let monthInvoicedCount = 0;
+  let monthUninvoicedCount = 0;
   const trend: PeriodTotals[] = Array.from({ length: 12 }, () => emptyTotals());
+  // Podstawa PODATKOWA (PIT/ZUS) = tylko zlecenia z fakturą. Bez faktury = symulacja,
+  // nie wchodzi do podatku. Gdy brak kolumny `invoiced` (stary schemat) — liczymy wszystko.
+  const ytdTaxable = emptyTotals();
+  const trendTaxable: PeriodTotals[] = Array.from({ length: 12 }, () => emptyTotals());
 
   let pendingRevenueGross = 0;
 
@@ -281,19 +304,50 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     }
     const d = jobRevenueDate(j);
     if (!d) continue;
+    const isTaxable = !hasInvoicedCol || j.invoiced === true;
     if (inRange(d, yearStart, yearEnd)) {
       addJobRevenue(ytd, j, settings.is_vat_payer);
+      if (isTaxable) addJobRevenue(ytdTaxable, j, settings.is_vat_payer);
       const m = Number(d.slice(5, 7)) - 1;
-      if (m >= 0 && m < 12) addJobRevenue(trend[m], j, settings.is_vat_payer);
+      if (m >= 0 && m < 12) {
+        addJobRevenue(trend[m], j, settings.is_vat_payer);
+        if (isTaxable) addJobRevenue(trendTaxable[m], j, settings.is_vat_payer);
+      }
     }
-    if (inRange(d, monthStart, monthEnd)) addJobRevenue(month, j, settings.is_vat_payer);
+    if (inRange(d, monthStart, monthEnd)) {
+      addJobRevenue(month, j, settings.is_vat_payer);
+      if (hasInvoicedCol) {
+        if (j.invoiced === true) {
+          addJobRevenue(monthInvoiced, j, settings.is_vat_payer);
+          monthInvoicedCount += 1;
+        } else {
+          addJobRevenue(monthUninvoiced, j, settings.is_vat_payer);
+          monthUninvoicedCount += 1;
+        }
+      }
+    }
   }
+
+  const monthRevenueSplit: RevenueSplit | null = hasInvoicedCol
+    ? {
+        invoicedNet: monthInvoiced.revenueNet,
+        invoicedGross: monthInvoiced.revenueGross,
+        invoicedCount: monthInvoicedCount,
+        uninvoicedNet: monthUninvoiced.revenueNet,
+        uninvoicedGross: monthUninvoiced.revenueGross,
+        uninvoicedCount: monthUninvoicedCount,
+      }
+    : null;
 
   const categoryAgg = new Map<string, { net: number; gross: number }>();
   for (const c of costs) {
     addCost(ytd, c, settings.is_vat_payer);
+    addCost(ytdTaxable, c, settings.is_vat_payer);
     const m = Number(c.cost_date.slice(5, 7)) - 1;
-    if (m >= 0 && m < 12) addCost(trend[m], c, settings.is_vat_payer);
+    if (m >= 0 && m < 12) {
+      addCost(trend[m], c, settings.is_vat_payer);
+      addCost(trendTaxable[m], c, settings.is_vat_payer);
+    }
     if (inRange(c.cost_date, monthStart, monthEnd)) {
       addCost(month, c, settings.is_vat_payer);
       const key = (c.category && c.category.trim()) || "inne";
@@ -326,15 +380,19 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
 
   ytd.profit = ytd.revenueNet - ytd.costsNet;
   month.profit = month.revenueNet - month.costsNet;
+  ytdTaxable.profit = ytdTaxable.revenueNet - ytdTaxable.costsNet;
 
-  const pit = pitFor(settings.tax_form, Math.max(0, ytd.profit));
+  // Dochód podatkowy per miesiąc — tylko zlecenia z fakturą (bez symulacji bez-faktury).
+  const taxableMonthlyProfit = trendTaxable.map((t) => t.revenueNet - t.costsNet);
 
-  const profitThroughEnd = monthlyTrend
+  const pit = pitFor(settings.tax_form, Math.max(0, ytdTaxable.profit));
+
+  const profitThroughEnd = taxableMonthlyProfit
     .slice(0, monthIdx + 1)
-    .reduce((acc, p) => acc + p.profit, 0);
-  const profitThroughPrev = monthlyTrend
+    .reduce((acc, p) => acc + p, 0);
+  const profitThroughPrev = taxableMonthlyProfit
     .slice(0, monthIdx)
-    .reduce((acc, p) => acc + p.profit, 0);
+    .reduce((acc, p) => acc + p, 0);
   const pitThroughEnd = pitFor(settings.tax_form, Math.max(0, profitThroughEnd));
   const pitThroughPrev = pitFor(settings.tax_form, Math.max(0, profitThroughPrev));
   const pitMonth = Math.max(0, pitThroughEnd - pitThroughPrev);
@@ -344,7 +402,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     monthLabel: `${MONTH_NAMES_PL[monthIdx]} ${year}`,
     pitMonth,
     pitYtd: pitThroughEnd,
-    profitMonth: monthlyTrend[monthIdx]?.profit ?? 0,
+    profitMonth: taxableMonthlyProfit[monthIdx] ?? 0,
     profitYtd: profitThroughEnd,
     deadline: isoDate(pitDl.due),
   };
@@ -369,6 +427,8 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     const vatPeriod = emptyTotals();
     for (const j of jobs) {
       if (j.status === "installed" && !j.paid_date) continue;
+      // Bez faktury = poza VAT (i tak sprzedaż paragonowa/symulacja) — nie do rejestru VAT.
+      if (hasInvoicedCol && j.invoiced !== true) continue;
       const d = jobRevenueDate(j);
       if (inRange(d, from, to)) addJobRevenue(vatPeriod, j, true);
     }
@@ -377,13 +437,15 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     }
 
     const vatDl = vatDeadline(year, monthIdx, settings.vat_period);
+    const vatBalance = vatPeriod.revenueVat - vatPeriod.costsVat;
     vat = {
       from,
       to,
       label,
       vatDue: vatPeriod.revenueVat,
       vatInput: vatPeriod.costsVat,
-      vatToPay: Math.max(0, vatPeriod.revenueVat - vatPeriod.costsVat),
+      vatToPay: Math.max(0, vatBalance),
+      vatToReclaim: Math.max(0, -vatBalance),
       deadline: isoDate(vatDl.due),
     };
   }
@@ -414,13 +476,29 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     amount: pitInfo.pitMonth,
   });
   const zusDl = zusDeadline(year, monthIdx);
+  const zusMonthProfit = taxableMonthlyProfit[monthIdx] ?? 0;
+  const zusCalc = settings.zus_start_date
+    ? zusForMonth({
+        startDate: settings.zus_start_date,
+        year,
+        monthIdx,
+        taxForm: settings.tax_form,
+        monthIncome: zusMonthProfit,
+        minHealth: settings.health_insurance_min,
+      })
+    : null;
+  const zusAmount = zusCalc
+    ? zusCalc.total
+    : settings.zus_monthly && Number(settings.zus_monthly) > 0
+      ? Number(settings.zus_monthly)
+      : null;
   reminders.push({
     kind: "zus",
     label: "ZUS",
     periodLabel: `${MONTH_NAMES_PL[monthIdx]} ${year}`,
     deadline: isoDate(zusDl.due),
     daysUntil: daysFrom(isoDate(zusDl.due)),
-    amount: settings.zus_monthly && Number(settings.zus_monthly) > 0 ? Number(settings.zus_monthly) : null,
+    amount: zusAmount,
   });
 
   return {
@@ -431,6 +509,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     pendingRevenueGross,
     openDepositsTotal,
     uninvoicedMonth,
+    monthRevenueSplit,
     monthlyTrend,
     costsByCategoryMonth,
     reminders,

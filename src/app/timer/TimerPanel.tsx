@@ -16,17 +16,11 @@ import {
 import type { Job } from "@/lib/dao/jobs";
 import { fmtDate, fmtDuration } from "@/lib/format";
 
-// Przychód netto zlecenia (spójnie z panelem Rentowność): netto gdy VAT-owiec, w innym razie brutto.
-function revenueNet(job: Pick<Job, "amount_gross" | "vat_rate">, isVatPayer: boolean): number {
-  const gross = Number(job.amount_gross) || 0;
-  const rate = Number(job.vat_rate) || 0;
-  return isVatPayer && rate > 0 ? gross / (1 + rate) : gross;
-}
-
-// Stawka zł/h = przychód ÷ przepracowane godziny. null gdy brak wartości lub czasu.
-function hourlyRate(revenue: number, minutes: number): number | null {
-  if (revenue <= 0 || minutes <= 0) return null;
-  return revenue / (minutes / 60);
+// Stawka zł/h = marża (przychód − koszty) ÷ przepracowane godziny. null gdy brak czasu.
+// Marża może być ujemna (koszty > przychód) — pokazujemy ją, żeby stratę było widać.
+function hourlyRate(margin: number, minutes: number): number | null {
+  if (minutes <= 0) return null;
+  return margin / (minutes / 60);
 }
 
 function fmtRate(rate: number | null): string {
@@ -58,7 +52,7 @@ export default function TimerPanel({
   activeJob,
   recent,
   minutesByJob,
-  isVatPayer,
+  marginByJob,
   targetRate,
 }: {
   jobs: JobWithClient[];
@@ -66,37 +60,37 @@ export default function TimerPanel({
   activeJob: JobWithClient | null;
   recent: RecentItem[];
   minutesByJob: Record<string, number>;
-  isVatPayer: boolean;
+  marginByJob: Record<string, number>;
   targetRate: number;
 }) {
-  // Podsumowanie: łączny czas + przychód per klient (z rozbiciem na zlecenia) → stawka zł/h.
+  // Podsumowanie: łączny czas + marża per klient (z rozbiciem na zlecenia) → stawka zł/h.
   const summary = useMemo(() => {
     const byClient = new Map<
       string,
       {
         name: string;
         total: number;
-        revenue: number;
-        jobs: { id: string; title: string; minutes: number; revenue: number }[];
+        margin: number;
+        jobs: { id: string; title: string; minutes: number; margin: number }[];
       }
     >();
     for (const j of jobs) {
       const minutes = minutesByJob[j.id] ?? 0;
       if (minutes <= 0) continue;
-      const revenue = revenueNet(j, isVatPayer);
+      const margin = marginByJob[j.id] ?? 0;
       const cur =
-        byClient.get(j.client_id) ?? { name: j.client_name, total: 0, revenue: 0, jobs: [] };
+        byClient.get(j.client_id) ?? { name: j.client_name, total: 0, margin: 0, jobs: [] };
       cur.total += minutes;
-      cur.revenue += revenue;
-      cur.jobs.push({ id: j.id, title: j.title, minutes, revenue });
+      cur.margin += margin;
+      cur.jobs.push({ id: j.id, title: j.title, minutes, margin });
       byClient.set(j.client_id, cur);
     }
     const clients = Array.from(byClient.values()).sort((a, b) => b.total - a.total);
     for (const c of clients) c.jobs.sort((a, b) => b.minutes - a.minutes);
     const grandTotal = clients.reduce((s, c) => s + c.total, 0);
-    const grandRevenue = clients.reduce((s, c) => s + c.revenue, 0);
-    return { clients, grandTotal, grandRevenue };
-  }, [jobs, minutesByJob, isVatPayer]);
+    const grandMargin = clients.reduce((s, c) => s + c.margin, 0);
+    return { clients, grandTotal, grandMargin };
+  }, [jobs, minutesByJob, marginByJob]);
   const clients = useMemo(() => {
     const map = new Map<string, string>();
     for (const j of jobs) map.set(j.client_id, j.client_name);
@@ -163,7 +157,7 @@ export default function TimerPanel({
               ? `${activeJob.client_name} — ${activeJob.title}`
               : "(usunięty pomiar)"
           }
-          revenue={activeJob ? revenueNet(activeJob, isVatPayer) : 0}
+          margin={activeJob ? (marginByJob[active.job_id] ?? 0) : 0}
           priorMinutes={minutesByJob[active.job_id] ?? 0}
           targetRate={targetRate}
           onStop={handleStop}
@@ -255,20 +249,20 @@ export default function TimerPanel({
               </span>
               <span
                 className={`block text-xs font-semibold tabular-nums ${rateTone(
-                  hourlyRate(summary.grandRevenue, summary.grandTotal),
+                  hourlyRate(summary.grandMargin, summary.grandTotal),
                   targetRate
                 )}`}
               >
-                {fmtRate(hourlyRate(summary.grandRevenue, summary.grandTotal))}
+                {fmtRate(hourlyRate(summary.grandMargin, summary.grandTotal))}
               </span>
             </div>
           </div>
           <p className="text-[11px] text-zinc-400 mb-3">
-            Stawka = wartość zlecenia ÷ godziny. Cel: {Math.round(targetRate)} zł/h.
+            Stawka = marża (przychód − koszty) ÷ godziny. Cel: {Math.round(targetRate)} zł/h.
           </p>
           <ul className="flex flex-col gap-2.5">
             {summary.clients.map((c) => {
-              const cRate = hourlyRate(c.revenue, c.total);
+              const cRate = hourlyRate(c.margin, c.total);
               return (
                 <li key={c.name} className="rounded-lg bg-zinc-50 px-3 py-2">
                   <div className="flex items-baseline justify-between gap-2">
@@ -284,7 +278,7 @@ export default function TimerPanel({
                   </div>
                   <ul className="mt-1 flex flex-col gap-0.5">
                     {c.jobs.map((j) => {
-                      const jRate = hourlyRate(j.revenue, j.minutes);
+                      const jRate = hourlyRate(j.margin, j.minutes);
                       return (
                         <li
                           key={j.id}
@@ -352,7 +346,7 @@ export default function TimerPanel({
 function ActiveBanner({
   entry,
   jobLabel,
-  revenue,
+  margin,
   priorMinutes,
   targetRate,
   onStop,
@@ -360,7 +354,7 @@ function ActiveBanner({
 }: {
   entry: TimeEntry;
   jobLabel: string;
-  revenue: number;
+  margin: number;
   priorMinutes: number;
   targetRate: number;
   onStop: () => void;
@@ -378,9 +372,9 @@ function ActiveBanner({
   const s = totalSec % 60;
   const pad = (n: number) => n.toString().padStart(2, "0");
 
-  // Stawka na żywo: przychód ÷ (czas już zapisany na tym zleceniu + bieżący bieg). Tyka w dół.
+  // Stawka na żywo: marża ÷ (czas już zapisany na tym zleceniu + bieżący bieg). Tyka w dół.
   const liveMinutes = priorMinutes + elapsedMs / 60000;
-  const liveRate = hourlyRate(revenue, liveMinutes);
+  const liveRate = hourlyRate(margin, liveMinutes);
 
   return (
     <div className="rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-3 flex items-center justify-between gap-3">

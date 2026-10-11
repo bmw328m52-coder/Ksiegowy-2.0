@@ -51,7 +51,11 @@ export default async function DashboardPage() {
                 { label: "VAT należny (sprzedaż)", value: fmtPLN(d.vat.vatDue) },
                 { label: "VAT naliczony (koszty)", value: `− ${fmtPLN(d.vat.vatInput)}` },
               ]}
-              total={{ label: "Do zapłaty", value: fmtPLN(d.vat.vatToPay) }}
+              total={
+                d.vat.vatToReclaim > 0
+                  ? { label: "Do odzyskania (przeniesienie/zwrot)", value: fmtPLN(d.vat.vatToReclaim), tone: "ok" }
+                  : { label: "Do zapłaty", value: fmtPLN(d.vat.vatToPay) }
+              }
             />
           )}
 
@@ -60,7 +64,7 @@ export default async function DashboardPage() {
             periodLabel={`Zaliczka · ${d.pit.monthLabel}`}
             deadline={d.pit.deadline}
             rows={[
-              { label: "Dochód miesiąca", value: fmtPLN(d.pit.profitMonth) },
+              { label: "Dochód miesiąca (z faktur)", value: fmtPLN(d.pit.profitMonth) },
               { label: `Dochód YTD (${taxFormLabel})`, value: fmtPLN(d.pit.profitYtd), sub: true },
               { label: "PIT YTD razem", value: fmtPLN(d.pit.pitYtd), sub: true },
             ]}
@@ -78,6 +82,20 @@ export default async function DashboardPage() {
           </div>
           <div className="space-y-2">
             <Row label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
+            {d.monthRevenueSplit && (
+              <div className="space-y-1 pl-3 border-l-2 border-[#eeeeed]">
+                <Row
+                  label={`z faktur${d.monthRevenueSplit.invoicedCount > 0 ? ` (${d.monthRevenueSplit.invoicedCount})` : ""}`}
+                  value={fmtPLN(d.monthRevenueSplit.invoicedNet)}
+                  sub
+                />
+                <Row
+                  label={`bez faktury${d.monthRevenueSplit.uninvoicedCount > 0 ? ` (${d.monthRevenueSplit.uninvoicedCount})` : ""}`}
+                  value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)}
+                  sub
+                />
+              </div>
+            )}
             <Row label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
             <Divider />
             <Row label="Dochód" value={fmtPLN(d.month.profit)} highlight={d.month.profit >= 0 ? "gold" : "negative"} />
@@ -110,7 +128,7 @@ export default async function DashboardPage() {
                 <Row label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />
                 <Row label="Koszty netto YTD" value={fmtPLN(d.ytd.costsNet)} />
                 <Row label="Dochód YTD" value={fmtPLN(d.ytd.profit)} highlight={d.ytd.profit >= 0 ? "gold" : "negative"} />
-                <Row label="Zaliczka PIT YTD" value={fmtPLN(d.ytd.pit)} />
+                <Row label="Zaliczka PIT YTD (z faktur)" value={fmtPLN(d.ytd.pit)} />
               </div>
             </>
           )}
@@ -154,7 +172,8 @@ export default async function DashboardPage() {
         <p className="text-[11px] text-[#8d8a85] text-center pt-2">
           Forma: {taxFormLabel} · VAT: {vatPeriodLabel}
           <br />
-          Przychód z zleceń opłaconych. Koszty z faktur kosztowych.
+          PIT, ZUS i VAT liczone tylko ze zleceń z fakturą. Zlecenia bez faktury to symulacja —
+          widoczne w przychodzie i rentowności, ale poza podatkiem.
         </p>
       </div>
     </PageContainer>
@@ -202,7 +221,7 @@ function BalanceBlock({
   periodLabel: string;
   deadline: string;
   rows: { label: string; value: string; sub?: boolean }[];
-  total: { label: string; value: string };
+  total: { label: string; value: string; tone?: "gold" | "ok" };
   isLast?: boolean;
 }) {
   return (
@@ -228,7 +247,11 @@ function BalanceBlock({
       </div>
       <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-[#eeeeed]">
         <span className="text-sm font-medium text-[#1f1d1b]">{total.label}</span>
-        <Money className="text-lg font-semibold tabular-nums text-[#a06f3f]">
+        <Money
+          className={`text-lg font-semibold tabular-nums ${
+            total.tone === "ok" ? "text-[#3a6b4d]" : "text-[#a06f3f]"
+          }`}
+        >
           {total.value}
         </Money>
       </div>
@@ -267,11 +290,13 @@ function Row({
   value,
   bold,
   highlight,
+  sub,
 }: {
   label: string;
   value: string;
   bold?: boolean;
   highlight?: "gold" | "negative";
+  sub?: boolean;
 }) {
   const valueCls =
     highlight === "gold"
@@ -280,11 +305,13 @@ function Row({
         ? "text-[#b8523a] font-semibold"
         : bold
           ? "font-semibold text-[#1f1d1b]"
-          : "text-[#3a3633]";
+          : sub
+            ? "text-[#8d8a85]"
+            : "text-[#3a3633]";
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-[#6f6c66]">{label}</span>
-      <Money className={`text-sm tabular-nums ${valueCls}`}>{value}</Money>
+      <span className={`${sub ? "text-xs text-[#8d8a85]" : "text-sm text-[#6f6c66]"}`}>{label}</span>
+      <Money className={`${sub ? "text-xs" : "text-sm"} tabular-nums ${valueCls}`}>{value}</Money>
     </div>
   );
 }

@@ -9,6 +9,13 @@ import {
 } from "@/lib/dao/deadlines.types";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { vatDeadline, pitMonthlyDeadline, zusDeadline, daysUntil } from "@/lib/taxDeadlines";
+import {
+  zusPhaseForMonth,
+  zusSocialForPhase,
+  ZUS_PHASE_LABELS,
+  HEALTH_MIN_2026,
+} from "@/lib/zus";
+import type { TaxForm } from "@/lib/tax";
 import { fmtDate } from "@/lib/format";
 import {
   createDeadlineAction,
@@ -19,9 +26,24 @@ import {
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Terminy" };
 
-type TaxRow = { label: string; periodLabel: string; due: Date; category: DeadlineCategory };
+type TaxRow = {
+  label: string;
+  periodLabel: string;
+  due: Date;
+  category: DeadlineCategory;
+  hint?: string;
+};
 
-function taxDeadlines(now: Date, settings: { is_vat_payer: boolean; vat_period: "monthly" | "quarterly" }): TaxRow[] {
+function taxDeadlines(
+  now: Date,
+  settings: {
+    is_vat_payer: boolean;
+    vat_period: "monthly" | "quarterly";
+    tax_form: TaxForm;
+    zus_start_date: string | null;
+    health_insurance_min: number;
+  },
+): TaxRow[] {
   const year = now.getFullYear();
   const monthIdx = now.getMonth();
   const rows: TaxRow[] = [];
@@ -32,7 +54,22 @@ function taxDeadlines(now: Date, settings: { is_vat_payer: boolean; vat_period: 
   const pit = pitMonthlyDeadline(year, monthIdx);
   rows.push({ label: pit.label, periodLabel: pit.periodLabel, due: pit.due, category: "pit" });
   const zus = zusDeadline(year, monthIdx);
-  rows.push({ label: zus.label, periodLabel: zus.periodLabel, due: zus.due, category: "zus" });
+  let zusHint: string | undefined;
+  if (settings.zus_start_date) {
+    const phase = zusPhaseForMonth(settings.zus_start_date, year, monthIdx);
+    const social = zusSocialForPhase(phase);
+    const minHealth = settings.health_insurance_min || HEALTH_MIN_2026;
+    const zl = (n: number) =>
+      n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    zusHint = `${ZUS_PHASE_LABELS[phase]} · od ${zl(social + minHealth)} zł`;
+  }
+  rows.push({
+    label: zus.label,
+    periodLabel: zus.periodLabel,
+    due: zus.due,
+    category: "zus",
+    hint: zusHint,
+  });
   return rows.sort((a, b) => a.due.getTime() - b.due.getTime());
 }
 
@@ -71,6 +108,9 @@ export default async function TerminyPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-[#1f1d1b]">{t.label}</p>
                     <p className="text-[11px] text-[#8d8a85]">{t.periodLabel}</p>
+                    {t.hint && (
+                      <p className="text-[11px] font-medium text-[#a06f3f]">{t.hint}</p>
+                    )}
                   </div>
                 </div>
                 <DuePill due={t.due} />

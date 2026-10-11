@@ -146,6 +146,34 @@ export default async function FinansePage() {
           />
         </div>
 
+        {/* Rozbicie przychodu: z wystawionej faktury vs bez faktury (sprzedaż paragonowa/bez FV). */}
+        {d.monthRevenueSplit && (
+          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+            <StatCard
+              label="Przychód z faktur"
+              value={fmtPLN(d.monthRevenueSplit.invoicedNet)}
+              tone="info"
+              money
+              hint={
+                d.monthRevenueSplit.invoicedCount > 0
+                  ? `${d.monthRevenueSplit.invoicedCount} zlec. z FV`
+                  : "brak wystawionych FV"
+              }
+            />
+            <StatCard
+              label="Przychód bez faktury"
+              value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)}
+              tone="accent"
+              money
+              hint={
+                d.monthRevenueSplit.uninvoicedCount > 0
+                  ? `${d.monthRevenueSplit.uninvoicedCount} zlec. bez FV`
+                  : "brak"
+              }
+            />
+          </div>
+        )}
+
         {/* Szacunek z wyceny — realny koszt materiałów, gdy nie podpinasz faktur kosztowych. */}
         <div className="mt-2.5 grid grid-cols-2 gap-2.5">
           <StatCard

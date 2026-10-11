@@ -31,6 +31,7 @@ export type UserSettings = {
   zus_ulga: number | null;
   zus_maly: number | null;
   zus_pelny: number | null;
+  zus_start_date: string | null;
   material_categories: string[] | null;
   health_insurance_min: number | null;
   is_vat_payer: boolean;
@@ -49,6 +50,7 @@ export type UserSettingsInput = {
   zus_ulga: number | null;
   zus_maly: number | null;
   zus_pelny: number | null;
+  zus_start_date: string | null;
   material_categories: string[];
   health_insurance_min: number | null;
   is_vat_payer: boolean;
@@ -66,6 +68,8 @@ export const DEFAULT_SETTINGS: Pick<
   | "zus_ulga"
   | "zus_maly"
   | "zus_pelny"
+  | "zus_start_date"
+  | "health_insurance_min"
   | "default_hourly_rate"
 > & { material_categories: string[] } = {
   tax_form: "skala",
@@ -76,6 +80,8 @@ export const DEFAULT_SETTINGS: Pick<
   zus_ulga: 397.16,
   zus_maly: 891.34,
   zus_pelny: 1900.0,
+  zus_start_date: null,
+  health_insurance_min: 432.54,
   default_hourly_rate: 50,
   material_categories: [...DEFAULT_MATERIAL_CATEGORIES],
 };

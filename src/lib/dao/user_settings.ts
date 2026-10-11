@@ -50,6 +50,8 @@ export async function getUserSettingsOrDefault(): Promise<{
   zus_ulga: number;
   zus_maly: number;
   zus_pelny: number;
+  zus_start_date: string | null;
+  health_insurance_min: number;
   default_hourly_rate: number;
   material_categories: string[];
 }> {
@@ -64,6 +66,8 @@ export async function getUserSettingsOrDefault(): Promise<{
       zus_ulga: DEFAULT_SETTINGS.zus_ulga ?? 0,
       zus_maly: DEFAULT_SETTINGS.zus_maly ?? 0,
       zus_pelny: DEFAULT_SETTINGS.zus_pelny ?? 0,
+      zus_start_date: DEFAULT_SETTINGS.zus_start_date,
+      health_insurance_min: DEFAULT_SETTINGS.health_insurance_min ?? 432.54,
       default_hourly_rate: DEFAULT_SETTINGS.default_hourly_rate ?? 50,
       material_categories: [...DEFAULT_MATERIAL_CATEGORIES],
     };
@@ -77,6 +81,9 @@ export async function getUserSettingsOrDefault(): Promise<{
     zus_ulga: s.zus_ulga == null ? 0 : Number(s.zus_ulga),
     zus_maly: s.zus_maly == null ? 0 : Number(s.zus_maly),
     zus_pelny: s.zus_pelny == null ? 0 : Number(s.zus_pelny),
+    zus_start_date: s.zus_start_date ?? null,
+    health_insurance_min:
+      s.health_insurance_min == null ? 432.54 : Number(s.health_insurance_min),
     default_hourly_rate: s.default_hourly_rate == null ? 50 : Number(s.default_hourly_rate),
     material_categories:
       s.material_categories && s.material_categories.length > 0

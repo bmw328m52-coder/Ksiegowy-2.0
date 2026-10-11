@@ -56,6 +56,19 @@ function readForm(formData: FormData): UserSettingsInput | string {
     return "Nieprawidłowa stawka godzinowa.";
   }
 
+  const startRaw = String(formData.get("zus_start_date") ?? "").trim();
+  let zus_start_date: string | null = null;
+  if (startRaw) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startRaw)) return "Nieprawidłowa data rozpoczęcia działalności.";
+    zus_start_date = startRaw;
+  }
+
+  const healthRaw = String(formData.get("health_insurance_min") ?? "").trim();
+  const health_insurance_min = healthRaw ? parseAmount(healthRaw) : 432.54;
+  if (health_insurance_min === null || health_insurance_min < 0) {
+    return "Nieprawidłowa minimalna składka zdrowotna.";
+  }
+
   const catsRaw = String(formData.get("material_categories") ?? "").trim();
   const material_categories = catsRaw
     ? Array.from(
@@ -82,9 +95,10 @@ function readForm(formData: FormData): UserSettingsInput | string {
     zus_ulga: ulga,
     zus_maly: maly,
     zus_pelny: pelny,
+    zus_start_date,
     default_hourly_rate,
     material_categories,
-    health_insurance_min: null,
+    health_insurance_min,
   };
 }
 
