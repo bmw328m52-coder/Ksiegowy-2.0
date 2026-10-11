@@ -14,8 +14,8 @@ enum PlanStyle {
     static let gridMinor = Color(white: 0.9)
     static let gridMajor = Color(red: 0.96, green: 0.84, blue: 0.76)
     static let dim = Color(white: 0.35)
-    static let measured = Brand.gold
-    static let selected = Brand.gold
+    static let measured = Color(red: 0.12, green: 0.45, blue: 0.85)
+    static let selected = Color(red: 0.12, green: 0.45, blue: 0.85)
 }
 
 /// Przeliczenie mm rzutu → punkty ekranu (dopasowanie do widoku).

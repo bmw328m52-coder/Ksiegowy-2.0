@@ -253,7 +253,7 @@ export function planStats(m: PlanModel) {
 const INK = "#141414";
 const BAND = "#c4c4c4";
 const DIM = "#4b4b4b";
-const MEASURED = "#a06f3f";
+const MEASURED = "#1f73d9";
 const GRID_MINOR = "#ececec";
 const GRID_MAJOR = "#f5d6c2";
 
