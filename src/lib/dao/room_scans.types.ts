@@ -37,6 +37,8 @@ export type ScanObject = {
   width_mm: number;
   depth_mm: number;
   height_mm: number;
+  /** Dolna krawędź od podłogi (szafki wiszące > 0); brak w starszych skanach. */
+  elevation_mm?: number;
   rotation_deg: number;
 };
 

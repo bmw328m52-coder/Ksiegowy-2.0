@@ -2,7 +2,8 @@ import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import type { RoomScan } from "@/lib/dao/room_scans.types";
 import { SCAN_OBJECT_LABELS, SCAN_OPENING_LABELS } from "@/lib/dao/room_scans.types";
 import { fmtDate } from "@/lib/format";
-import RoomScanPlan, { wallLetter } from "./RoomScanPlan";
+import { wallLetter } from "./RoomScanPlan";
+import RoomScanViews from "./RoomScanViews";
 import { deleteScanAction } from "./scanActions";
 
 const mm = (v: number) => `${Math.round(v)} mm`;
@@ -22,7 +23,7 @@ export default function RoomScanSection({ jobId, scans }: { jobId: string; scans
               <span className="text-[11px] text-zinc-500">{fmtDate(scan.created_at)}</span>
             </div>
 
-            <RoomScanPlan data={scan.data} />
+            <RoomScanViews data={scan.data} />
 
             <p className="text-[11px] text-zinc-500">
               Dokładność skanu ±2–5 cm — wymiary produkcyjne potwierdź dalmierzem.

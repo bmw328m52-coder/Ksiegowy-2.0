@@ -29,6 +29,8 @@ struct ScanObject: Encodable {
     let widthMm: Double
     let depthMm: Double
     let heightMm: Double
+    /// Dolna krawędź od podłogi (szafki wiszące > 0).
+    let elevationMm: Double
     let rotationDeg: Double
 }
 
@@ -101,13 +103,15 @@ enum ScanExport {
         }
 
         let objects = zip(room.objects, objectCenters).map { o, c in
-            ScanObject(
+            let bottom = Double(o.transform.columns.3.y - o.dimensions.y / 2) - floorY
+            return ScanObject(
                 id: o.identifier.uuidString,
                 category: String(describing: o.category),
                 cx: r(c.x), cy: r(c.y),
                 widthMm: r(Double(o.dimensions.x) * 1000),
                 depthMm: r(Double(o.dimensions.z) * 1000),
                 heightMm: r(Double(o.dimensions.y) * 1000),
+                elevationMm: r(max(0, bottom * 1000)),
                 rotationDeg: r((yaw(o.transform) - theta) * 180 / .pi)
             )
         }

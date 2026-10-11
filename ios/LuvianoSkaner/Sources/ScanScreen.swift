@@ -117,6 +117,7 @@ struct ScanResultView: View {
 
     @EnvironmentObject private var session: Session
     @State private var name = "Kuchnia"
+    @State private var show3D = false
     @State private var sending = false
     @State private var sent = false
     @State private var error: String?
@@ -125,9 +126,22 @@ struct ScanResultView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    PlanPreview(scan: scan)
-                        .frame(height: 380)
-                        .background(Brand.ivory, in: RoundedRectangle(cornerRadius: 12))
+                    Picker("Widok", selection: $show3D) {
+                        Text("Rzut 2D").tag(false)
+                        Text("Widok 3D").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Group {
+                        if show3D {
+                            Scan3DView(scan: scan)
+                        } else {
+                            PlanPreview(scan: scan)
+                        }
+                    }
+                    .frame(height: 460)
+                    .background(Brand.ivory)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     TextField("Nazwa pomieszczenia", text: $name)
                         .textFieldStyle(.roundedBorder)
@@ -181,6 +195,8 @@ struct ScanResultView: View {
                 }
                 .padding(20)
             }
+            // W 3D przeciąganie obraca model, a nie przewija ekran.
+            .scrollDisabled(show3D)
             .navigationTitle(job.clients?.name ?? job.title)
             .navigationBarTitleDisplayMode(.inline)
         }
