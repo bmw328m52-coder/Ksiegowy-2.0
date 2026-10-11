@@ -1,0 +1,141 @@
+import Foundation
+import RoomPlan
+import simd
+
+// Format zgodny z meble-app: src/lib/dao/room_scans.types.ts (klucze snake_case
+// powstają przez JSONEncoder.keyEncodingStrategy = .convertToSnakeCase).
+
+struct ScanWall: Encodable {
+    let id: String
+    let x1, y1, x2, y2: Double
+    let lengthMm: Double
+    let heightMm: Double
+}
+
+struct ScanOpening: Encodable {
+    let id: String
+    let kind: String
+    let wallId: String?
+    let x1, y1, x2, y2: Double
+    let widthMm: Double
+    let heightMm: Double
+    let sillMm: Double
+}
+
+struct ScanObject: Encodable {
+    let id: String
+    let category: String
+    let cx, cy: Double
+    let widthMm: Double
+    let depthMm: Double
+    let heightMm: Double
+    let rotationDeg: Double
+}
+
+struct ScanPayload: Encodable {
+    var version = 1
+    let scannedAt: String
+    let walls: [ScanWall]
+    let openings: [ScanOpening]
+    let objects: [ScanObject]
+    let roomHeightMm: Double?
+}
+
+/// CapturedRoom (metry, 3D) → rzut 2D w mm. Rzut obracamy tak, żeby najdłuższa
+/// ściana leżała poziomo, i przesuwamy do (0,0) — czytelniej na ekranie i w PDF.
+enum ScanExport {
+    private struct Seg { var p1: SIMD2<Double>; var p2: SIMD2<Double> }
+
+    static func make(from room: CapturedRoom) -> ScanPayload {
+        let floorY = room.walls.map { Double($0.transform.columns.3.y - $0.dimensions.y / 2) }.min() ?? 0
+
+        // Kąt najdłuższej ściany — wyrównujemy do osi X.
+        let longest = room.walls.max { $0.dimensions.x < $1.dimensions.x }
+        let theta = longest.map { yaw($0.transform) } ?? 0
+        let (cosT, sinT) = (cos(-theta), sin(-theta))
+        func rot(_ p: SIMD2<Double>) -> SIMD2<Double> {
+            SIMD2(p.x * cosT - p.y * sinT, p.x * sinT + p.y * cosT)
+        }
+
+        func segment(_ s: CapturedRoom.Surface) -> Seg {
+            let c = center(s.transform)
+            let a = axis(s.transform)
+            let half = Double(s.dimensions.x) / 2
+            return Seg(p1: rot(c - a * half) * 1000, p2: rot(c + a * half) * 1000)
+        }
+
+        var wallSegs = room.walls.map { ($0, segment($0)) }
+        let openingSurfaces: [(CapturedRoom.Surface, String)] =
+            room.doors.map { ($0, "door") } + room.windows.map { ($0, "window") } + room.openings.map { ($0, "opening") }
+        var openingSegs = openingSurfaces.map { ($0.0, $0.1, segment($0.0)) }
+        var objectCenters = room.objects.map { rot(center($0.transform)) * 1000 }
+
+        // Przesunięcie do (0,0).
+        let allX = wallSegs.flatMap { [$0.1.p1.x, $0.1.p2.x] } + objectCenters.map(\.x)
+        let allY = wallSegs.flatMap { [$0.1.p1.y, $0.1.p2.y] } + objectCenters.map(\.y)
+        let shift = SIMD2(allX.min() ?? 0, allY.min() ?? 0)
+        wallSegs = wallSegs.map { ($0.0, Seg(p1: $0.1.p1 - shift, p2: $0.1.p2 - shift)) }
+        openingSegs = openingSegs.map { ($0.0, $0.1, Seg(p1: $0.2.p1 - shift, p2: $0.2.p2 - shift)) }
+        objectCenters = objectCenters.map { $0 - shift }
+
+        let walls = wallSegs.map { w, s in
+            ScanWall(
+                id: w.identifier.uuidString,
+                x1: r(s.p1.x), y1: r(s.p1.y), x2: r(s.p2.x), y2: r(s.p2.y),
+                lengthMm: r(Double(w.dimensions.x) * 1000),
+                heightMm: r(Double(w.dimensions.y) * 1000)
+            )
+        }
+
+        let openings = openingSegs.map { o, kind, s in
+            let bottom = Double(o.transform.columns.3.y - o.dimensions.y / 2) - floorY
+            return ScanOpening(
+                id: o.identifier.uuidString,
+                kind: kind,
+                wallId: o.parentIdentifier?.uuidString,
+                x1: r(s.p1.x), y1: r(s.p1.y), x2: r(s.p2.x), y2: r(s.p2.y),
+                widthMm: r(Double(o.dimensions.x) * 1000),
+                heightMm: r(Double(o.dimensions.y) * 1000),
+                sillMm: r(max(0, bottom * 1000))
+            )
+        }
+
+        let objects = zip(room.objects, objectCenters).map { o, c in
+            ScanObject(
+                id: o.identifier.uuidString,
+                category: String(describing: o.category),
+                cx: r(c.x), cy: r(c.y),
+                widthMm: r(Double(o.dimensions.x) * 1000),
+                depthMm: r(Double(o.dimensions.z) * 1000),
+                heightMm: r(Double(o.dimensions.y) * 1000),
+                rotationDeg: r((yaw(o.transform) - theta) * 180 / .pi)
+            )
+        }
+
+        return ScanPayload(
+            scannedAt: ISO8601DateFormatter().string(from: Date()),
+            walls: walls,
+            openings: openings,
+            objects: objects,
+            roomHeightMm: room.walls.map { Double($0.dimensions.y) * 1000 }.max().map(r)
+        )
+    }
+
+    // Rzut z góry: x → x, z → y (w SVG oś y rośnie w dół, więc bez lustrzanego odbicia).
+    private static func center(_ t: simd_float4x4) -> SIMD2<Double> {
+        SIMD2(Double(t.columns.3.x), Double(t.columns.3.z))
+    }
+
+    private static func axis(_ t: simd_float4x4) -> SIMD2<Double> {
+        let v = SIMD2(Double(t.columns.0.x), Double(t.columns.0.z))
+        let len = (v.x * v.x + v.y * v.y).squareRoot()
+        return len > 0 ? v / len : SIMD2(1, 0)
+    }
+
+    private static func yaw(_ t: simd_float4x4) -> Double {
+        let a = axis(t)
+        return atan2(a.y, a.x)
+    }
+
+    private static func r(_ v: Double) -> Double { v.rounded() }
+}

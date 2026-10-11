@@ -18,6 +18,8 @@ import {
 import InvoiceSection from "./InvoiceSection";
 import MarginSection from "./MarginSection";
 import PomiarSection from "./PomiarSection";
+import RoomScanSection from "./RoomScanSection";
+import { listScansByJob } from "@/lib/dao/room_scans";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -31,7 +33,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const job = await getJob(id);
   if (!job) notFound();
 
-  const brief = await getBriefByJob(id);
+  const [brief, scans] = await Promise.all([getBriefByJob(id), listScansByJob(id)]);
   const stages = buildStages(job);
 
   const deleteWithIds = deleteJobAction.bind(null, id, job.client_id);
@@ -95,6 +97,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <StageTimeline stages={stages} />
 
         <PomiarSection jobId={id} brief={brief} />
+
+        <RoomScanSection jobId={id} scans={scans} />
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <Link

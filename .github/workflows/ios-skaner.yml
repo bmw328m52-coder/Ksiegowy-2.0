@@ -1,0 +1,63 @@
+name: iOS Skaner (.ipa)
+
+# Buduje niepodpisany .ipa aplikacji LUVIANO Skaner (Sideloadly podpisuje go
+# darmowym Apple ID przy instalacji). Wynik: release "skaner-latest".
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", ".github/workflows/ios-skaner.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: XcodeGen
+        working-directory: ios/LuvianoSkaner
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build
+        working-directory: ios/LuvianoSkaner
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project LuvianoSkaner.xcodeproj \
+            -scheme LuvianoSkaner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/LuvianoSkaner.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | tee build.log | grep -E "error:|warning: .*deprecated|ARCHIVE" || true
+          test -d build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app
+
+      - name: Package .ipa
+        working-directory: ios/LuvianoSkaner
+        run: |
+          mkdir -p Payload
+          cp -R build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app Payload/
+          zip -qr LuvianoSkaner.ipa Payload
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete skaner-latest --yes --cleanup-tag || true
+          gh release create skaner-latest ios/LuvianoSkaner/LuvianoSkaner.ipa \
+            --title "LUVIANO Skaner (${GITHUB_SHA::7})" \
+            --notes "Instalacja przez Sideloadly. Build $(date -u +%Y-%m-%dT%H:%MZ)." \
+            --prerelease
+
+      - name: Error summary
+        if: failure()
+        working-directory: ios/LuvianoSkaner
+        run: |
+          { echo '```'; grep -E "error:" build.log | head -40; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true
+          grep -E "error:" build.log | head -40 | while read -r line; do echo "::error::$line"; done || true
