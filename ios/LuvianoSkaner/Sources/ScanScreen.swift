@@ -45,13 +45,18 @@ private struct CaptureContainer: UIViewControllerRepresentable {
 
 final class ScanModel: ObservableObject {
     let controller = RoomCaptureViewController()
-    @Published var result: ScanPayload?
+    @Published var result: SavedScan?
     @Published var finishing = false
 
-    init() {
+    init(jobId: String) {
         controller.onResult = { [weak self] room in
             let payload = ScanExport.make(from: room)
-            DispatchQueue.main.async { self?.result = payload }
+            DispatchQueue.main.async {
+                // Od razu na dysk — skan jest bezpieczny, zanim cokolwiek się w nim zmieni.
+                let saved = SavedScan(jobId: jobId, name: "Kuchnia", scan: payload)
+                ScanStore.save(saved)
+                self?.result = saved
+            }
         }
     }
 }
@@ -70,11 +75,17 @@ private struct ScanFlow: View {
     let job: JobRow
     let onRescan: () -> Void
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var model = ScanModel()
+    @StateObject private var model: ScanModel
+
+    init(job: JobRow, onRescan: @escaping () -> Void) {
+        self.job = job
+        self.onRescan = onRescan
+        _model = StateObject(wrappedValue: ScanModel(jobId: job.id))
+    }
 
     var body: some View {
         if let result = model.result {
-            ScanResultView(job: job, scan: result, onRescan: onRescan, onDone: { dismiss() })
+            ScanResultView(job: job, saved: result, onRescan: onRescan, onDone: { dismiss() })
         } else {
             ZStack(alignment: .bottom) {
                 CaptureContainer(controller: model.controller)

@@ -186,6 +186,49 @@ enum PlanGeom {
         scan.walls[i].measured = true
     }
 
+    /// Obrót całego rzutu o 90° (na ekranie: `clockwise` = w prawo). Punkty instalacji są
+    /// przypięte do ścian, więc się nie zmieniają; litery i „lewy narożnik" też zostają.
+    static func rotate(_ scan: inout ScanPayload, clockwise: Bool) {
+        func r(_ x: Double, _ y: Double) -> V2 { clockwise ? V2(-y, x) : V2(y, -x) }
+        for k in scan.walls.indices {
+            let w = scan.walls[k]
+            scan.walls[k].setA(r(w.x1, w.y1))
+            scan.walls[k].setB(r(w.x2, w.y2))
+        }
+        for k in scan.openings.indices {
+            let o = scan.openings[k]
+            let a = r(o.x1, o.y1), b = r(o.x2, o.y2)
+            (scan.openings[k].x1, scan.openings[k].y1, scan.openings[k].x2, scan.openings[k].y2) = (a.x, a.y, b.x, b.y)
+        }
+        for k in scan.objects.indices {
+            let c = r(scan.objects[k].cx, scan.objects[k].cy)
+            (scan.objects[k].cx, scan.objects[k].cy) = (c.x, c.y)
+            var deg = scan.objects[k].rotationDeg + (clockwise ? 90 : -90)
+            if deg > 180 { deg -= 360 }
+            if deg <= -180 { deg += 360 }
+            scan.objects[k].rotationDeg = deg
+        }
+        scan.floor = scan.floor?.map { (q: [Double]) -> [Double] in
+            guard q.count >= 2 else { return q }
+            let p = r(q[0], q[1])
+            return [p.x, p.y]
+        }
+
+        // Z powrotem do dodatnich współrzędnych (jak po skanie).
+        let pts = scan.walls.flatMap { [$0.a, $0.b] }
+        let shift = V2(pts.map(\.x).min() ?? 0, pts.map(\.y).min() ?? 0)
+        for k in scan.walls.indices {
+            scan.walls[k].setA(scan.walls[k].a - shift)
+            scan.walls[k].setB(scan.walls[k].b - shift)
+        }
+        for k in scan.openings.indices {
+            scan.openings[k].x1 -= shift.x; scan.openings[k].y1 -= shift.y
+            scan.openings[k].x2 -= shift.x; scan.openings[k].y2 -= shift.y
+        }
+        for k in scan.objects.indices { scan.objects[k].cx -= shift.x; scan.objects[k].cy -= shift.y }
+        scan.floor = scan.floor?.map { $0.count >= 2 ? [$0[0] - shift.x, $0[1] - shift.y] : $0 }
+    }
+
     static func shiftMarkers(_ scan: inout ScanPayload, wall id: String, by dt: Double) {
         for k in scan.markers.indices where scan.markers[k].wallId == id {
             scan.markers[k].offsetMm = max(0, (scan.markers[k].offsetMm + dt).rounded())

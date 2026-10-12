@@ -7,7 +7,6 @@ struct JobsView: View {
     @State private var query = ""
     @State private var loading = false
     @State private var error: String?
-    @State private var scanning: JobRow?
 
     private var filtered: [JobRow] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
@@ -27,10 +26,10 @@ struct JobsView: View {
                 if let error {
                     Text(error).foregroundStyle(.red)
                 }
-                Section("Wybierz zlecenie do skanu") {
+                Section("Wybierz zlecenie") {
                     ForEach(filtered) { job in
-                        Button {
-                            scanning = job
+                        NavigationLink {
+                            JobScansView(job: job)
                         } label: {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(job.clients?.name ?? "Bez klienta")
@@ -42,7 +41,6 @@ struct JobsView: View {
                             }
                             .padding(.vertical, 4)
                         }
-                        .disabled(!RoomCaptureSession.isSupported)
                     }
                     if !loading && jobs.isEmpty && error == nil {
                         Text("Brak otwartych zleceń. Dodaj zlecenie w meble-app.")
@@ -65,9 +63,6 @@ struct JobsView: View {
             }
             .refreshable { await load() }
             .task { await load() }
-            .fullScreenCover(item: $scanning) { job in
-                ScanScreen(job: job)
-            }
         }
     }
 

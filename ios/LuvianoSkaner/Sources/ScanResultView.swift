@@ -23,26 +23,29 @@ private enum EditTarget: Identifiable {
 /// Wynik skanu w układzie MagicPlan: duży rysunek + panel boczny.
 struct ScanResultView: View {
     let job: JobRow
-    let onRescan: () -> Void
+    /// Tylko zaraz po skanie (z zapisanego skanu nie ma czego powtarzać).
+    let onRescan: (() -> Void)?
     let onDone: () -> Void
 
     @EnvironmentObject private var session: Session
+    @State private var saved: SavedScan
     @State private var scan: ScanPayload
-    @State private var name = "Kuchnia"
+    @State private var name: String
     @State private var mode: ScanViewMode = .plan
     @State private var selected: Int?
     @State private var edit: EditTarget?
     @State private var selectedMarker: String?
     @State private var version = 0
     @State private var sending = false
-    @State private var sent = false
     @State private var error: String?
 
-    init(job: JobRow, scan: ScanPayload, onRescan: @escaping () -> Void, onDone: @escaping () -> Void) {
+    init(job: JobRow, saved: SavedScan, onRescan: (() -> Void)? = nil, onDone: @escaping () -> Void) {
         self.job = job
         self.onRescan = onRescan
         self.onDone = onDone
-        _scan = State(initialValue: scan)
+        _saved = State(initialValue: saved)
+        _scan = State(initialValue: saved.scan)
+        _name = State(initialValue: saved.name)
     }
 
     var body: some View {
@@ -68,6 +71,19 @@ struct ScanResultView: View {
             }
             .navigationTitle(job.clients?.name ?? job.title)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { onDone() } label: { Label("Skany", systemImage: "chevron.left").labelStyle(.titleAndIcon) }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Label(saved.synced ? "W zleceniu" : "Zapisano na iPadzie",
+                          systemImage: saved.synced ? "checkmark.icloud" : "ipad")
+                        .labelStyle(.titleAndIcon)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onChange(of: name) { _, _ in persist() }
             .sheet(item: $edit) { target in
                 switch target {
                 case .wallLength(let i):
@@ -108,7 +124,16 @@ struct ScanResultView: View {
 
     private func changed() {
         version += 1
-        sent = false
+        persist()
+    }
+
+    /// Zapis na iPadzie po każdej zmianie — wyjście ze skanu niczego nie gubi.
+    private func persist() {
+        saved.scan = scan
+        saved.name = name
+        saved.synced = false
+        saved.updatedAt = Date()
+        ScanStore.save(saved)
     }
 
     private var canvas: some View {
@@ -117,6 +142,14 @@ struct ScanResultView: View {
                 switch mode {
                 case .plan:
                     PlanCanvas(scan: scan, roomName: name, selected: selected) { selected = $0 }
+                        .overlay(alignment: .topTrailing) {
+                            HStack(spacing: 8) {
+                                Button { rotate(clockwise: false) } label: { Image(systemName: "rotate.left") }
+                                Button { rotate(clockwise: true) } label: { Image(systemName: "rotate.right") }
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(16)
+                        }
                 case .threeD:
                     Scan3DView(scan: scan).id(version)
                 case .wall:
@@ -132,6 +165,13 @@ struct ScanResultView: View {
             .frame(width: 380)
             .padding(16)
         }
+    }
+
+    private func rotate(clockwise: Bool) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            PlanGeom.rotate(&scan, clockwise: clockwise)
+        }
+        changed()
     }
 
     private var wallView: some View {
@@ -233,22 +273,28 @@ struct ScanResultView: View {
             if let error {
                 Text(error).foregroundStyle(.red).font(.footnote)
             }
-            if sent {
-                Label("Wysłano do zlecenia", systemImage: "checkmark.circle.fill")
+            if saved.synced {
+                Label("Aktualne w zleceniu", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                     .font(.headline)
+            } else if saved.remoteId != nil {
+                Text("Zmiany od ostatniego wysłania są tylko na iPadzie.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             HStack {
-                Button("Skanuj ponownie", action: onRescan).buttonStyle(.bordered)
+                if let onRescan {
+                    Button("Skanuj ponownie", action: onRescan).buttonStyle(.bordered)
+                }
                 Spacer()
-                if sent {
+                if saved.synced {
                     Button("Gotowe", action: onDone).buttonStyle(.borderedProminent).tint(Brand.ink)
                 } else {
                     Button {
                         Task { await send() }
                     } label: {
-                        if sending { ProgressView() } else { Text("Wyślij do zlecenia") }
+                        if sending { ProgressView() } else { Text(saved.remoteId == nil ? "Wyślij do zlecenia" : "Zaktualizuj w zleceniu") }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Brand.ink)
@@ -368,8 +414,11 @@ struct ScanResultView: View {
         sending = true
         defer { sending = false }
         do {
-            try await session.uploadScan(jobId: job.id, name: name.trimmingCharacters(in: .whitespaces), scan: scan)
-            sent = true
+            let id = try await session.uploadScan(jobId: job.id, name: name.trimmingCharacters(in: .whitespaces),
+                                                  scan: scan, remoteId: saved.remoteId)
+            saved.remoteId = id
+            saved.synced = true
+            ScanStore.save(saved)
             error = nil
         } catch {
             self.error = error.localizedDescription

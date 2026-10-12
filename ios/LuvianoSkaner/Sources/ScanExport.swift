@@ -5,7 +5,7 @@ import simd
 // Format zgodny z meble-app: src/lib/dao/room_scans.types.ts (klucze snake_case
 // powstają przez JSONEncoder.keyEncodingStrategy = .convertToSnakeCase).
 
-struct ScanWall: Encodable {
+struct ScanWall: Codable {
     let id: String
     var x1, y1, x2, y2: Double
     var lengthMm: Double
@@ -14,7 +14,7 @@ struct ScanWall: Encodable {
     var measured: Bool?
 }
 
-struct ScanOpening: Encodable {
+struct ScanOpening: Codable {
     let id: String
     var kind: String
     var wallId: String?
@@ -24,7 +24,7 @@ struct ScanOpening: Encodable {
     var sillMm: Double
 }
 
-struct ScanObject: Encodable {
+struct ScanObject: Codable {
     let id: String
     var category: String
     var cx, cy: Double
@@ -38,7 +38,7 @@ struct ScanObject: Encodable {
 
 /// Punkt instalacji na ścianie (woda, odpływ, gniazdko…), wskazany ręcznie.
 /// Położenie: odległość od początku ściany (lewy narożnik w widoku ściany) i od podłogi.
-struct ScanMarker: Encodable, Identifiable {
+struct ScanMarker: Codable, Identifiable {
     var id = UUID().uuidString
     var kind: String
     var wallId: String
@@ -47,7 +47,7 @@ struct ScanMarker: Encodable, Identifiable {
     var note: String?
 }
 
-struct ScanPayload: Encodable {
+struct ScanPayload: Codable {
     var version = 1
     var scannedAt: String
     var walls: [ScanWall]
@@ -60,6 +60,39 @@ struct ScanPayload: Encodable {
     var floor: [[Double]]?
     /// Punkty instalacji dodane ręcznie po skanie.
     var markers: [ScanMarker] = []
+}
+
+// Odczyt (zapis lokalny i skany z meble-app): pola dodane później mogą nie istnieć w starszych skanach.
+extension ScanObject {
+    private enum K: String, CodingKey { case id, category, cx, cy, widthMm, depthMm, heightMm, elevationMm, rotationDeg }
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: K.self)
+        id = try c.decode(String.self, forKey: .id)
+        category = try c.decode(String.self, forKey: .category)
+        cx = try c.decode(Double.self, forKey: .cx)
+        cy = try c.decode(Double.self, forKey: .cy)
+        widthMm = try c.decode(Double.self, forKey: .widthMm)
+        depthMm = try c.decode(Double.self, forKey: .depthMm)
+        heightMm = try c.decode(Double.self, forKey: .heightMm)
+        elevationMm = try c.decodeIfPresent(Double.self, forKey: .elevationMm) ?? 0
+        rotationDeg = try c.decode(Double.self, forKey: .rotationDeg)
+    }
+}
+
+extension ScanPayload {
+    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers }
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: K.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        scannedAt = try c.decodeIfPresent(String.self, forKey: .scannedAt) ?? ""
+        walls = try c.decode([ScanWall].self, forKey: .walls)
+        openings = try c.decodeIfPresent([ScanOpening].self, forKey: .openings) ?? []
+        objects = try c.decodeIfPresent([ScanObject].self, forKey: .objects) ?? []
+        roomHeightMm = try c.decodeIfPresent(Double.self, forKey: .roomHeightMm)
+        closed = try c.decodeIfPresent(Bool.self, forKey: .closed) ?? false
+        floor = try c.decodeIfPresent([[Double]].self, forKey: .floor)
+        markers = try c.decodeIfPresent([ScanMarker].self, forKey: .markers) ?? []
+    }
 }
 
 /// CapturedRoom (metry, 3D) → rzut 2D w mm. Rzut obracamy tak, żeby najdłuższa

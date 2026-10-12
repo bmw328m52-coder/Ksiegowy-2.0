@@ -83,7 +83,8 @@ final class Session: ObservableObject {
 
     // MARK: REST
 
-    private func rest(_ path: String, query: [URLQueryItem] = [], method: String = "GET", body: Data? = nil) async throws -> Data {
+    private func rest(_ path: String, query: [URLQueryItem] = [], method: String = "GET", body: Data? = nil,
+                      returning: Bool = false) async throws -> Data {
         var req = URLRequest(url: Config.supabaseURL.appending(path: "rest/v1/\(path)").appending(queryItems: query))
         req.httpMethod = method
         req.setValue(Config.anonKey, forHTTPHeaderField: "apikey")
@@ -91,7 +92,7 @@ final class Session: ObservableObject {
         if let body {
             req.httpBody = body
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            req.setValue(returning ? "return=representation" : "return=minimal", forHTTPHeaderField: "Prefer")
         }
         let (data, resp) = try await URLSession.shared.data(for: req)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
@@ -110,15 +111,50 @@ final class Session: ObservableObject {
         return try JSONDecoder().decode([JobRow].self, from: data)
     }
 
-    func uploadScan(jobId: String, name: String, scan: ScanPayload) async throws {
-        struct Insert: Encodable {
-            let jobId: String
-            let name: String
-            let data: ScanPayload
+    /// Skan zlecenia zapisany w meble-app.
+    struct RemoteScan: Decodable, Identifiable {
+        let id: String
+        let name: String
+        let data: ScanPayload
+        let createdAt: String
+    }
+
+    private static let snake: (JSONEncoder, JSONDecoder) = {
+        let e = JSONEncoder()
+        e.keyEncodingStrategy = .convertToSnakeCase
+        let d = JSONDecoder()
+        d.keyDecodingStrategy = .convertFromSnakeCase
+        return (e, d)
+    }()
+
+    func jobScans(jobId: String) async throws -> [RemoteScan] {
+        let data = try await rest("room_scans", query: [
+            URLQueryItem(name: "select", value: "id,name,data,created_at"),
+            URLQueryItem(name: "job_id", value: "eq.\(jobId)"),
+            URLQueryItem(name: "order", value: "created_at.desc"),
+        ])
+        return try Self.snake.1.decode([RemoteScan].self, from: data)
+    }
+
+    /// Wysyła skan do zlecenia. Z `remoteId` aktualizuje istniejący wiersz (gdy w międzyczasie
+    /// usunięto go w meble-app — wstawia nowy). Zwraca id wiersza.
+    func uploadScan(jobId: String, name: String, scan: ScanPayload, remoteId: String?) async throws -> String {
+        struct Row: Decodable { let id: String }
+        if let remoteId {
+            struct Patch: Encodable { let name: String; let data: ScanPayload }
+            let out = try await rest("room_scans", query: [
+                URLQueryItem(name: "id", value: "eq.\(remoteId)"),
+                URLQueryItem(name: "select", value: "id"),
+            ], method: "PATCH", body: try Self.snake.0.encode(Patch(name: name, data: scan)), returning: true)
+            if let row = try JSONDecoder().decode([Row].self, from: out).first { return row.id }
         }
-        let enc = JSONEncoder()
-        enc.keyEncodingStrategy = .convertToSnakeCase
-        _ = try await rest("room_scans", method: "POST", body: try enc.encode(Insert(jobId: jobId, name: name, data: scan)))
+        struct Insert: Encodable { let jobId: String; let name: String; let data: ScanPayload }
+        let out = try await rest("room_scans", query: [URLQueryItem(name: "select", value: "id")], method: "POST",
+                                 body: try Self.snake.0.encode(Insert(jobId: jobId, name: name, data: scan)), returning: true)
+        guard let row = try JSONDecoder().decode([Row].self, from: out).first else {
+            throw ApiError(message: "Serwer nie zwrócił zapisanego skanu.")
+        }
+        return row.id
     }
 
     private static func errorMessage(_ data: Data, fallback: String) -> String {
