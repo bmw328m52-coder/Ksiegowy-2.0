@@ -72,7 +72,7 @@ enum ElevationDraw {
             ctx.stroke(shape, with: ink, lineWidth: 0.8)
         }
 
-        let wallRect = Path(CGRect(x: x0, y: yb - H * s, width: W * s, height: H * s))
+        let wallRect = Path(CGRect(x: L.x0, y: L.yb - H * s, width: W * s, height: H * s))
         ctx.fill(wallRect, with: .color(Color(white: 0.97)))
         ctx.stroke(wallRect, with: ink, lineWidth: 1.2)
 
