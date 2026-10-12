@@ -207,6 +207,13 @@ enum PlanDraw {
             Symbols.draw(t, o.category, r, widthMm: o.widthMm)
         }
 
+        // Punkty instalacji przy wewnętrznej krawędzi ściany.
+        for mk in m.markers {
+            guard let g = m.walls.first(where: { $0.w.id == mk.wallId }) else { continue }
+            let c = L.pt(g.at(min(max(mk.offsetMm, 0), g.len))) + CGVector(g.inN) * 13
+            MarkerDraw.badge(ctx, MarkerKind(key: mk.kind), at: c, r: 9)
+        }
+
         // Otwarte przejście — domknięcie obrysu linią przerywaną.
         if let gap = m.gap {
             ctx.stroke(Draft.line(L.pt(gap.0), L.pt(gap.1)), with: .color(Color(white: 0.5)),

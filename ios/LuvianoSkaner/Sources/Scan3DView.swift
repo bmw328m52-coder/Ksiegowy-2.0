@@ -103,6 +103,17 @@ enum Scan3D {
             root.addChildNode(node)
         }
 
+        // Punkty instalacji — kolorowe „pinezki" na wewnętrznej powierzchni ściany.
+        for mk in scan.markers {
+            guard let g = m.walls.first(where: { $0.w.id == mk.wallId }) else { continue }
+            let p = g.at(min(max(mk.offsetMm, 0), g.len), -25)
+            let ball = SCNSphere(radius: 0.045)
+            ball.materials = [material(UIColor(MarkerKind(key: mk.kind).color))]
+            let node = SCNNode(geometry: ball)
+            node.position = SCNVector3(Float(p.x / 1000), Float(mk.heightMm / 1000), Float(p.y / 1000))
+            root.addChildNode(node)
+        }
+
         let ambient = SCNNode()
         ambient.light = SCNLight()
         ambient.light!.type = .ambient

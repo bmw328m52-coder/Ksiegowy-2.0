@@ -157,7 +157,11 @@ enum PlanGeom {
             let nw = scan.walls[nxt]
             scan.walls[nxt].setA(nw.a + d)
             let parallel = abs(cross(nw.dir, u)) < 0.26
-            if parallel || dist(nw.b, start) < 1 { break }
+            if parallel || dist(nw.b, start) < 1 {
+                // Przesunął się tylko początek tej ściany — punkty instalacji zostają w miejscu.
+                shiftMarkers(&scan, wall: nw.id, by: -dot(d, nw.dir))
+                break
+            }
             corner = nw.b
             movedCorners.append(nw.b)
             scan.walls[nxt].setB(nw.b + d)
@@ -180,6 +184,12 @@ enum PlanGeom {
         for k in scan.walls.indices { scan.walls[k].lengthMm = scan.walls[k].length.rounded() }
         scan.walls[i].lengthMm = newLen.rounded()
         scan.walls[i].measured = true
+    }
+
+    static func shiftMarkers(_ scan: inout ScanPayload, wall id: String, by dt: Double) {
+        for k in scan.markers.indices where scan.markers[k].wallId == id {
+            scan.markers[k].offsetMm = max(0, (scan.markers[k].offsetMm + dt).rounded())
+        }
     }
 
     static func setRoomHeight(_ scan: inout ScanPayload, _ h: Double) {
@@ -206,6 +216,7 @@ struct PlanModel {
 
     let walls: [Wall]
     let objects: [ScanObject]
+    let markers: [ScanMarker]
     /// Obrys podłogi (zamknięty łańcuch ścian, w innym razie otoczka wypukła).
     let floor: [V2]
     let closed: Bool
@@ -217,6 +228,7 @@ struct PlanModel {
     init(_ scan: ScanPayload) {
         let ws = scan.walls
         objects = scan.objects
+        markers = scan.markers
         var loop: [V2] = []
         if ws.count >= 3 {
             var idx = 0

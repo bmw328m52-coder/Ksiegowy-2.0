@@ -4,10 +4,11 @@ import { SCAN_OBJECT_LABELS, SCAN_OPENING_LABELS } from "@/lib/dao/room_scans.ty
 import { fmtDate } from "@/lib/format";
 import { wallLetter } from "./RoomScanPlan";
 import RoomScanViews from "./RoomScanViews";
-import { planModel, planStats } from "@/lib/scan2d";
+import { markerKind, planModel, planStats } from "@/lib/scan2d";
 import { deleteScanAction } from "./scanActions";
 
 const mm = (v: number) => `${Math.round(v)} mm`;
+const wallIndex0 = (walls: { id: string }[], id: string) => walls.findIndex((w) => w.id === id);
 
 export default function RoomScanSection({ jobId, scans }: { jobId: string; scans: RoomScan[] }) {
   if (scans.length === 0) return null;
@@ -16,6 +17,9 @@ export default function RoomScanSection({ jobId, scans }: { jobId: string; scans
     <>
       {scans.map((scan) => {
         const { walls, openings, objects } = scan.data;
+        const markers = [...(scan.data.markers ?? [])]
+          .filter((mk) => wallIndex0(walls, mk.wall_id) >= 0)
+          .sort((a, b) => wallIndex0(walls, a.wall_id) - wallIndex0(walls, b.wall_id) || a.offset_mm - b.offset_mm);
         const wallIndex = new Map(walls.map((w, i) => [w.id, i]));
         const stats = planStats(planModel(scan.data));
         const n2 = (v: number) => v.toFixed(2).replace(".", ",");
@@ -90,6 +94,48 @@ export default function RoomScanSection({ jobId, scans }: { jobId: string; scans
                             {Math.round(o.width_mm)} × {Math.round(o.height_mm)}
                           </td>
                           <td className="py-1 tabular-nums">{mm(o.sill_mm)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {markers.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-zinc-500 text-left">
+                    <tr>
+                      <th className="py-1 pr-3 font-medium">Instalacja</th>
+                      <th className="py-1 pr-3 font-medium">Ściana</th>
+                      <th className="py-1 pr-3 font-medium">Od lewego / prawego</th>
+                      <th className="py-1 font-medium">Od podłogi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {markers.map((mk) => {
+                      const k = markerKind(mk.kind);
+                      const wi = wallIndex0(walls, mk.wall_id);
+                      return (
+                        <tr key={mk.id} className="border-t border-[#f0efec] align-top">
+                          <td className="py-1 pr-3">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span
+                                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-bold text-white"
+                                style={{ background: k.color }}
+                              >
+                                {k.code}
+                              </span>
+                              {k.label}
+                            </span>
+                            {mk.note && <div className="text-[11px] text-zinc-500">{mk.note}</div>}
+                          </td>
+                          <td className="py-1 pr-3 font-semibold">{wallLetter(wi)}</td>
+                          <td className="py-1 pr-3 tabular-nums">
+                            {Math.round(mk.offset_mm)} / {Math.round(walls[wi].length_mm - mk.offset_mm)}
+                          </td>
+                          <td className="py-1 tabular-nums">{mm(mk.height_mm)}</td>
                         </tr>
                       );
                     })}

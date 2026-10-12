@@ -36,6 +36,17 @@ struct ScanObject: Encodable {
     var rotationDeg: Double
 }
 
+/// Punkt instalacji na ścianie (woda, odpływ, gniazdko…), wskazany ręcznie.
+/// Położenie: odległość od początku ściany (lewy narożnik w widoku ściany) i od podłogi.
+struct ScanMarker: Encodable, Identifiable {
+    var id = UUID().uuidString
+    var kind: String
+    var wallId: String
+    var offsetMm: Double
+    var heightMm: Double
+    var note: String?
+}
+
 struct ScanPayload: Encodable {
     var version = 1
     var scannedAt: String
@@ -47,6 +58,8 @@ struct ScanPayload: Encodable {
     var closed: Bool = false
     /// Obrys podłogi wyliczony przez RoomPlan [[x, y]] (mm) — także gdy ściany się nie domykają.
     var floor: [[Double]]?
+    /// Punkty instalacji dodane ręcznie po skanie.
+    var markers: [ScanMarker] = []
 }
 
 /// CapturedRoom (metry, 3D) → rzut 2D w mm. Rzut obracamy tak, żeby najdłuższa

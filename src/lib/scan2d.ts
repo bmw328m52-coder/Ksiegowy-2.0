@@ -1,7 +1,23 @@
 // Rzut 2D skanu w stylu MagicPlan — ta sama geometria co aplikacja iPad
 // (ios/LuvianoSkaner/Sources/PlanGeom.swift + PlanCanvas.swift). Wszystko w mm.
 // Moduł bez zależności runtime (tylko typy), żeby dało się go uruchomić poza Next.
-import type { ScanData, ScanObject, ScanOpening, ScanWall } from "@/lib/dao/room_scans.types";
+import type { ScanData, ScanMarkerKind, ScanObject, ScanOpening, ScanWall } from "@/lib/dao/room_scans.types";
+
+/** Punkty instalacji: nazwa, skrót na rzucie, kolor (jak MarkerKind w Markers.swift). */
+export const SCAN_MARKER_KINDS: Record<ScanMarkerKind, { label: string; code: string; color: string }> = {
+  water_cold: { label: "Woda zimna", code: "ZW", color: "#1f73d9" },
+  water_hot: { label: "Woda ciepła", code: "CW", color: "#d93833" },
+  drain: { label: "Odpływ", code: "K", color: "#6b6157" },
+  socket: { label: "Gniazdko 230 V", code: "G", color: "#ed801a" },
+  power_400: { label: "Siła 400 V", code: "400", color: "#8c45bf" },
+  gas: { label: "Gaz", code: "GZ", color: "#d9ad00" },
+  vent: { label: "Wentylacja", code: "WT", color: "#33998c" },
+  light: { label: "Wypust światła", code: "Ś", color: "#bf8c1a" },
+  switch: { label: "Włącznik", code: "Wł", color: "#8c734d" },
+  other: { label: "Inne", code: "•", color: "#666666" },
+};
+
+export const markerKind = (k: string) => SCAN_MARKER_KINDS[k as ScanMarkerKind] ?? SCAN_MARKER_KINDS.other;
 
 export type V2 = [number, number];
 const add = (a: V2, b: V2): V2 => [a[0] + b[0], a[1] + b[1]];
@@ -443,6 +459,16 @@ export function planSvg(data: ScanData, opts: { name?: string; uid?: string; let
   }
 
   for (const o of m.objects) s += symbol(o, u);
+
+  // Punkty instalacji przy wewnętrznej krawędzi ściany.
+  for (const mk of data.markers ?? []) {
+    const g = m.walls.find((w) => w.w.id === mk.wall_id);
+    if (!g) continue;
+    const k = markerKind(mk.kind);
+    const c = add(at(g, Math.min(Math.max(mk.offset_mm, 0), g.len)), mul(g.inN, 13 * u));
+    s += `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(9 * u).toFixed(1)}" fill="${k.color}" stroke="#fff" stroke-width="${(1.5 * u).toFixed(1)}"/>`;
+    s += `<text x="${c[0].toFixed(1)}" y="${c[1].toFixed(1)}" font-size="${((k.code.length > 2 ? 6 : 7.5) * u).toFixed(1)}" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central" font-family="system-ui,sans-serif">${esc(k.code)}</text>`;
+  }
 
   if (m.gap) s += line(m.gap[0], m.gap[1], `stroke="#808080" stroke-width="${u}" stroke-dasharray="${5 * u} ${4 * u}"`);
 

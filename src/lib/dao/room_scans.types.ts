@@ -44,6 +44,31 @@ export type ScanObject = {
   rotation_deg: number;
 };
 
+/** Rodzaje punktów instalacji — zgodne z MarkerKind w ios/LuvianoSkaner/Sources/Markers.swift. */
+export type ScanMarkerKind =
+  | "water_cold"
+  | "water_hot"
+  | "drain"
+  | "socket"
+  | "power_400"
+  | "gas"
+  | "vent"
+  | "light"
+  | "switch"
+  | "other";
+
+/** Punkt instalacji wskazany ręcznie na ścianie. */
+export type ScanMarker = {
+  id: string;
+  kind: ScanMarkerKind;
+  wall_id: string;
+  /** Odległość od początku ściany (x1,y1) — „od lewego narożnika" w widoku ściany. */
+  offset_mm: number;
+  /** Wysokość środka punktu od podłogi. */
+  height_mm: number;
+  note?: string;
+};
+
 export type ScanData = {
   version: 1;
   scanned_at: string;
@@ -56,6 +81,8 @@ export type ScanData = {
   closed?: boolean;
   /** Obrys podłogi wyliczony przez RoomPlan [x, y] (mm) — także gdy ściany się nie domykają. */
   floor?: [number, number][];
+  /** Punkty instalacji (woda, odpływ, gniazdka…); brak w starszych skanach. */
+  markers?: ScanMarker[];
 };
 
 export type RoomScan = {

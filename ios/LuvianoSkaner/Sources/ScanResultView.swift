@@ -10,10 +10,12 @@ enum ScanViewMode: String, CaseIterable {
 
 private enum EditTarget: Identifiable {
     case wallLength(Int), roomHeight
+    case marker(ScanMarker, isNew: Bool)
     var id: String {
         switch self {
         case .wallLength(let i): return "w\(i)"
         case .roomHeight: return "h"
+        case .marker(let m, _): return "m" + m.id
         }
     }
 }
@@ -30,6 +32,7 @@ struct ScanResultView: View {
     @State private var mode: ScanViewMode = .plan
     @State private var selected: Int?
     @State private var edit: EditTarget?
+    @State private var selectedMarker: String?
     @State private var version = 0
     @State private var sending = false
     @State private var sent = false
@@ -77,9 +80,30 @@ struct ScanResultView: View {
                         PlanGeom.setRoomHeight(&scan, v)
                         changed()
                     }
+                case .marker(let mk, let isNew):
+                    let wi = scan.walls.firstIndex { $0.id == mk.wallId } ?? 0
+                    MarkerSheet(marker: mk, wallName: wallLetter(wi), wallLength: scan.walls[wi].length, isNew: isNew,
+                                onSave: { saveMarker($0) },
+                                onDelete: { deleteMarker(mk.id) })
                 }
             }
         }
+    }
+
+    private func saveMarker(_ mk: ScanMarker) {
+        if let k = scan.markers.firstIndex(where: { $0.id == mk.id }) {
+            scan.markers[k] = mk
+        } else {
+            scan.markers.append(mk)
+        }
+        selectedMarker = mk.id
+        changed()
+    }
+
+    private func deleteMarker(_ id: String) {
+        scan.markers.removeAll { $0.id == id }
+        if selectedMarker == id { selectedMarker = nil }
+        changed()
     }
 
     private func changed() {
@@ -112,7 +136,24 @@ struct ScanResultView: View {
 
     private var wallView: some View {
         let i = min(selected ?? 0, max(scan.walls.count - 1, 0))
-        return ElevationCanvas(scan: scan, wallIndex: i)
+        return ElevationCanvas(scan: scan, wallIndex: i, selectedMarker: selectedMarker) { t, z, hit in
+            if let hit, let mk = scan.markers.first(where: { $0.id == hit }) {
+                if selectedMarker == hit { edit = .marker(mk, isNew: false) } else { selectedMarker = hit }
+            } else if scan.walls.indices.contains(i) {
+                selectedMarker = nil
+                let last = scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
+                edit = .marker(ScanMarker(kind: last.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z), isNew: true)
+            }
+        }
+            .overlay(alignment: .bottom) {
+                Text("Stuknij na ścianie, żeby dodać punkt instalacji · stuknij punkt dwa razy, żeby go edytować")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.thinMaterial, in: Capsule())
+                    .padding(.bottom, 70)
+            }
             .overlay(alignment: .top) {
                 HStack {
                     Button { step(-1) } label: { Image(systemName: "arrow.left") }
@@ -183,6 +224,8 @@ struct ScanResultView: View {
                 }
             }
 
+            markersSection
+
             Text("Okna: \(windows) · Drzwi: \(doors) · Sprzęty: \(scan.objects.count)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -214,6 +257,67 @@ struct ScanResultView: View {
             }
         }
         .padding(20)
+    }
+
+    private var markersSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Instalacje").font(.footnote).foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    selected = selected ?? 0
+                    mode = .wall
+                } label: {
+                    Label("Dodaj punkt", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(scan.walls.isEmpty)
+            }
+            if scan.markers.isEmpty {
+                Text("Woda, odpływ, gniazdka, gaz, wentylacja — dodaj w widoku ściany.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+            ForEach(markerRows, id: \.mk.id) { row in
+                let k = MarkerKind(key: row.mk.kind)
+                HStack(spacing: 10) {
+                    Image(systemName: k.symbol)
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .frame(width: 26, height: 26)
+                        .background(k.color, in: Circle())
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(k.label).font(.subheadline)
+                        Text("Ściana \(wallLetter(row.wall)) · \(Int(row.mk.offsetMm.rounded())) od lewej · \(Int(row.mk.heightMm.rounded())) od podłogi")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        if let note = row.mk.note {
+                            Text(note).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(selectedMarker == row.mk.id ? PlanStyle.selected.opacity(0.1) : Color(.systemBackground),
+                            in: RoundedRectangle(cornerRadius: 10))
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selected = row.wall
+                    selectedMarker = row.mk.id
+                    if mode == .wall { edit = .marker(row.mk, isNew: false) } else { mode = .wall }
+                }
+            }
+        }
+    }
+
+    /// Punkty posortowane po ścianie i odległości (kolejność obchodu pomieszczenia).
+    private var markerRows: [(mk: ScanMarker, wall: Int)] {
+        scan.markers
+            .compactMap { mk in scan.walls.firstIndex { $0.id == mk.wallId }.map { (mk: mk, wall: $0) } }
+            .sorted { ($0.wall, $0.mk.offsetMm) < ($1.wall, $1.mk.offsetMm) }
     }
 
     private func wallRow(_ i: Int, _ w: ScanWall) -> some View {

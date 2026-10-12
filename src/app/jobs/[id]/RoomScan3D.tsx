@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { ScanData } from "@/lib/dao/room_scans.types";
-import { openingSpans, planModel, wallAxis, wallPieces } from "@/lib/scan2d";
+import { markerKind, openingSpans, planModel, wallAxis, wallPieces } from "@/lib/scan2d";
 import { wallLetter } from "./RoomScanPlan";
 
 const WALL = 0xf2f1ee;
@@ -110,6 +110,20 @@ export default function RoomScan3D({ data }: { data: ScanData }) {
       );
       m.position.set(o.cx / 1000, ((o.elevation_mm ?? 0) + o.height_mm / 2) / 1000, o.cy / 1000);
       m.rotation.y = (-o.rotation_deg * Math.PI) / 180;
+    }
+
+    // Punkty instalacji — kolorowe kulki przy wewnętrznej powierzchni ściany.
+    const pm = planModel(data);
+    for (const mk of data.markers ?? []) {
+      const g = pm.walls.find((w) => w.w.id === mk.wall_id);
+      if (!g) continue;
+      const t = Math.min(Math.max(mk.offset_mm, 0), g.len);
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 20, 14),
+        new THREE.MeshStandardMaterial({ color: markerKind(mk.kind).color, roughness: 0.5 })
+      );
+      ball.position.set((g.a[0] + g.dir[0] * t + g.inN[0] * 60) / 1000, mk.height_mm / 1000, (g.a[1] + g.dir[1] * t + g.inN[1] * 60) / 1000);
+      scene.add(ball);
     }
 
     // Kamera z narożnika, nad pomieszczeniem.

@@ -1,30 +1,62 @@
 import SwiftUI
 
 /// Widok ściany z przodu (jak „Elevation View" w MagicPlan): okna/drzwi
-/// z odległościami od narożników, parapetem i nadprożem.
+/// z odległościami od narożników, parapetem i nadprożem, punkty instalacji.
+/// Stuknięcie: w punkt → edycja, w ścianę → nowy punkt w tym miejscu (mm).
 struct ElevationCanvas: View {
     let scan: ScanPayload
     let wallIndex: Int
+    var selectedMarker: String?
+    var onTap: (_ t: Double, _ z: Double, _ marker: String?) -> Void = { _, _, _ in }
 
     var body: some View {
-        Canvas { ctx, size in
+        GeometryReader { geo in
             let m = PlanModel(scan)
-            guard m.walls.indices.contains(wallIndex) else { return }
-            ElevationDraw.draw(ctx, size, m.walls[wallIndex])
+            let g = m.walls.indices.contains(wallIndex) ? m.walls[wallIndex] : nil
+            let markers = g.map { w in scan.markers.filter { $0.wallId == w.w.id } } ?? []
+            Canvas { ctx, size in
+                guard let g, let L = ElevLayout(size, g) else { return }
+                ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { loc in
+                guard let g, let L = ElevLayout(geo.size, g) else { return }
+                let hit = markers
+                    .map { ($0.id, hypot(L.p($0.offsetMm, $0.heightMm).x - loc.x, L.p($0.offsetMm, $0.heightMm).y - loc.y)) }
+                    .filter { $0.1 < 24 }
+                    .min { $0.1 < $1.1 }
+                if let hit { onTap(0, 0, hit.0); return }
+                let (t, z) = L.inv(loc)
+                guard t >= 0, t <= L.W, z >= 0, z <= L.H else { return }
+                onTap((t / 10).rounded() * 10, (z / 10).rounded() * 10, nil)
+            }
         }
         .background(PlanStyle.canvas)
     }
 }
 
-enum ElevationDraw {
-    static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ g: PlanModel.Wall) {
-        let H = g.w.heightMm, W = g.len
-        guard W > 1, H > 1 else { return }
+/// mm ściany (t wzdłuż, z w górę) ↔ punkty ekranu.
+struct ElevLayout {
+    let W, H, s, x0, yb: Double
+
+    init?(_ size: CGSize, _ g: PlanModel.Wall) {
+        W = g.len
+        H = g.w.heightMm
+        guard W > 1, H > 1 else { return nil }
         let margin = 110.0
-        let s = min((size.width - 2 * margin) / W, (size.height - 2 * margin) / H)
-        let x0 = (size.width - W * s) / 2
-        let yb = (size.height + H * s) / 2
-        func p(_ t: Double, _ z: Double) -> CGPoint { CGPoint(x: x0 + t * s, y: yb - z * s) }
+        s = min((size.width - 2 * margin) / W, (size.height - 2 * margin) / H)
+        x0 = (size.width - W * s) / 2
+        yb = (size.height + H * s) / 2
+    }
+
+    func p(_ t: Double, _ z: Double) -> CGPoint { CGPoint(x: x0 + t * s, y: yb - z * s) }
+    func inv(_ q: CGPoint) -> (Double, Double) { ((q.x - x0) / s, (yb - q.y) / s) }
+}
+
+enum ElevationDraw {
+    static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?) {
+        let (H, W, s) = (L.H, L.W, L.s)
+        func p(_ t: Double, _ z: Double) -> CGPoint { L.p(t, z) }
         let ink = GraphicsContext.Shading.color(PlanStyle.wall)
 
         // Boczne ściany w perspektywie.
@@ -91,6 +123,34 @@ enum ElevationDraw {
                         text: "\(Int(W.rounded()))", color: locked ? PlanStyle.measured : PlanStyle.wall, locked: locked, bg: bg)
         Draft.dimension(ctx, p(0, 0), p(0, H), out: CGVector(dx: -1, dy: 0), off: 46,
                         text: "\(Int(H.rounded()))", color: PlanStyle.wall, bg: bg)
+
+        // Punkty instalacji: zaznaczony z liniami wymiarowymi od bliższego narożnika i od podłogi.
+        for mk in markers where mk.id == selected {
+            let c = p(mk.offsetMm, mk.heightMm)
+            let fromLeft = mk.offsetMm <= W / 2
+            let edge = fromLeft ? 0.0 : W
+            let dist = abs(mk.offsetMm - edge)
+            let col = PlanStyle.selected
+            ctx.stroke(Draft.line(p(edge, mk.heightMm), c), with: .color(col.opacity(0.35)), style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
+            ctx.stroke(Draft.line(p(mk.offsetMm, 0), c), with: .color(col.opacity(0.35)), style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
+            if dist > 5 {
+                Draft.dimension(ctx, p(min(edge, mk.offsetMm), mk.heightMm), p(max(edge, mk.offsetMm), mk.heightMm),
+                                out: CGVector(dx: 0, dy: -1), off: 0, text: "\(Int(dist.rounded()))", color: col, bg: Color(white: 0.97))
+            }
+            if mk.heightMm > 5 {
+                Draft.dimension(ctx, p(mk.offsetMm, 0), p(mk.offsetMm, mk.heightMm), out: CGVector(dx: 1, dy: 0), off: 0,
+                                text: "\(Int(mk.heightMm.rounded()))", color: col, bg: Color(white: 0.97))
+            }
+        }
+        for mk in markers {
+            let c = p(mk.offsetMm, mk.heightMm)
+            MarkerDraw.badge(ctx, MarkerKind(key: mk.kind), at: c, r: 13, selected: mk.id == selected)
+            guard mk.id != selected else { continue }
+            ctx.draw(Text("\(Int(mk.offsetMm.rounded())) · h \(Int(mk.heightMm.rounded()))")
+                        .font(.system(size: 10, weight: .medium).monospacedDigit())
+                        .foregroundColor(PlanStyle.dim),
+                     at: CGPoint(x: c.x, y: c.y + 24))
+        }
     }
 }
 
