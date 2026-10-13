@@ -9,6 +9,7 @@ enum Brand {
 @main
 struct LuvianoSkanerApp: App {
     @StateObject private var session = Session()
+    @StateObject private var laser = Laser()
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,7 @@ struct LuvianoSkanerApp: App {
                 }
             }
             .environmentObject(session)
+            .environmentObject(laser)
             .tint(Brand.gold)
         }
     }

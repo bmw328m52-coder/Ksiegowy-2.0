@@ -75,6 +75,7 @@ struct ScanResultView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { onDone() } label: { Label("Skany", systemImage: "chevron.left").labelStyle(.titleAndIcon) }
                 }
+                ToolbarItem(placement: .topBarTrailing) { LaserButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Label(saved.synced ? "W zleceniu" : "Zapisano na iPadzie",
                           systemImage: saved.synced ? "checkmark.icloud" : "ipad")

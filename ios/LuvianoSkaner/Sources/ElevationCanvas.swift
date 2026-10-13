@@ -161,7 +161,9 @@ struct MeasureSheet: View {
     let onApply: (Double) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var laser: Laser
     @State private var text = ""
+    @State private var fromLaser = false
 
     private var value: Double? { Double(text.replacingOccurrences(of: ",", with: ".")) }
 
@@ -178,11 +180,7 @@ struct MeasureSheet: View {
                 }
             }
 
-            Button {} label: {
-                Label("Dalmierz Bosch — wkrótce", systemImage: "scope").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(true)
+            LaserHint(fromLaser: fromLaser)
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(text.isEmpty ? "\(Int(initial.rounded()))" : text)
@@ -198,6 +196,7 @@ struct MeasureSheet: View {
                         if k == "⌫" { if !text.isEmpty { text.removeLast() } }
                         else if k == "," { if !text.contains(",") { text += text.isEmpty ? "0," : "," } }
                         else if text.count < 7 { text += k }
+                        fromLaser = false
                     } label: {
                         Text(k).font(.title2).frame(maxWidth: .infinity, minHeight: 50)
                     }
@@ -218,5 +217,10 @@ struct MeasureSheet: View {
         }
         .padding(24)
         .presentationDetents([.large])
+        .onChange(of: laser.reading) { _, r in
+            guard let r else { return }
+            text = "\(Int(r.mm))"
+            fromLaser = true
+        }
     }
 }

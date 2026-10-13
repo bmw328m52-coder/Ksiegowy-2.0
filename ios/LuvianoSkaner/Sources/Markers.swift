@@ -85,6 +85,12 @@ struct MarkerSheet: View {
     @State private var offsetText: String
     @State private var heightText: String
     @State private var fromRight = false
+    @EnvironmentObject private var laser: Laser
+    @FocusState private var focus: Field?
+    /// Pole, do którego trafi następny pomiar z dalmierza (po odległości od narożnika — wysokość).
+    @State private var laserTarget: Field = .offset
+
+    private enum Field { case offset, height }
 
     init(marker: ScanMarker, wallName: String, wallLength: Double, isNew: Bool,
          onSave: @escaping (ScanMarker) -> Void, onDelete: @escaping () -> Void) {
@@ -141,8 +147,9 @@ struct MarkerSheet: View {
                         // Ten sam punkt — przeliczamy wartość na drugi narożnik.
                         if let o = num(offsetText) { offsetText = "\(Int((wallLength - o).rounded()))" }
                     }
-                    mmField(fromRight ? "Od prawego narożnika" : "Od lewego narożnika", text: $offsetText)
-                    mmField("Od podłogi (środek punktu)", text: $heightText)
+                    LaserHint()
+                    mmField(fromRight ? "Od prawego narożnika" : "Od lewego narożnika", text: $offsetText, field: .offset)
+                    mmField("Od podłogi (środek punktu)", text: $heightText, field: .height)
                 } header: {
                     Text("Położenie na ścianie \(wallName)")
                 } footer: {
@@ -188,18 +195,38 @@ struct MarkerSheet: View {
             }
         }
         .presentationDetents([.large])
+        .onChange(of: focus) { _, f in if let f { laserTarget = f } }
+        .onChange(of: laser.reading) { _, r in
+            guard let r else { return }
+            let v = "\(Int(r.mm))"
+            switch laserTarget {
+            case .offset:
+                offsetText = v
+                laserTarget = .height
+                if focus != nil { focus = .height }
+            case .height:
+                heightText = v
+            }
+        }
     }
 
-    private func mmField(_ title: String, text: Binding<String>) -> some View {
+    private func mmField(_ title: String, text: Binding<String>, field: Field) -> some View {
         HStack {
+            if laser.isConnected {
+                Image(systemName: "scope")
+                    .foregroundStyle(laserTarget == field ? Color.green : Color.clear)
+            }
             Text(title)
             Spacer()
             TextField("0", text: text)
+                .focused($focus, equals: field)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .font(.body.monospacedDigit())
                 .frame(width: 110)
             Text("mm").foregroundStyle(.secondary)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { laserTarget = field }
     }
 }
