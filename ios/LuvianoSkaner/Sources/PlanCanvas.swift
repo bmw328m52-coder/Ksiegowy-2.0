@@ -270,7 +270,7 @@ enum PlanDraw {
         var best: (Int, Double)?
         for (i, g) in m.walls.enumerated() {
             let c = L.pt(g.at(g.len / 2)) + CGVector(g.out) * lengthRow(g, L)
-            let d = hypot(p.x - c.x, p.y - c.y)
+            let d = Double(hypot(p.x - c.x, p.y - c.y))
             if d < 34, best == nil || d < best!.1 { best = (i, d) }
         }
         return best?.0
