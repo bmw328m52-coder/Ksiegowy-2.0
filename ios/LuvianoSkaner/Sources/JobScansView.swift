@@ -108,6 +108,7 @@ struct JobScansView: View {
 
     private func load() async {
         reloadLocal()
+        ScanStore.prunePhotos()
         loading = true
         defer { loading = false }
         do {
@@ -119,7 +120,8 @@ struct JobScansView: View {
     }
 
     private func openRemote(_ r: Session.RemoteScan) {
-        let s = SavedScan(jobId: job.id, name: r.name, scan: r.data, remoteId: r.id, synced: true)
+        let s = SavedScan(jobId: job.id, name: r.name, scan: r.data, remoteId: r.id, synced: true,
+                          uploadedPhotos: r.data.photoIds)
         ScanStore.save(s)
         reloadLocal()
         opened = s

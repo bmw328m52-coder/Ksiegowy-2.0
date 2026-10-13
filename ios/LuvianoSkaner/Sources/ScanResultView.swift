@@ -343,6 +343,11 @@ struct ScanResultView: View {
                         }
                     }
                     Spacer()
+                    if let n = row.mk.photos?.count, n > 0 {
+                        Label("\(n)", systemImage: "camera.fill")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                 }
                 .padding(.vertical, 6)
@@ -414,8 +419,20 @@ struct ScanResultView: View {
         sending = true
         defer { sending = false }
         do {
+            // Najpierw nowe zdjęcia — skan w zleceniu nie może wskazywać na brakujące pliki.
+            let wanted = scan.photoIds
+            var uploaded = Set(saved.uploadedPhotos ?? [])
+            for id in wanted where !uploaded.contains(id) {
+                guard let data = PhotoStore.data(id) else { continue }
+                try await session.uploadPhoto(id, data: data)
+                uploaded.insert(id)
+            }
             let id = try await session.uploadScan(jobId: job.id, name: name.trimmingCharacters(in: .whitespaces),
                                                   scan: scan, remoteId: saved.remoteId)
+            // Zdjęcia usunięte z punktów — sprzątamy w Storage (błąd nie blokuje wysłania).
+            let stale = uploaded.subtracting(wanted)
+            if (try? await session.deletePhotos(Array(stale))) != nil { uploaded.subtract(stale) }
+            saved.uploadedPhotos = Array(uploaded)
             saved.remoteId = id
             saved.synced = true
             ScanStore.save(saved)

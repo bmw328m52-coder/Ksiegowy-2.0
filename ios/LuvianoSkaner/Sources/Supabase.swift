@@ -157,6 +157,54 @@ final class Session: ObservableObject {
         return row.id
     }
 
+    // MARK: Storage — zdjęcia punktów (bucket scan-photos, ścieżka {user_id}/{id}.jpg)
+
+    /// Id użytkownika z tokenu (claim `sub`) — pierwszy człon ścieżki w Storage (RLS).
+    private func userId() async throws -> String {
+        let token = try await validAccessToken()
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { throw ApiError(message: "Nieprawidłowy token sesji.") }
+        var b64 = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        b64 += String(repeating: "=", count: (4 - b64.count % 4) % 4)
+        guard let data = Data(base64Encoded: b64),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let sub = obj["sub"] as? String else { throw ApiError(message: "Nieprawidłowy token sesji.") }
+        return sub
+    }
+
+    private func storage(_ path: String, method: String, body: Data? = nil, contentType: String? = nil,
+                         headers: [String: String] = [:]) async throws -> Data {
+        var req = URLRequest(url: Config.supabaseURL.appending(path: "storage/v1/\(path)"))
+        req.httpMethod = method
+        req.setValue(Config.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(try await validAccessToken())", forHTTPHeaderField: "Authorization")
+        if let contentType { req.setValue(contentType, forHTTPHeaderField: "Content-Type") }
+        for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
+        req.httpBody = body
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(code) else {
+            throw ApiError(message: Self.errorMessage(data, fallback: "Błąd zapisu zdjęć (\(code))."))
+        }
+        return data
+    }
+
+    func uploadPhoto(_ id: String, data: Data) async throws {
+        _ = try await storage("object/scan-photos/\(try await userId())/\(id).jpg", method: "POST", body: data,
+                              contentType: "image/jpeg", headers: ["x-upsert": "true"])
+    }
+
+    func downloadPhoto(_ id: String) async throws -> Data {
+        try await storage("object/authenticated/scan-photos/\(try await userId())/\(id).jpg", method: "GET")
+    }
+
+    func deletePhotos(_ ids: [String]) async throws {
+        guard !ids.isEmpty else { return }
+        let uid = try await userId()
+        let body = try JSONSerialization.data(withJSONObject: ["prefixes": ids.map { "\(uid)/\($0).jpg" }])
+        _ = try await storage("object/scan-photos", method: "DELETE", body: body, contentType: "application/json")
+    }
+
     private static func errorMessage(_ data: Data, fallback: String) -> String {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return fallback }
         for key in ["error_description", "msg", "message"] {

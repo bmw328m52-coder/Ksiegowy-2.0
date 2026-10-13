@@ -11,6 +11,12 @@ struct SavedScan: Codable, Identifiable {
     /// Wersja na iPadzie = wersja w zleceniu.
     var synced = false
     var updatedAt = Date()
+    /// Zdjęcia, które są już w meble-app (Storage) — wysyłamy tylko nowe, usuwamy niepotrzebne.
+    var uploadedPhotos: [String]?
+}
+
+extension ScanPayload {
+    var photoIds: [String] { markers.flatMap { $0.photos ?? [] } }
 }
 
 /// Pliki JSON w Documents/scans — zostają po zamknięciu aplikacji i po aktualizacji przez Sideloadly.
@@ -46,12 +52,19 @@ enum ScanStore {
         try? FileManager.default.removeItem(at: file(id))
     }
 
-    static func scans(jobId: String) -> [SavedScan] {
+    static func all() -> [SavedScan] {
         let urls = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
         return urls
             .filter { $0.pathExtension == "json" }
             .compactMap { try? decoder.decode(SavedScan.self, from: Data(contentsOf: $0)) }
-            .filter { $0.jobId == jobId }
-            .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    static func scans(jobId: String) -> [SavedScan] {
+        all().filter { $0.jobId == jobId }.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    /// Sprząta zdjęcia po usuniętych punktach / skanach.
+    static func prunePhotos() {
+        PhotoStore.prune(keeping: Set(all().flatMap(\.scan.photoIds)))
     }
 }

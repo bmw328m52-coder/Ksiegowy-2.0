@@ -6,12 +6,14 @@ import { wallLetter } from "./RoomScanPlan";
 import RoomScanViews from "./RoomScanViews";
 import { markerKind, planModel, planStats } from "@/lib/scan2d";
 import { deleteScanAction } from "./scanActions";
+import { scanPhotoUrls } from "@/lib/dao/room_scans";
 
 const mm = (v: number) => `${Math.round(v)} mm`;
 const wallIndex0 = (walls: { id: string }[], id: string) => walls.findIndex((w) => w.id === id);
 
-export default function RoomScanSection({ jobId, scans }: { jobId: string; scans: RoomScan[] }) {
+export default async function RoomScanSection({ jobId, scans }: { jobId: string; scans: RoomScan[] }) {
   if (scans.length === 0) return null;
+  const photoUrls = await scanPhotoUrls(scans);
 
   return (
     <>
@@ -130,6 +132,30 @@ export default function RoomScanSection({ jobId, scans }: { jobId: string; scans
                               {k.label}
                             </span>
                             {mk.note && <div className="text-[11px] text-zinc-500">{mk.note}</div>}
+                            {(mk.photos?.length ?? 0) > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {mk.photos!.map((p) =>
+                                  photoUrls[p] ? (
+                                    <a key={p} href={photoUrls[p]} target="_blank" rel="noopener noreferrer">
+                                      {/* eslint-disable-next-line @next/next/no-img-element -- podpisany URL Storage, wygasa po 1 h */}
+                                      <img
+                                        src={photoUrls[p]}
+                                        alt={`${k.label} — zdjęcie`}
+                                        loading="lazy"
+                                        className="h-16 w-16 rounded-md border border-[#ededea] object-cover"
+                                      />
+                                    </a>
+                                  ) : (
+                                    <span
+                                      key={p}
+                                      className="flex h-16 w-16 items-center justify-center rounded-md bg-[#f6f5f2] text-[10px] text-zinc-400"
+                                    >
+                                      brak
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="py-1 pr-3 font-semibold">{wallLetter(wi)}</td>
                           <td className="py-1 pr-3 tabular-nums">

@@ -45,6 +45,8 @@ struct ScanMarker: Codable, Identifiable {
     var offsetMm: Double
     var heightMm: Double
     var note: String?
+    /// Id zdjęć (PhotoStore / bucket scan-photos `{user_id}/{id}.jpg`).
+    var photos: [String]?
 }
 
 struct ScanPayload: Codable {

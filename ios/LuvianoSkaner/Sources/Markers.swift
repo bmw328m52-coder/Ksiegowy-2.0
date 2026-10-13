@@ -149,6 +149,11 @@ struct MarkerSheet: View {
                     Text("Długość ściany \(Int(wallLength.rounded())) mm. Wpisz wymiar z miarki lub dalmierza.")
                 }
 
+                MarkerPhotosSection(photos: Binding(
+                    get: { marker.photos ?? [] },
+                    set: { marker.photos = $0.isEmpty ? nil : $0 }
+                ))
+
                 Section("Notatka") {
                     TextField("np. podwójne, do przesunięcia, zawór kulowy…", text: Binding(
                         get: { marker.note ?? "" },

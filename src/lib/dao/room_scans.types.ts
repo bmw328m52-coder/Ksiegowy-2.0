@@ -67,6 +67,8 @@ export type ScanMarker = {
   /** Wysokość środka punktu od podłogi. */
   height_mm: number;
   note?: string;
+  /** Id zdjęć — bucket `scan-photos`, ścieżka `{user_id}/{id}.jpg` (scanPhotoPath). */
+  photos?: string[];
 };
 
 export type ScanData = {
@@ -118,3 +120,6 @@ export const SCAN_OPENING_LABELS: Record<ScanOpeningKind, string> = {
   window: "Okno",
   opening: "Otwór",
 };
+
+export const SCAN_PHOTOS_BUCKET = "scan-photos";
+export const scanPhotoPath = (userId: string, photoId: string) => `${userId}/${photoId}.jpg`;
