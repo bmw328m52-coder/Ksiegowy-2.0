@@ -32,7 +32,7 @@ final class Laser: NSObject, ObservableObject {
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
     /// Użytkownik chce być połączony — po zgaśnięciu dalmierza łączymy się ponownie, gdy się obudzi.
-    private var wanted = UserDefaults.standard.string(forKey: savedKey) != nil
+    private var wanted = UserDefaults.standard.string(forKey: GLM.savedKey) != nil
 
     var isConnected: Bool { state == .connected }
     var hasSavedDevice: Bool { UserDefaults.standard.string(forKey: GLM.savedKey) != nil }
