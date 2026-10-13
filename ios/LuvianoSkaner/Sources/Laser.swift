@@ -49,7 +49,12 @@ final class Laser: NSObject, ObservableObject {
     /// Szukaj dalmierza (pierwsze sparowanie lub zmiana urządzenia).
     func search() {
         wanted = true
-        start()
+        // Bez Bluetooth jeszcze gotowego: skan ruszy w centralManagerDidUpdateState → resume().
+        guard central != nil else { return start() }
+        resume()
+    }
+
+    private func scan() {
         guard let central, central.state == .poweredOn else { return }
         state = .searching
         central.scanForPeripherals(withServices: nil)
@@ -72,7 +77,7 @@ final class Laser: NSObject, ObservableObject {
            let p = central.retrievePeripherals(withIdentifiers: [uuid]).first {
             connect(p)
         } else {
-            search()
+            scan()
         }
     }
 
