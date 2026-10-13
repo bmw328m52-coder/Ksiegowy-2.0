@@ -142,7 +142,12 @@ struct ScanResultView: View {
             Group {
                 switch mode {
                 case .plan:
-                    PlanCanvas(scan: scan, roomName: name, selected: selected) { selected = $0 }
+                    PlanCanvas(scan: scan, roomName: name, selected: selected,
+                               onTapWall: { selected = $0 },
+                               onTapDimension: { i in
+                                   selected = i
+                                   edit = .wallLength(i)
+                               })
                         .overlay(alignment: .topTrailing) {
                             HStack(spacing: 8) {
                                 Button { rotate(clockwise: false) } label: { Image(systemName: "rotate.left") }
@@ -185,6 +190,10 @@ struct ScanResultView: View {
                 let last = scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
                 edit = .marker(ScanMarker(kind: last.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z), isNew: true)
             }
+        } onTapLength: {
+            if scan.walls.indices.contains(i) { edit = .wallLength(i) }
+        } onTapHeight: {
+            edit = .roomHeight
         }
             .overlay(alignment: .bottom) {
                 Text("Stuknij na ścianie, żeby dodać punkt instalacji · stuknij punkt dwa razy, żeby go edytować")

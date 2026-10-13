@@ -106,6 +106,8 @@ struct PlanCanvas: View {
     let roomName: String
     var selected: Int?
     var onTapWall: (Int?) -> Void = { _ in }
+    /// Stuknięcie w liczbę długości ściany — wpisanie wymiaru / pomiar dalmierzem (jak w MagicPlan).
+    var onTapDimension: (Int) -> Void = { _ in }
 
     var body: some View {
         GeometryReader { geo in
@@ -115,7 +117,10 @@ struct PlanCanvas: View {
                 PlanDraw.draw(ctx, model, layout, roomName: roomName, selected: selected)
             }
             .contentShape(Rectangle())
-            .onTapGesture { loc in onTapWall(PlanDraw.hitWall(loc, model, layout)) }
+            .onTapGesture { loc in
+                if let i = PlanDraw.hitDimension(loc, model, layout) { onTapDimension(i) }
+                else { onTapWall(PlanDraw.hitWall(loc, model, layout)) }
+            }
         }
         .background(PlanStyle.canvas)
     }
@@ -224,7 +229,6 @@ enum PlanDraw {
         for (i, g) in m.walls.enumerated() {
             let out = CGVector(g.out)
             let base = T * 1.9 * L.scale
-            var row = base + 18
             if !g.spans.isEmpty {
                 var cuts = [0.0]
                 for s in g.spans { cuts += [s.t0, s.t1] }
@@ -234,10 +238,9 @@ enum PlanDraw {
                                     out: out, off: base + 18, text: "\(Int((cuts[k + 1] - cuts[k]).rounded()))",
                                     color: PlanStyle.dim, bg: PlanStyle.canvas)
                 }
-                row += 26
             }
             let locked = g.w.measured == true
-            Draft.dimension(ctx, L.pt(g.at(0)), L.pt(g.at(g.len)), out: out, off: row,
+            Draft.dimension(ctx, L.pt(g.at(0)), L.pt(g.at(g.len)), out: out, off: lengthRow(g, L),
                             text: "\(Int(g.len.rounded()))", color: locked ? PlanStyle.measured : PlanStyle.wall,
                             locked: locked, bg: PlanStyle.canvas)
 
@@ -255,6 +258,22 @@ enum PlanDraw {
             ctx.draw(Text(roomName).font(.system(size: 15, weight: .semibold)).foregroundColor(PlanStyle.wall), at: CGPoint(x: c.x, y: c.y - 9))
             ctx.draw(Text(String(format: "%.2f m²", m.areaM2)).font(.system(size: 12).monospacedDigit()).foregroundColor(Color(white: 0.4)), at: CGPoint(x: c.x, y: c.y + 10))
         }
+    }
+
+    /// Odsunięcie wymiaru długości od ściany (pt) — to samo co przy rysowaniu.
+    static func lengthRow(_ g: PlanModel.Wall, _ L: PlanLayout) -> Double {
+        PlanGeom.wallT * 1.9 * L.scale + 18 + (g.spans.isEmpty ? 0 : 26)
+    }
+
+    /// Liczba długości ściany pod palcem.
+    static func hitDimension(_ p: CGPoint, _ m: PlanModel, _ L: PlanLayout) -> Int? {
+        var best: (Int, Double)?
+        for (i, g) in m.walls.enumerated() {
+            let c = L.pt(g.at(g.len / 2)) + CGVector(g.out) * lengthRow(g, L)
+            let d = hypot(p.x - c.x, p.y - c.y)
+            if d < 34, best == nil || d < best!.1 { best = (i, d) }
+        }
+        return best?.0
     }
 
     /// Ściana pod palcem (linia ściany lub jej wymiar), w punktach ekranu.

@@ -8,6 +8,9 @@ struct ElevationCanvas: View {
     let wallIndex: Int
     var selectedMarker: String?
     var onTap: (_ t: Double, _ z: Double, _ marker: String?) -> Void = { _, _, _ in }
+    /// Stuknięcie w wymiar długości (dół) / wysokości (lewo) — pomiar dalmierzem.
+    var onTapLength: () -> Void = {}
+    var onTapHeight: () -> Void = {}
 
     var body: some View {
         GeometryReader { geo in
@@ -21,6 +24,9 @@ struct ElevationCanvas: View {
             .contentShape(Rectangle())
             .onTapGesture { loc in
                 guard let g, let L = ElevLayout(geo.size, g) else { return }
+                let midX = L.x0 + L.W * L.s / 2, midY = L.yb - L.H * L.s / 2
+                if abs(loc.x - midX) < 60, abs(loc.y - (L.yb + 44)) < 26 { onTapLength(); return }
+                if abs(loc.y - midY) < 60, abs(loc.x - (L.x0 - 46)) < 26 { onTapHeight(); return }
                 let hit = markers
                     .map { ($0.id, hypot(L.p($0.offsetMm, $0.heightMm).x - loc.x, L.p($0.offsetMm, $0.heightMm).y - loc.y)) }
                     .filter { $0.1 < 24 }

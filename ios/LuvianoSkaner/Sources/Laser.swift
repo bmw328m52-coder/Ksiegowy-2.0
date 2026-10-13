@@ -91,13 +91,39 @@ final class Laser: NSObject, ObservableObject {
         central?.connect(p)
     }
 
-    fileprivate func handle(_ data: Data) {
+    /// Ostatnie zdarzenia i surowe ramki (hex) — podgląd „Diagnostyka" przy dalmierzu.
+    @Published private(set) var log: [String] = []
+
+    fileprivate func note(_ line: String) {
+        let t = Date().formatted(date: .omitted, time: .standard)
+        log.append("\(t)  \(line)")
+        if log.count > 40 { log.removeFirst(log.count - 40) }
+    }
+
+    /// Ramka MT: `C0 55 10 <typ> 00 <licznik×2> <v1 f32> <v2 f32> <v3 f32> <crc>`, wartości w metrach.
+    /// Typ 06 = zwykły pomiar (v1); w trybach pole/objętość/pośredni zmierzony odcinek siedzi w v2.
+    fileprivate func handle(_ data: Data, from ch: CBUUID) {
         let b = [UInt8](data)
-        guard b.count >= 11, b[0] == 0xC0, b[1] == 0x55, b[2] == 0x10, b[3] == 0x06 else { return }
-        let bits = UInt32(b[7]) | UInt32(b[8]) << 8 | UInt32(b[9]) << 16 | UInt32(b[10]) << 24
-        let meters = Double(Float(bitPattern: bits))
-        guard meters.isFinite, meters > 0.01, meters < 100 else { return }
-        reading = Reading(mm: (meters * 1000).rounded())
+        note("\(ch.uuidString.prefix(8)) ← " + b.map { String(format: "%02X", $0) }.joined(separator: " "))
+        var i = 0
+        while i + 11 <= b.count {
+            defer { i += 1 }
+            guard b[i] == 0xC0, b[i + 1] == 0x55, b[i + 2] == 0x10 else { continue }
+            func f(_ k: Int) -> Double? {
+                guard i + k + 4 <= b.count else { return nil }
+                let bits = UInt32(b[i + k]) | UInt32(b[i + k + 1]) << 8 | UInt32(b[i + k + 2]) << 16 | UInt32(b[i + k + 3]) << 24
+                let v = Double(Float(bitPattern: bits))
+                return v.isFinite && v > 0.01 && v < 200 ? v : nil
+            }
+            let type = b[i + 3]
+            if type == 0x21 { continue } // kątomierz
+            let primary: Set<UInt8> = [0x06, 0x0A, 0x2A, 0x2E, 0x36]
+            guard let meters = primary.contains(type) ? (f(7) ?? f(11)) : (f(11) ?? f(7)) else { continue }
+            let mm = (meters * 1000).rounded()
+            note("Pomiar \(Int(mm)) mm (typ \(String(format: "%02X", type)))")
+            reading = Reading(mm: mm)
+            return
+        }
     }
 }
 
@@ -132,7 +158,7 @@ extension Laser: CBCentralManagerDelegate {
     nonisolated func centralManager(_ c: CBCentralManager, didConnect p: CBPeripheral) {
         Task { @MainActor in
             UserDefaults.standard.set(p.identifier.uuidString, forKey: GLM.savedKey)
-            p.discoverServices([GLM.service])
+            p.discoverServices(nil)
         }
     }
 
@@ -156,26 +182,49 @@ extension Laser: CBCentralManagerDelegate {
 }
 
 extension Laser: CBPeripheralDelegate {
+    // Różne modele GLM mają różne charakterystyki (D1/D2…) — subskrybujemy wszystko, co umie powiadamiać.
     nonisolated func peripheral(_ p: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let s = p.services?.first(where: { $0.uuid == GLM.service }) else { return }
-        p.discoverCharacteristics([GLM.characteristic], for: s)
+        let list = p.services ?? []
+        Task { @MainActor in note("Usługi: " + list.map { $0.uuid.uuidString.prefix(8) }.joined(separator: ", ")) }
+        for s in list { p.discoverCharacteristics(nil, for: s) }
     }
 
     nonisolated func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
-        guard let ch = s.characteristics?.first(where: { $0.uuid == GLM.characteristic }) else { return }
-        p.setNotifyValue(true, for: ch)
+        for ch in s.characteristics ?? [] {
+            let props = ch.properties
+            let desc = "\(ch.uuid.uuidString.prefix(8)) [\(props.contains(.notify) ? "N" : "")\(props.contains(.indicate) ? "I" : "")\(props.contains(.write) ? "W" : "")\(props.contains(.writeWithoutResponse) ? "w" : "")]"
+            Task { @MainActor in note("  " + desc) }
+            if props.contains(.notify) || props.contains(.indicate) { p.setNotifyValue(true, for: ch) }
+        }
     }
 
     nonisolated func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor ch: CBCharacteristic, error: Error?) {
+        let id = ch.uuid.uuidString.prefix(8)
+        let err = error?.localizedDescription
+        Task { @MainActor in note("Subskrypcja \(id): " + (err ?? (ch.isNotifying ? "OK" : "wył."))) }
         guard ch.isNotifying else { return }
+        // Komenda auto-sync na kanał poleceń (D1; gdy go brak — ten, który umie i pisać, i powiadamiać).
+        let isCommand = ch.uuid == GLM.characteristic
+            || (ch.service?.characteristics?.contains { $0.uuid == GLM.characteristic } != true
+                && (ch.properties.contains(.write) || ch.properties.contains(.writeWithoutResponse)))
+        guard isCommand else { return }
         let type: CBCharacteristicWriteType = ch.properties.contains(.write) ? .withResponse : .withoutResponse
         p.writeValue(GLM.autoSync, for: ch, type: type)
-        Task { @MainActor in state = .connected }
+        Task { @MainActor in
+            note("Auto-sync → \(id)")
+            state = .connected
+        }
+    }
+
+    nonisolated func peripheral(_ p: CBPeripheral, didWriteValueFor ch: CBCharacteristic, error: Error?) {
+        let err = error?.localizedDescription
+        Task { @MainActor in note("Zapis \(ch.uuid.uuidString.prefix(8)): " + (err ?? "OK")) }
     }
 
     nonisolated func peripheral(_ p: CBPeripheral, didUpdateValueFor ch: CBCharacteristic, error: Error?) {
         guard let data = ch.value else { return }
-        Task { @MainActor in handle(data) }
+        let id = ch.uuid
+        Task { @MainActor in handle(data, from: id) }
     }
 }
 
@@ -183,6 +232,7 @@ extension Laser: CBPeripheralDelegate {
 struct LaserButton: View {
     @EnvironmentObject private var laser: Laser
     @State private var menu = false
+    @State private var diagnostics = false
 
     var body: some View {
         Button { menu = true } label: {
@@ -197,9 +247,11 @@ struct LaserButton: View {
             } else {
                 Button("Połącz") { laser.search() }
             }
+            Button("Diagnostyka") { diagnostics = true }
         } message: {
             Text("Włącz Bluetooth na dalmierzu (ikona w menu GLM). Każdy pomiar przyciskiem na dalmierzu trafia do aktywnego pola wymiaru.")
         }
+        .sheet(isPresented: $diagnostics) { LaserLogView() }
         .onAppear { laser.start() }
     }
 
@@ -245,6 +297,28 @@ struct LaserHint: View {
         case .unauthorized: return "Brak zgody na Bluetooth (Ustawienia → LUVIANO Skaner)"
         case .off: return "Bluetooth na iPadzie wyłączony"
         case .idle: return "Dalmierz niepołączony"
+        }
+    }
+}
+
+/// Surowe dane z dalmierza — do ustalenia formatu ramek, gdy pomiar nie wpada.
+struct LaserLogView: View {
+    @EnvironmentObject private var laser: Laser
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(laser.log.isEmpty ? "Brak danych — połącz dalmierz i zrób pomiar." : laser.log.joined(separator: "
+"))
+                    .font(.system(size: 12, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+            }
+            .navigationTitle("Diagnostyka dalmierza")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Zamknij") { dismiss() } } }
         }
     }
 }
