@@ -309,8 +309,7 @@ struct LaserLogView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(laser.log.isEmpty ? "Brak danych — połącz dalmierz i zrób pomiar." : laser.log.joined(separator: "
-"))
+                Text(laser.log.isEmpty ? "Brak danych — połącz dalmierz i zrób pomiar." : laser.log.joined(separator: "\n"))
                     .font(.system(size: 12, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
