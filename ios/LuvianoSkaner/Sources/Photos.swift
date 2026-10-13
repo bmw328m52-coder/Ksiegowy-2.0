@@ -117,7 +117,7 @@ struct PhotoViewer: View {
 /// Aparat (UIImagePickerController) — zdjęcie wraca jako UIImage.
 struct CameraPicker: UIViewControllerRepresentable {
     let onImage: (UIImage) -> Void
-    @Environment(\.dismiss) private var dismiss
+    let onClose: () -> Void
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let c = UIImagePickerController()
@@ -137,10 +137,10 @@ struct CameraPicker: UIViewControllerRepresentable {
         func imagePickerController(_ picker: UIImagePickerController,
                                    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let img = info[.originalImage] as? UIImage { parent.onImage(img) }
-            parent.dismiss()
+            parent.onClose()
         }
 
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.dismiss() }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.onClose() }
     }
 }
 
@@ -154,57 +154,61 @@ struct MarkerPhotosSection: View {
     @State private var importing = false
 
     var body: some View {
+        // Jeden wiersz w Section: modyfikatory na Section SwiftUI rozdaje każdemu wierszowi,
+        // a dwa fullScreenCover na tym samym stanie zamykały aparat zaraz po otwarciu.
         Section {
-            if !photos.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(photos.enumerated()), id: \.element) { i, id in
-                            PhotoThumb(id: id)
-                                .frame(width: 110, height: 110)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .onTapGesture { viewing = i }
+            VStack(alignment: .leading, spacing: 10) {
+                if !photos.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(photos.enumerated()), id: \.element) { i, id in
+                                PhotoThumb(id: id)
+                                    .frame(width: 110, height: 110)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .onTapGesture { viewing = i }
+                            }
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                }
+                HStack {
+                    Button { camera = true } label: { Label("Zrób zdjęcie", systemImage: "camera") }
+                        .buttonStyle(.bordered)
+                        .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
+                    PhotosPicker(selection: $picked, maxSelectionCount: 6, matching: .images) {
+                        Label("Z galerii", systemImage: "photo.on.rectangle")
+                    }
+                    .buttonStyle(.bordered)
+                    if importing { ProgressView().padding(.leading, 6) }
                 }
             }
-            HStack {
-                Button { camera = true } label: { Label("Zrób zdjęcie", systemImage: "camera") }
-                    .buttonStyle(.bordered)
-                    .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
-                PhotosPicker(selection: $picked, maxSelectionCount: 6, matching: .images) {
-                    Label("Z galerii", systemImage: "photo.on.rectangle")
+            .fullScreenCover(isPresented: $camera) {
+                CameraPicker(onImage: { img in
+                    if let id = PhotoStore.add(img) { photos.append(id) }
+                }, onClose: { camera = false })
+                .ignoresSafeArea()
+            }
+            .sheet(item: Binding(get: { viewing.map(ViewIndex.init) }, set: { viewing = $0?.i })) { v in
+                PhotoViewer(ids: photos, index: v.i) { id in photos.removeAll { $0 == id } }
+            }
+            .onChange(of: picked) { _, items in
+                guard !items.isEmpty else { return }
+                importing = true
+                Task {
+                    for item in items {
+                        if let d = try? await item.loadTransferable(type: Data.self), let img = UIImage(data: d),
+                           let id = PhotoStore.add(img) {
+                            photos.append(id)
+                        }
+                    }
+                    picked = []
+                    importing = false
                 }
-                .buttonStyle(.bordered)
-                if importing { ProgressView().padding(.leading, 6) }
             }
         } header: {
             Text("Zdjęcia")
         } footer: {
             Text("Np. zawór, puszka, rura z bliska i z dalszej perspektywy — trafią do zlecenia razem ze skanem.")
-        }
-        .fullScreenCover(isPresented: $camera) {
-            CameraPicker { img in
-                if let id = PhotoStore.add(img) { photos.append(id) }
-            }
-            .ignoresSafeArea()
-        }
-        .sheet(item: Binding(get: { viewing.map(ViewIndex.init) }, set: { viewing = $0?.i })) { v in
-            PhotoViewer(ids: photos, index: v.i) { id in photos.removeAll { $0 == id } }
-        }
-        .onChange(of: picked) { _, items in
-            guard !items.isEmpty else { return }
-            importing = true
-            Task {
-                for item in items {
-                    if let d = try? await item.loadTransferable(type: Data.self), let img = UIImage(data: d),
-                       let id = PhotoStore.add(img) {
-                        photos.append(id)
-                    }
-                }
-                picked = []
-                importing = false
-            }
         }
     }
 
