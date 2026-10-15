@@ -337,6 +337,11 @@ function symbol(o: ScanObject, u: number): string {
     `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${rw.toFixed(1)}" height="${rh.toFixed(1)}" ${extra}/>`;
   const label = (t: string) =>
     `<text x="0" y="0" font-size="${Math.max(7 * u, Math.min(11 * u, s * 0.22)).toFixed(1)}" font-weight="600" fill="${INK}" text-anchor="middle" dominant-baseline="central" font-family="system-ui,sans-serif">${t}</text>`;
+  // Szafka wisząca — linia przerywana z przekątną (jak na rysunku technicznym).
+  if (o.category === "storage" && (o.elevation_mm ?? 0) >= 1000) {
+    const dash = `stroke="${INK}" stroke-width="${0.8 * u}" stroke-dasharray="${5 * u} ${3 * u}"`;
+    return `<g transform="translate(${o.cx.toFixed(1)} ${o.cy.toFixed(1)}) rotate(${o.rotation_deg.toFixed(1)})">${rect(x0, y0, w, h, `fill="#fff" fill-opacity="0.35" ${dash}`)}${line([x0, y0], [-x0, -y0], `${dash} fill="none"`)}</g>`;
+  }
   let g = rect(x0, y0, w, h, `fill="#fff" stroke="${INK}" stroke-width="${u}"`);
   switch (o.category) {
     case "storage":

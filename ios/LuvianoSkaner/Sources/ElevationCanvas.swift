@@ -163,7 +163,10 @@ enum ElevationDraw {
                 let d = min(inset.width, inset.height) * 0.5
                 ctx.stroke(Path(ellipseIn: CGRect(x: inset.midX - d / 2, y: inset.midY - d / 2 + 5, width: d, height: d)), with: ink, lineWidth: 0.8)
             }
-        case "storage", "stove":
+        case "storage" where f.z0 >= 1000:
+            // Szafka wisząca: uchwyt przy dolnej krawędzi.
+            ctx.stroke(Draft.line(CGPoint(x: r.midX - 8, y: r.maxY - 8), CGPoint(x: r.midX + 8, y: r.maxY - 8)), with: ink, lineWidth: 1.5)
+        case "storage", "stove", "sink":
             // Front szafki: blat u góry + uchwyt.
             ctx.stroke(Draft.line(CGPoint(x: r.minX, y: r.minY + 6), CGPoint(x: r.maxX, y: r.minY + 6)), with: ink, lineWidth: 0.8)
             ctx.stroke(Draft.line(CGPoint(x: r.midX - 8, y: r.minY + 16), CGPoint(x: r.midX + 8, y: r.minY + 16)), with: ink, lineWidth: 1.5)

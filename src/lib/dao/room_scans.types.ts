@@ -46,6 +46,8 @@ export type ScanObject = {
   /** Dolna krawędź od podłogi (szafki wiszące > 0); brak w starszych skanach. */
   elevation_mm?: number;
   rotation_deg: number;
+  /** Szafka rozstawiona automatycznie przy ścianie (id). */
+  auto_wall?: string;
 };
 
 /** Rodzaje punktów instalacji — zgodne z MarkerKind w ios/LuvianoSkaner/Sources/Markers.swift. */
@@ -89,6 +91,8 @@ export type ScanData = {
   floor?: [number, number][];
   /** Punkty instalacji (woda, odpływ, gniazdka…); brak w starszych skanach. */
   markers?: ScanMarker[];
+  /** Lista kontrolna: potwierdzone ręcznie pozycje ("room_height", "none:gas"…). */
+  checks?: string[];
 };
 
 export type RoomScan = {

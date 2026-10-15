@@ -38,6 +38,8 @@ struct ScanObject: Codable {
     /// Dolna krawędź od podłogi (szafki wiszące > 0).
     var elevationMm: Double
     var rotationDeg: Double
+    /// Szafka rozstawiona automatycznie przy tej ścianie (id) — ponowne rozstawienie ją podmienia.
+    var autoWall: String? = nil
 }
 
 /// Punkt instalacji na ścianie (woda, odpływ, gniazdko…), wskazany ręcznie.
@@ -66,11 +68,13 @@ struct ScanPayload: Codable {
     var floor: [[Double]]?
     /// Punkty instalacji dodane ręcznie po skanie.
     var markers: [ScanMarker] = []
+    /// Lista kontrolna: potwierdzone ręcznie pozycje („room_height", „none:gas" = brak gazu…).
+    var checks: [String]? = nil
 }
 
 // Odczyt (zapis lokalny i skany z meble-app): pola dodane później mogą nie istnieć w starszych skanach.
 extension ScanObject {
-    private enum K: String, CodingKey { case id, category, cx, cy, widthMm, depthMm, heightMm, elevationMm, rotationDeg }
+    private enum K: String, CodingKey { case id, category, cx, cy, widthMm, depthMm, heightMm, elevationMm, rotationDeg, autoWall }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         id = try c.decode(String.self, forKey: .id)
@@ -82,11 +86,12 @@ extension ScanObject {
         heightMm = try c.decode(Double.self, forKey: .heightMm)
         elevationMm = try c.decodeIfPresent(Double.self, forKey: .elevationMm) ?? 0
         rotationDeg = try c.decode(Double.self, forKey: .rotationDeg)
+        autoWall = try c.decodeIfPresent(String.self, forKey: .autoWall)
     }
 }
 
 extension ScanPayload {
-    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers }
+    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers, checks }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
@@ -98,6 +103,7 @@ extension ScanPayload {
         closed = try c.decodeIfPresent(Bool.self, forKey: .closed) ?? false
         floor = try c.decodeIfPresent([[Double]].self, forKey: .floor)
         markers = try c.decodeIfPresent([ScanMarker].self, forKey: .markers) ?? []
+        checks = try c.decodeIfPresent([String].self, forKey: .checks)
     }
 }
 

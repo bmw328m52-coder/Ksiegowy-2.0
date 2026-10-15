@@ -444,7 +444,15 @@ enum PlanDraw {
             t.translateBy(x: c.x, y: c.y)
             t.rotate(by: .degrees(o.rotationDeg))
             let r = CGRect(x: -o.widthMm * L.scale / 2, y: -o.depthMm * L.scale / 2, width: o.widthMm * L.scale, height: o.depthMm * L.scale)
-            Symbols.draw(t, o.category, r, widthMm: o.widthMm)
+            if o.category == "storage", o.elevationMm >= 1000 {
+                // Szafka wisząca — jak na rysunku technicznym: linia przerywana, z przekątną.
+                t.fill(Path(r), with: .color(Color.white.opacity(0.35)))
+                t.stroke(Path(r), with: .color(Color(white: 0.35)), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+                t.stroke(Draft.line(CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY)),
+                         with: .color(Color(white: 0.55)), style: StrokeStyle(lineWidth: 0.7, dash: [5, 3]))
+            } else {
+                Symbols.draw(t, o.category, r, widthMm: o.widthMm)
+            }
             if o.id == selectedObject {
                 t.stroke(Path(r.insetBy(dx: -3, dy: -3)), with: .color(PlanStyle.selected), lineWidth: 2)
             }

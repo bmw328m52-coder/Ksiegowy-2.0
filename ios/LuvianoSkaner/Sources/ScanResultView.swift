@@ -15,6 +15,7 @@ private enum EditTarget: Identifiable {
     /// Odległość mebla od przeszkody (strona 0…3) / wymiar mebla (w, d, h, e).
     case objectGap(String, Int)
     case objectSize(String, String)
+    case autoLayout
     var id: String {
         switch self {
         case .wallLength(let i): return "w\(i)"
@@ -23,6 +24,7 @@ private enum EditTarget: Identifiable {
         case .marker(let m, _): return "m" + m.id
         case .objectGap(let o, let k): return "g\(k)" + o
         case .objectSize(let o, let f): return "o" + f + o
+        case .autoLayout: return "auto"
         }
     }
 }
@@ -48,6 +50,9 @@ struct ScanResultView: View {
     @State private var fitToken = 0
     /// Meble w widoku ściany — wybór zapamiętany na iPadzie.
     @AppStorage("elev.showObjects") private var showObjects = true
+    /// Rodzaj punktu wybrany z listy kontrolnej — następne stuknięcie w ścianę go dodaje.
+    @State private var pendingKind: MarkerKind?
+    @State private var confirmSend = false
     @State private var undoStack: [ScanPayload] = []
     @State private var redoStack: [ScanPayload] = []
     @State private var version = 0
@@ -131,8 +136,19 @@ struct ScanResultView: View {
                     }
                 case .roomHeight:
                     MeasureSheet(title: "Wysokość pomieszczenia", initial: PlanModel(scan).roomHeight) { v in
-                        apply { PlanGeom.setRoomHeight(&$0, v) }
+                        apply { s in
+                            PlanGeom.setRoomHeight(&s, v)
+                            if !(s.checks ?? []).contains("room_height") { s.checks = (s.checks ?? []) + ["room_height"] }
+                        }
                     }
+                case .autoLayout:
+                    AutoLayoutSheet(wallCount: scan.walls.count, initialWalls: defaultAutoWalls(),
+                                    autoCounts: scan.walls.indices.map { AutoLayout.autoCount(scan, wall: $0) },
+                                    onRun: { ws, o in
+                                        apply { _ = AutoLayout.run(&$0, walls: ws.sorted(), o) }
+                                        selectedObject = nil
+                                    },
+                                    onClear: { ws in apply { AutoLayout.clear(&$0, walls: Array(ws)) } })
                 case .marker(let mk, let isNew):
                     let wi = scan.walls.firstIndex { $0.id == mk.wallId } ?? 0
                     MarkerSheet(marker: mk, wallName: wallLetter(wi), wallLength: scan.walls[wi].length, isNew: isNew,
@@ -312,6 +328,8 @@ struct ScanResultView: View {
             }
             .tint(tool == .drawWall ? PlanStyle.selected : Brand.ink)
             Menu {
+                Button { edit = .autoLayout } label: { Label("Rozstaw szafki automatycznie…", systemImage: "wand.and.stars") }
+                Divider()
                 ForEach(PlanEdit.objectKinds, id: \.category) { k in
                     Button(k.label) { addObject(k) }
                 }
@@ -343,7 +361,8 @@ struct ScanResultView: View {
                     if selectedMarker == hit { edit = .marker(mk, isNew: false) } else { selectedMarker = hit }
                 } else if scan.walls.indices.contains(i) {
                     selectedMarker = nil
-                    let last = scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
+                    let last = pendingKind ?? scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
+                    pendingKind = nil
                     edit = .marker(ScanMarker(kind: last.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z), isNew: true)
                 }
             },
@@ -361,7 +380,8 @@ struct ScanResultView: View {
             showObjects: showObjects
         )
             .overlay(alignment: .bottom) {
-                Text("Stuknij wymiar → pomiar · okno → jego pion · ścianę → punkt instalacji")
+                Text(pendingKind.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
+                     ?? "Stuknij wymiar → pomiar · okno → jego pion · ścianę → punkt instalacji")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
@@ -422,6 +442,8 @@ struct ScanResultView: View {
             .padding(.vertical, 10)
             .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
 
+            ChecklistCard(items: checkItems, onAction: checkAction, onToggleNone: toggleNone)
+
             Button { edit = .roomHeight } label: {
                 HStack {
                     Text("Wysokość pomieszczenia").foregroundStyle(.primary)
@@ -472,17 +494,73 @@ struct ScanResultView: View {
                     Button("Gotowe", action: onDone).buttonStyle(.borderedProminent).tint(Brand.ink)
                 } else {
                     Button {
-                        Task { await send() }
+                        if checkItems.contains(where: { !$0.ok }) { confirmSend = true } else { Task { await send() } }
                     } label: {
                         if sending { ProgressView() } else { Text(saved.remoteId == nil ? "Wyślij do zlecenia" : "Zaktualizuj w zleceniu") }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Brand.ink)
                     .disabled(sending || name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .confirmationDialog("Pomiar niekompletny", isPresented: $confirmSend, titleVisibility: .visible) {
+                        Button("Wyślij mimo to") { Task { await send() } }
+                        Button("Uzupełnię", role: .cancel) {}
+                    } message: {
+                        Text(missingSummary())
+                    }
                 }
             }
         }
         .padding(20)
+    }
+
+    private var checkItems: [MeasureCheck.Item] { MeasureCheck.items(scan) }
+
+    private func missingSummary() -> String {
+        let miss = checkItems.filter { !$0.ok }
+        let names = miss.prefix(4).map(\.title).joined(separator: ", ")
+        return "Na liście kontrolnej brakuje \(miss.count) pozycji: \(names)\(miss.count > 4 ? "…" : "")."
+    }
+
+    private func checkAction(_ a: MeasureCheck.Action) {
+        switch a {
+        case .wallLength(let i):
+            selected = i
+            edit = .wallLength(i)
+        case .segment(let i, let seg):
+            selected = i
+            selectedOpening = seg.opening
+            edit = .segment(i, seg)
+        case .roomHeight:
+            edit = .roomHeight
+        case .addMarker(let k):
+            pendingKind = k
+            selected = selected ?? 0
+            mode = .wall
+        case .marker(let id):
+            guard let mk = scan.markers.first(where: { $0.id == id }),
+                  let wi = scan.walls.firstIndex(where: { $0.id == mk.wallId }) else { return }
+            selected = wi
+            selectedMarker = id
+            mode = .wall
+            edit = .marker(mk, isNew: false)
+        }
+    }
+
+    private func toggleNone(_ key: String) {
+        apply { s in
+            var c = s.checks ?? []
+            if let k = c.firstIndex(of: key) { c.remove(at: k) } else { c.append(key) }
+            s.checks = c.isEmpty ? nil : c
+        }
+    }
+
+    /// Ściany do rozstawienia: zaznaczona, a jak żadnej — te z wodą / gazem / siłą.
+    private func defaultAutoWalls() -> Set<Int> {
+        if let i = selected, scan.walls.indices.contains(i) { return [i] }
+        let kinds: Set<String> = ["water_cold", "water_hot", "drain", "gas", "power_400"]
+        let ids = Set(scan.markers.filter { kinds.contains($0.kind) }.map(\.wallId))
+        let ws = Set(scan.walls.indices.filter { ids.contains(scan.walls[$0].id) })
+        return ws.isEmpty ? (scan.walls.isEmpty ? [] : [0]) : ws
     }
 
     /// Karta zaznaczonego elementu rzutu: ściana (otwory, podział, „do wybudowania") albo mebel.
@@ -536,6 +614,8 @@ struct ScanResultView: View {
                     Text("Ściana \(wallLetter(i))").font(.headline)
                     Text("\(Int(w.length.rounded())) mm").monospacedDigit().foregroundStyle(.secondary)
                     Spacer()
+                    Button { edit = .autoLayout } label: { Label("Szafki", systemImage: "wand.and.stars") }
+                        .buttonStyle(.bordered)
                     Button { apply { PlanEdit.splitWall(&$0, i) } } label: { Label("Podziel", systemImage: "scissors") }
                         .buttonStyle(.bordered)
                     Button(role: .destructive) {
