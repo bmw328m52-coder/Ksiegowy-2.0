@@ -46,6 +46,8 @@ struct ScanResultView: View {
     @State private var selectedObject: String?
     @State private var tool: PlanTool = .select
     @State private var fitToken = 0
+    /// Meble w widoku ściany — wybór zapamiętany na iPadzie.
+    @AppStorage("elev.showObjects") private var showObjects = true
     @State private var undoStack: [ScanPayload] = []
     @State private var redoStack: [ScanPayload] = []
     @State private var version = 0
@@ -355,7 +357,8 @@ struct ScanResultView: View {
                 guard scan.walls.indices.contains(i) else { return }
                 selectedOpening = seg.opening
                 edit = .segment(i, seg)
-            }
+            },
+            showObjects: showObjects
         )
             .overlay(alignment: .bottom) {
                 Text("Stuknij wymiar → pomiar · okno → jego pion · ścianę → punkt instalacji")
@@ -372,6 +375,9 @@ struct ScanResultView: View {
                     Spacer()
                     Text("Ściana \(wallLetter(i))").font(.headline)
                     Spacer()
+                    Toggle(isOn: $showObjects) { Label("Meble", systemImage: "cabinet") }
+                        .toggleStyle(.button)
+                        .tint(Brand.ink)
                     Button { step(1) } label: { Image(systemName: "arrow.right") }
                 }
                 .buttonStyle(.bordered)

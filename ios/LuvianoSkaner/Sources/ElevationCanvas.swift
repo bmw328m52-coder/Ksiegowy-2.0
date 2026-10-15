@@ -16,6 +16,8 @@ struct ElevationCanvas: View {
     var onSelectOpening: (String) -> Void = { _ in }
     /// Stuknięcie w odcinek przy otworze — pomiar dalmierzem.
     var onTapSegment: (PlanGeom.Segment) -> Void = { _ in }
+    /// Meble/sprzęty stojące przy tej ścianie (włączane w widoku).
+    var showObjects = true
 
     var body: some View {
         GeometryReader { geo in
@@ -25,7 +27,8 @@ struct ElevationCanvas: View {
             let active = g.flatMap { ElevationDraw.activeSpan($0, selectedOpening) }
             Canvas { ctx, size in
                 guard let g, let L = ElevLayout(size, g) else { return }
-                ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker, active: active?.id)
+                ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker, active: active?.id,
+                                   objects: showObjects ? ElevationDraw.objectsOnWall(scan, g) : [])
             }
             .contentShape(Rectangle())
             .onTapGesture { loc in
@@ -118,7 +121,66 @@ enum ElevationDraw {
         return best?.0
     }
 
-    static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?, active: String?) {
+    /// Mebel w widoku ściany: wzdłuż t0…t1, w pionie z0…z1.
+    struct Front { let t0, t1, z0, z1: Double; let category: String }
+
+    /// Meble przy ścianie: od strony pomieszczenia, najbliższy narożnik ≤ 350 mm od ściany,
+    /// rzut na oś ściany zachodzi na ścianę. Bliższe rysowane na wierzchu.
+    static func objectsOnWall(_ scan: ScanPayload, _ g: PlanModel.Wall) -> [Front] {
+        var out: [(Front, Double)] = []
+        for o in scan.objects {
+            let cs = PlanEdit.corners(o)
+            let ds = cs.map { PlanGeom.dot($0 - g.w.a, g.inN) }
+            let ts = cs.map { PlanGeom.dot($0 - g.w.a, g.dir) }
+            guard let near = ds.min(), near > -80, near < 350 else { continue }
+            let t0 = max(ts.min()!, 0), t1 = min(ts.max()!, g.len)
+            guard t1 - t0 > 20 else { continue }
+            out.append((Front(t0: t0, t1: t1, z0: o.elevationMm, z1: min(o.elevationMm + o.heightMm, g.w.heightMm),
+                              category: o.category), near))
+        }
+        return out.sorted { $0.1 > $1.1 }.map(\.0)
+    }
+
+    static func drawFront(_ ctx: GraphicsContext, _ L: ElevLayout, _ f: Front) {
+        let a = L.p(f.t0, f.z1), b = L.p(f.t1, f.z0)
+        let r = CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y)
+        guard r.width > 2, r.height > 2 else { return }
+        let ink = GraphicsContext.Shading.color(Color(white: 0.3))
+        ctx.fill(Path(r), with: .color(Color(red: 0.93, green: 0.91, blue: 0.88).opacity(0.92)))
+        ctx.stroke(Path(r), with: ink, lineWidth: 1.2)
+        let inset = r.insetBy(dx: min(4, r.width / 6), dy: min(4, r.height / 6))
+        switch f.category {
+        case "refrigerator":
+            let split = inset.minY + inset.height * 0.38
+            ctx.stroke(Path(inset), with: ink, lineWidth: 0.8)
+            ctx.stroke(Draft.line(CGPoint(x: inset.minX, y: split), CGPoint(x: inset.maxX, y: split)), with: ink, lineWidth: 0.8)
+        case "oven":
+            ctx.stroke(Path(inset), with: ink, lineWidth: 0.8)
+            ctx.stroke(Path(inset.insetBy(dx: inset.width * 0.12, dy: inset.height * 0.25)), with: ink, lineWidth: 0.8)
+        case "dishwasher", "washerDryer":
+            ctx.stroke(Draft.line(CGPoint(x: inset.minX, y: inset.minY + 10), CGPoint(x: inset.maxX, y: inset.minY + 10)), with: ink, lineWidth: 0.8)
+            if f.category == "washerDryer" {
+                let d = min(inset.width, inset.height) * 0.5
+                ctx.stroke(Path(ellipseIn: CGRect(x: inset.midX - d / 2, y: inset.midY - d / 2 + 5, width: d, height: d)), with: ink, lineWidth: 0.8)
+            }
+        case "storage", "stove":
+            // Front szafki: blat u góry + uchwyt.
+            ctx.stroke(Draft.line(CGPoint(x: r.minX, y: r.minY + 6), CGPoint(x: r.maxX, y: r.minY + 6)), with: ink, lineWidth: 0.8)
+            ctx.stroke(Draft.line(CGPoint(x: r.midX - 8, y: r.minY + 16), CGPoint(x: r.midX + 8, y: r.minY + 16)), with: ink, lineWidth: 1.5)
+        default:
+            break
+        }
+        let name = scanObjectLabels[f.category] ?? f.category
+        if r.width > 34, r.height > 26 {
+            ctx.draw(Text(name).font(.system(size: 10, weight: .semibold)).foregroundColor(Color(white: 0.25)),
+                     at: CGPoint(x: r.midX, y: r.maxY - 22))
+            ctx.draw(Text("\(Int((f.t1 - f.t0).rounded()))").font(.system(size: 9).monospacedDigit()).foregroundColor(Color(white: 0.4)),
+                     at: CGPoint(x: r.midX, y: r.maxY - 10))
+        }
+    }
+
+    static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?, active: String?,
+                     objects: [Front] = []) {
         let (H, W, s) = (L.H, L.W, L.s)
         func p(_ t: Double, _ z: Double) -> CGPoint { L.p(t, z) }
         let ink = GraphicsContext.Shading.color(PlanStyle.wall)
@@ -166,6 +228,8 @@ enum ElevationDraw {
                 break
             }
         }
+
+        for f in objects { drawFront(ctx, L, f) }
 
         // Wymiary: odcinki u góry, długość na dole, wysokość z lewej, pion aktywnego otworu z prawej.
         // Niebieskie z kłódką = zmierzone; stuknięcie w liczbę = pomiar dalmierzem.
