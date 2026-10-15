@@ -11,22 +11,33 @@ struct ElevationCanvas: View {
     /// Stuknięcie w wymiar długości (dół) / wysokości (lewo) — pomiar dalmierzem.
     var onTapLength: () -> Void = {}
     var onTapHeight: () -> Void = {}
+    /// Otwór, którego pion (parapet / wysokość / nadproże) jest wymiarowany z prawej.
+    var selectedOpening: String?
+    var onSelectOpening: (String) -> Void = { _ in }
+    /// Stuknięcie w odcinek przy otworze — pomiar dalmierzem.
+    var onTapSegment: (PlanGeom.Segment) -> Void = { _ in }
 
     var body: some View {
         GeometryReader { geo in
             let m = PlanModel(scan)
             let g = m.walls.indices.contains(wallIndex) ? m.walls[wallIndex] : nil
             let markers = g.map { w in scan.markers.filter { $0.wallId == w.w.id } } ?? []
+            let active = g.flatMap { ElevationDraw.activeSpan($0, selectedOpening) }
             Canvas { ctx, size in
                 guard let g, let L = ElevLayout(size, g) else { return }
-                ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker)
+                ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker, active: active?.id)
             }
             .contentShape(Rectangle())
             .onTapGesture { loc in
                 guard let g, let L = ElevLayout(geo.size, g) else { return }
-                let midX = L.x0 + L.W * L.s / 2, midY = L.yb - L.H * L.s / 2
-                if abs(loc.x - midX) < 60, abs(loc.y - (L.yb + 44)) < 26 { onTapLength(); return }
-                if abs(loc.y - midY) < 60, abs(loc.x - (L.x0 - 46)) < 26 { onTapHeight(); return }
+                if let d = ElevationDraw.hitDimension(loc, L, g, active: active) {
+                    switch d {
+                    case .length: onTapLength()
+                    case .height: onTapHeight()
+                    case .segment(let s): onTapSegment(s)
+                    }
+                    return
+                }
                 let hit = markers
                     .map { ($0.id, hypot(L.p($0.offsetMm, $0.heightMm).x - loc.x, L.p($0.offsetMm, $0.heightMm).y - loc.y)) }
                     .filter { $0.1 < 24 }
@@ -34,6 +45,11 @@ struct ElevationCanvas: View {
                 if let hit { onTap(0, 0, hit.0); return }
                 let (t, z) = L.inv(loc)
                 guard t >= 0, t <= L.W, z >= 0, z <= L.H else { return }
+                // W otworze nie ma instalacji — stuknięcie wybiera otwór do wymiarowania w pionie.
+                if let sp = g.spans.first(where: { t >= $0.t0 && t <= $0.t1 && z >= $0.bottom && z <= $0.top }) {
+                    onSelectOpening(sp.id)
+                    return
+                }
                 onTap((t / 10).rounded() * 10, (z / 10).rounded() * 10, nil)
             }
         }
@@ -60,7 +76,49 @@ struct ElevLayout {
 }
 
 enum ElevationDraw {
-    static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?) {
+    /// Odsunięcia wymiarów (pt): odcinki u góry, długość na dole, wysokość z lewej, pion otworu z prawej.
+    static let topOff = 34.0, bottomOff = 44.0, leftOff = 46.0, rightOff = 40.0
+
+    /// Otwór wymiarowany w pionie: zaznaczony, a jak żaden — pierwszy na ścianie.
+    static func activeSpan(_ g: PlanModel.Wall, _ id: String?) -> PlanGeom.Span? {
+        g.spans.first { $0.id == id } ?? g.spans.first
+    }
+
+    static func topSegments(_ g: PlanModel.Wall, _ L: ElevLayout) -> [PlanGeom.SegmentDim] {
+        PlanGeom.horizontalSegments(g.spans, len: L.W).filter { ($0.b - $0.a) * L.s > 22 }
+    }
+
+    static func sideSegments(_ sp: PlanGeom.Span?, _ L: ElevLayout) -> [PlanGeom.SegmentDim] {
+        guard let sp else { return [] }
+        return PlanGeom.verticalSegments(sp, height: L.H).filter { ($0.b - $0.a) * L.s > 16 }
+    }
+
+    enum Hit { case length, height, segment(PlanGeom.Segment) }
+
+    static func hitDimension(_ q: CGPoint, _ L: ElevLayout, _ g: PlanModel.Wall, active: PlanGeom.Span?) -> Hit? {
+        var best: (Hit, Double)?
+        // Prostokąt wokół napisu: `along` wzdłuż linii wymiarowej, `across` w poprzek.
+        func consider(_ h: Hit, _ c: CGPoint, horizontal: Bool, along: Double) {
+            let dx = abs(q.x - c.x), dy = abs(q.y - c.y)
+            let (a, b) = horizontal ? (dx, dy) : (dy, dx)
+            guard a < along, b < 24 else { return }
+            let d = a / along + b / 24
+            if best == nil || d < best!.1 { best = (h, d) }
+        }
+        consider(.length, L.p(L.W / 2, 0) + CGVector(dx: 0, dy: bottomOff), horizontal: true, along: 60)
+        consider(.height, L.p(0, L.H / 2) + CGVector(dx: -leftOff, dy: 0), horizontal: false, along: 60)
+        for d in topSegments(g, L) {
+            consider(.segment(d.seg), L.p((d.a + d.b) / 2, L.H) + CGVector(dx: 0, dy: -topOff),
+                     horizontal: true, along: min(50, max(18, (d.b - d.a) * L.s / 2)))
+        }
+        for d in sideSegments(active, L) {
+            consider(.segment(d.seg), L.p(L.W, (d.a + d.b) / 2) + CGVector(dx: rightOff, dy: 0),
+                     horizontal: false, along: min(50, max(14, (d.b - d.a) * L.s / 2)))
+        }
+        return best?.0
+    }
+
+    static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?, active: String?) {
         let (H, W, s) = (L.H, L.W, L.s)
         func p(_ t: Double, _ z: Double) -> CGPoint { L.p(t, z) }
         let ink = GraphicsContext.Shading.color(PlanStyle.wall)
@@ -86,6 +144,9 @@ enum ElevationDraw {
             let r = CGRect(x: p(sp.t0, 0).x, y: p(0, sp.top).y, width: (sp.t1 - sp.t0) * s, height: (sp.top - sp.bottom) * s)
             ctx.fill(Path(r), with: .color(.white))
             ctx.stroke(Path(r), with: ink, lineWidth: 2)
+            if sp.id == active, g.spans.count > 1 {
+                ctx.stroke(Path(r.insetBy(dx: -4, dy: -4)), with: .color(PlanStyle.selected), lineWidth: 2)
+            }
             switch sp.kind {
             case "window":
                 let frame = r.insetBy(dx: 7, dy: 7)
@@ -106,28 +167,31 @@ enum ElevationDraw {
             }
         }
 
-        // Wymiary: odcinki u góry, długość na dole, wysokość z lewej, pion otworów z prawej.
+        // Wymiary: odcinki u góry, długość na dole, wysokość z lewej, pion aktywnego otworu z prawej.
+        // Niebieskie z kłódką = zmierzone; stuknięcie w liczbę = pomiar dalmierzem.
         let bg = PlanStyle.canvas
-        if !g.spans.isEmpty {
-            var cuts = [0.0]
-            for sp in g.spans { cuts += [sp.t0, sp.t1] }
-            cuts.append(W)
-            for k in 0..<(cuts.count - 1) where cuts[k + 1] - cuts[k] > 5 {
-                Draft.dimension(ctx, p(cuts[k], H), p(cuts[k + 1], H), out: CGVector(dx: 0, dy: -1), off: 34,
-                                text: "\(Int((cuts[k + 1] - cuts[k]).rounded()))", color: PlanStyle.dim, bg: bg)
-            }
-            var zs = Set([0.0, H])
-            for sp in g.spans { zs.insert(sp.bottom); zs.insert(sp.top) }
-            let zl = zs.sorted()
-            for k in 0..<(zl.count - 1) where zl[k + 1] - zl[k] > 5 {
-                Draft.dimension(ctx, p(W, zl[k]), p(W, zl[k + 1]), out: CGVector(dx: 1, dy: 0), off: 40,
-                                text: "\(Int((zl[k + 1] - zl[k]).rounded()))", color: PlanStyle.dim, bg: bg)
+        for d in topSegments(g, L) {
+            Draft.dimension(ctx, p(d.a, H), p(d.b, H), out: CGVector(dx: 0, dy: -1), off: topOff,
+                            text: "\(Int((d.b - d.a).rounded()))", color: d.measured ? PlanStyle.measured : PlanStyle.dim,
+                            locked: d.measured, bg: bg)
+        }
+        let act = g.spans.first { $0.id == active }
+        if let act {
+            // Przerywane prowadnice od otworu do pionowego wymiaru.
+            for z in [act.bottom, act.top] {
+                ctx.stroke(Draft.line(p(act.t1, z), p(W, z)), with: .color(PlanStyle.dim.opacity(0.4)),
+                           style: StrokeStyle(lineWidth: 0.6, dash: [3, 3]))
             }
         }
+        for d in sideSegments(act, L) {
+            Draft.dimension(ctx, p(W, d.a), p(W, d.b), out: CGVector(dx: 1, dy: 0), off: rightOff,
+                            text: "\(Int((d.b - d.a).rounded()))", color: d.measured ? PlanStyle.measured : PlanStyle.dim,
+                            locked: d.measured, bg: bg)
+        }
         let locked = g.w.measured == true
-        Draft.dimension(ctx, p(0, 0), p(W, 0), out: CGVector(dx: 0, dy: 1), off: 44,
+        Draft.dimension(ctx, p(0, 0), p(W, 0), out: CGVector(dx: 0, dy: 1), off: bottomOff,
                         text: "\(Int(W.rounded()))", color: locked ? PlanStyle.measured : PlanStyle.wall, locked: locked, bg: bg)
-        Draft.dimension(ctx, p(0, 0), p(0, H), out: CGVector(dx: -1, dy: 0), off: 46,
+        Draft.dimension(ctx, p(0, 0), p(0, H), out: CGVector(dx: -1, dy: 0), off: leftOff,
                         text: "\(Int(H.rounded()))", color: PlanStyle.wall, bg: bg)
 
         // Punkty instalacji: zaznaczony z liniami wymiarowymi od bliższego narożnika i od podłogi.

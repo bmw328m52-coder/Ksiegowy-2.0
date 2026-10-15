@@ -108,6 +108,8 @@ struct PlanCanvas: View {
     var onTapWall: (Int?) -> Void = { _ in }
     /// Stuknięcie w liczbę długości ściany — wpisanie wymiaru / pomiar dalmierzem (jak w MagicPlan).
     var onTapDimension: (Int) -> Void = { _ in }
+    /// Stuknięcie w odcinek przy otworze (narożnik → okno, szerokość okna…).
+    var onTapSegment: (Int, PlanGeom.Segment) -> Void = { _, _ in }
 
     var body: some View {
         GeometryReader { geo in
@@ -118,8 +120,11 @@ struct PlanCanvas: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { loc in
-                if let i = PlanDraw.hitDimension(loc, model, layout) { onTapDimension(i) }
-                else { onTapWall(PlanDraw.hitWall(loc, model, layout)) }
+                switch PlanDraw.hitDimension(loc, model, layout) {
+                case .length(let i): onTapDimension(i)
+                case .segment(let i, let s): onTapSegment(i, s)
+                case nil: onTapWall(PlanDraw.hitWall(loc, model, layout))
+                }
             }
         }
         .background(PlanStyle.canvas)
@@ -229,15 +234,10 @@ enum PlanDraw {
         for (i, g) in m.walls.enumerated() {
             let out = CGVector(g.out)
             let base = T * 1.9 * L.scale
-            if !g.spans.isEmpty {
-                var cuts = [0.0]
-                for s in g.spans { cuts += [s.t0, s.t1] }
-                cuts.append(g.len)
-                for k in 0..<(cuts.count - 1) where (cuts[k + 1] - cuts[k]) * L.scale > 30 {
-                    Draft.dimension(ctx, L.pt(g.at(cuts[k], T * 1.9)) + out * -base, L.pt(g.at(cuts[k + 1], T * 1.9)) + out * -base,
-                                    out: out, off: base + 18, text: "\(Int((cuts[k + 1] - cuts[k]).rounded()))",
-                                    color: PlanStyle.dim, bg: PlanStyle.canvas)
-                }
+            for d in segments(g, L) {
+                Draft.dimension(ctx, L.pt(g.at(d.a, T * 1.9)) + out * -base, L.pt(g.at(d.b, T * 1.9)) + out * -base,
+                                out: out, off: base + 18, text: "\(Int((d.b - d.a).rounded()))",
+                                color: d.measured ? PlanStyle.measured : PlanStyle.dim, locked: d.measured, bg: PlanStyle.canvas)
             }
             let locked = g.w.measured == true
             Draft.dimension(ctx, L.pt(g.at(0)), L.pt(g.at(g.len)), out: out, off: lengthRow(g, L),
@@ -265,13 +265,25 @@ enum PlanDraw {
         PlanGeom.wallT * 1.9 * L.scale + 18 + (g.spans.isEmpty ? 0 : 26)
     }
 
-    /// Liczba długości ściany pod palcem.
-    static func hitDimension(_ p: CGPoint, _ m: PlanModel, _ L: PlanLayout) -> Int? {
-        var best: (Int, Double)?
-        for (i, g) in m.walls.enumerated() {
-            let c = L.pt(g.at(g.len / 2)) + CGVector(g.out) * lengthRow(g, L)
+    /// Odcinki przy otworach, które mieszczą się na rysunku.
+    static func segments(_ g: PlanModel.Wall, _ L: PlanLayout) -> [PlanGeom.SegmentDim] {
+        PlanGeom.horizontalSegments(g.spans, len: g.len).filter { ($0.b - $0.a) * L.scale > 30 }
+    }
+
+    enum Hit { case length(Int), segment(Int, PlanGeom.Segment) }
+
+    /// Liczba wymiaru pod palcem: długość ściany albo odcinek przy otworze.
+    static func hitDimension(_ p: CGPoint, _ m: PlanModel, _ L: PlanLayout) -> Hit? {
+        var best: (Hit, Double)?
+        func consider(_ h: Hit, _ c: CGPoint, _ r: Double) {
             let d = Double(hypot(p.x - c.x, p.y - c.y))
-            if d < 34, best == nil || d < best!.1 { best = (i, d) }
+            if d < r, best == nil || d < best!.1 { best = (h, d) }
+        }
+        for (i, g) in m.walls.enumerated() {
+            consider(.length(i), L.pt(g.at(g.len / 2)) + CGVector(g.out) * lengthRow(g, L), 34)
+            for d in segments(g, L) {
+                consider(.segment(i, d.seg), L.pt(g.at((d.a + d.b) / 2, PlanGeom.wallT * 1.9)) + CGVector(g.out) * 18, 24)
+            }
         }
         return best?.0
     }

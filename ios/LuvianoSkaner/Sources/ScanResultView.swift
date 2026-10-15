@@ -10,10 +10,12 @@ enum ScanViewMode: String, CaseIterable {
 
 private enum EditTarget: Identifiable {
     case wallLength(Int), roomHeight
+    case segment(Int, PlanGeom.Segment)
     case marker(ScanMarker, isNew: Bool)
     var id: String {
         switch self {
         case .wallLength(let i): return "w\(i)"
+        case .segment(let i, let s): return "s\(i)\(s.part)\(s.opening)"
         case .roomHeight: return "h"
         case .marker(let m, _): return "m" + m.id
         }
@@ -35,6 +37,7 @@ struct ScanResultView: View {
     @State private var selected: Int?
     @State private var edit: EditTarget?
     @State private var selectedMarker: String?
+    @State private var selectedOpening: String?
     @State private var version = 0
     @State private var sending = false
     @State private var error: String?
@@ -92,6 +95,12 @@ struct ScanResultView: View {
                         PlanGeom.setLength(&scan, wall: i, to: v)
                         changed()
                     }
+                case .segment(let i, let seg):
+                    MeasureSheet(title: "Ściana \(wallLetter(i)) · \(PlanGeom.segmentTitle(scan, wall: i, seg))",
+                                 initial: PlanGeom.segmentValue(scan, wall: i, seg)) { v in
+                        PlanGeom.setSegment(&scan, wall: i, seg, to: v)
+                        changed()
+                    }
                 case .roomHeight:
                     MeasureSheet(title: "Wysokość pomieszczenia", initial: PlanModel(scan).roomHeight) { v in
                         PlanGeom.setRoomHeight(&scan, v)
@@ -147,6 +156,11 @@ struct ScanResultView: View {
                                onTapDimension: { i in
                                    selected = i
                                    edit = .wallLength(i)
+                               },
+                               onTapSegment: { i, seg in
+                                   selected = i
+                                   selectedOpening = seg.opening
+                                   edit = .segment(i, seg)
                                })
                         .overlay(alignment: .topTrailing) {
                             HStack(spacing: 8) {
@@ -182,21 +196,31 @@ struct ScanResultView: View {
 
     private var wallView: some View {
         let i = min(selected ?? 0, max(scan.walls.count - 1, 0))
-        return ElevationCanvas(scan: scan, wallIndex: i, selectedMarker: selectedMarker) { t, z, hit in
-            if let hit, let mk = scan.markers.first(where: { $0.id == hit }) {
-                if selectedMarker == hit { edit = .marker(mk, isNew: false) } else { selectedMarker = hit }
-            } else if scan.walls.indices.contains(i) {
-                selectedMarker = nil
-                let last = scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
-                edit = .marker(ScanMarker(kind: last.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z), isNew: true)
+        return ElevationCanvas(
+            scan: scan, wallIndex: i, selectedMarker: selectedMarker,
+            onTap: { t, z, hit in
+                if let hit, let mk = scan.markers.first(where: { $0.id == hit }) {
+                    if selectedMarker == hit { edit = .marker(mk, isNew: false) } else { selectedMarker = hit }
+                } else if scan.walls.indices.contains(i) {
+                    selectedMarker = nil
+                    let last = scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
+                    edit = .marker(ScanMarker(kind: last.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z), isNew: true)
+                }
+            },
+            onTapLength: {
+                if scan.walls.indices.contains(i) { edit = .wallLength(i) }
+            },
+            onTapHeight: { edit = .roomHeight },
+            selectedOpening: selectedOpening,
+            onSelectOpening: { selectedOpening = $0 },
+            onTapSegment: { seg in
+                guard scan.walls.indices.contains(i) else { return }
+                selectedOpening = seg.opening
+                edit = .segment(i, seg)
             }
-        } onTapLength: {
-            if scan.walls.indices.contains(i) { edit = .wallLength(i) }
-        } onTapHeight: {
-            edit = .roomHeight
-        }
+        )
             .overlay(alignment: .bottom) {
-                Text("Stuknij na ścianie, żeby dodać punkt instalacji · stuknij punkt dwa razy, żeby go edytować")
+                Text("Stuknij wymiar → pomiar · okno → jego pion · ścianę → punkt instalacji")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)

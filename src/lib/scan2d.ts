@@ -31,7 +31,15 @@ const dist = (a: V2, b: V2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 export const WALL_T = 100;
 
 /** Otwór na ścianie: wzdłuż ściany t0…t1, w pionie bottom…top. */
-export type WallSpan = { t0: number; t1: number; bottom: number; top: number; kind: ScanOpening["kind"] };
+export type WallSpan = {
+  t0: number;
+  t1: number;
+  bottom: number;
+  top: number;
+  kind: ScanOpening["kind"];
+  /** Zmierzone odcinki (ScanOpening.measured_parts). */
+  parts: string[];
+};
 /** Prostokąt ściany do narysowania: wzdłuż t0…t1, w pionie z0…z1. */
 export type WallPiece = { t0: number; t1: number; z0: number; z1: number };
 
@@ -62,7 +70,7 @@ export function openingSpans(wall: ScanWall, openings: ScanOpening[]): WallSpan[
     const t0 = Math.max(0, Math.min(a, b));
     const t1 = Math.min(len, Math.max(a, b));
     const top = Math.min(o.sill_mm + o.height_mm, wall.height_mm);
-    if (t1 - t0 > 1 && top > o.sill_mm) out.push({ t0, t1, bottom: o.sill_mm, top, kind: o.kind });
+    if (t1 - t0 > 1 && top > o.sill_mm) out.push({ t0, t1, bottom: o.sill_mm, top, kind: o.kind, parts: o.measured_parts ?? [] });
   }
   return out.sort((p, q) => p.t0 - q.t0);
 }
@@ -477,10 +485,18 @@ export function planSvg(data: ScanData, opts: { name?: string; uid?: string; let
     const base = T * 1.9;
     let row = base + 18 * u;
     if (g.spans.length) {
-      const cuts = [0, ...g.spans.flatMap((sp) => [sp.t0, sp.t1]), g.len];
-      for (let k = 0; k < cuts.length - 1; k++) {
-        if (cuts[k + 1] - cuts[k] <= 30 * u) continue;
-        s += dimension(at(g, cuts[k]), at(g, cuts[k + 1]), g.out, base + 18 * u, String(Math.round(cuts[k + 1] - cuts[k])), DIM, u);
+      // Łańcuch jak PlanGeom.horizontalSegments: przerwa przed otworem, szerokość, przerwa za ostatnim.
+      const segs: { a: number; b: number; measured: boolean }[] = [];
+      let cursor = 0;
+      for (const sp of g.spans) {
+        segs.push({ a: cursor, b: sp.t0, measured: sp.parts.includes("before") });
+        segs.push({ a: sp.t0, b: sp.t1, measured: sp.parts.includes("width") });
+        cursor = sp.t1;
+      }
+      segs.push({ a: cursor, b: g.len, measured: g.spans[g.spans.length - 1].parts.includes("after") });
+      for (const d of segs) {
+        if (d.b - d.a <= 30 * u) continue;
+        s += dimension(at(g, d.a), at(g, d.b), g.out, base + 18 * u, String(Math.round(d.b - d.a)), d.measured ? MEASURED : DIM, u, d.measured);
       }
       row += 26 * u;
     }

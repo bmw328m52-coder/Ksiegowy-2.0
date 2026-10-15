@@ -68,7 +68,13 @@ enum PlanGeom {
     }
 
     /// Otwór na ścianie: wzdłuż t0…t1, w pionie bottom…top (mm).
-    struct Span { let t0, t1, bottom, top: Double; let kind: String }
+    struct Span {
+        let t0, t1, bottom, top: Double
+        let kind: String
+        let id: String
+        /// Zmierzone odcinki (ScanOpening.measuredParts).
+        let parts: [String]
+    }
     /// Prostokąt ściany: wzdłuż t0…t1, w pionie z0…z1.
     struct Piece { let t0, t1, z0, z1: Double }
 
@@ -89,7 +95,7 @@ enum PlanGeom {
             let t0 = max(0, min(p, q)), t1 = min(len, max(p, q))
             let top = min(o.sillMm + o.heightMm, wall.heightMm)
             guard t1 - t0 > 1, top > o.sillMm else { return nil }
-            return Span(t0: t0, t1: t1, bottom: o.sillMm, top: top, kind: o.kind)
+            return Span(t0: t0, t1: t1, bottom: o.sillMm, top: top, kind: o.kind, id: o.id, parts: o.measuredParts ?? [])
         }
         .sorted { $0.t0 < $1.t0 }
     }
@@ -109,6 +115,152 @@ enum PlanGeom {
         }
         if cursor < len { out.append(Piece(t0: cursor, t1: len, z0: 0, z1: height)) }
         return out
+    }
+
+    /// Odcinek wymiarowy ściany przy otworze (id otworu). Poziomo: przerwa przed otworem
+    /// (od narożnika / poprzedniego otworu), szerokość, przerwa za ostatnim otworem.
+    /// Pionowo: parapet, wysokość otworu, nadproże (do sufitu).
+    enum Segment: Hashable {
+        case before(String), width(String), after(String)
+        case sill(String), height(String), head(String)
+
+        var opening: String {
+            switch self {
+            case .before(let id), .width(let id), .after(let id), .sill(let id), .height(let id), .head(let id): return id
+            }
+        }
+        /// Klucz w ScanOpening.measuredParts.
+        var part: String {
+            switch self {
+            case .before: return "before"
+            case .width: return "width"
+            case .after: return "after"
+            case .sill: return "sill"
+            case .height: return "height"
+            case .head: return "head"
+            }
+        }
+    }
+
+    struct SegmentDim { let a, b: Double; let seg: Segment; let measured: Bool }
+
+    static func openingName(_ kind: String) -> String {
+        switch kind {
+        case "window": return "Okno"
+        case "door": return "Drzwi"
+        default: return "Przejście"
+        }
+    }
+
+    /// Łańcuch wymiarów wzdłuż ściany: narożnik → otwór → … → narożnik.
+    static func horizontalSegments(_ spans: [Span], len: Double) -> [SegmentDim] {
+        var out: [SegmentDim] = []
+        var cursor = 0.0
+        for s in spans {
+            out.append(SegmentDim(a: cursor, b: s.t0, seg: .before(s.id), measured: s.parts.contains("before")))
+            out.append(SegmentDim(a: s.t0, b: s.t1, seg: .width(s.id), measured: s.parts.contains("width")))
+            cursor = s.t1
+        }
+        if let last = spans.last {
+            out.append(SegmentDim(a: cursor, b: len, seg: .after(last.id), measured: last.parts.contains("after")))
+        }
+        return out
+    }
+
+    /// Pion otworu: podłoga → parapet → nadproże → sufit.
+    static func verticalSegments(_ s: Span, height: Double) -> [SegmentDim] {
+        [
+            SegmentDim(a: 0, b: s.bottom, seg: .sill(s.id), measured: s.parts.contains("sill")),
+            SegmentDim(a: s.bottom, b: s.top, seg: .height(s.id), measured: s.parts.contains("height")),
+            SegmentDim(a: s.top, b: height, seg: .head(s.id), measured: s.parts.contains("head")),
+        ]
+    }
+
+    /// Nazwa odcinka do nagłówka klawiatury, np. „Narożnik → okno".
+    static func segmentTitle(_ scan: ScanPayload, wall i: Int, _ seg: Segment) -> String {
+        guard scan.walls.indices.contains(i) else { return "" }
+        let sp = spans(scan.walls[i], scan.openings)
+        guard let j = sp.firstIndex(where: { $0.id == seg.opening }) else { return "" }
+        let name = openingName(sp[j].kind)
+        switch seg {
+        case .before: return "\(j == 0 ? "Narożnik" : openingName(sp[j - 1].kind)) → \(name.lowercased())"
+        case .after: return "\(name) → narożnik"
+        case .width: return "\(name) — szerokość"
+        case .sill: return sp[j].kind == "window" ? "Parapet (od podłogi)" : "\(name) — od podłogi"
+        case .height: return "\(name) — wysokość"
+        case .head: return "Nadproże (\(name.lowercased()) → sufit)"
+        }
+    }
+
+    static func segmentValue(_ scan: ScanPayload, wall i: Int, _ seg: Segment) -> Double {
+        guard scan.walls.indices.contains(i) else { return 0 }
+        let w = scan.walls[i]
+        let sp = spans(w, scan.openings)
+        guard let s = sp.first(where: { $0.id == seg.opening }) else { return 0 }
+        let all = horizontalSegments(sp, len: w.length) + verticalSegments(s, height: w.heightMm)
+        return all.first { $0.seg == seg }.map { $0.b - $0.a } ?? 0
+    }
+
+    /// Wpisanie zmierzonego odcinka jak w MagicPlan: przerwa przesuwa otwór (szerokość bez zmian),
+    /// szerokość ciągnie prawą krawędź, parapet przesuwa otwór w pionie, wysokość/nadproże
+    /// zmieniają wysokość otworu. Odcinek, który się przez to zmienił, traci status „zmierzony".
+    static func setSegment(_ scan: inout ScanPayload, wall i: Int, _ seg: Segment, to v: Double) {
+        guard scan.walls.indices.contains(i), v >= 0 else { return }
+        let w = scan.walls[i]
+        let sp = spans(w, scan.openings)
+        guard let j = sp.firstIndex(where: { $0.id == seg.opening }),
+              let k = scan.openings.firstIndex(where: { $0.id == seg.opening }) else { return }
+        let s = sp[j], len = w.length, H = w.heightMm
+        let width = s.t1 - s.t0
+        let nextId = j + 1 < sp.count ? sp[j + 1].id : nil
+
+        func place(_ t0: Double, _ t1: Double) {
+            let p = w.a + w.dir * t0, q = w.a + w.dir * t1
+            scan.openings[k].x1 = p.x.rounded(); scan.openings[k].y1 = p.y.rounded()
+            scan.openings[k].x2 = q.x.rounded(); scan.openings[k].y2 = q.y.rounded()
+            scan.openings[k].widthMm = (t1 - t0).rounded()
+            scan.openings[k].wallId = w.id
+        }
+
+        var lose: [String] = []
+        switch seg {
+        case .before:
+            let prevEnd = j > 0 ? sp[j - 1].t1 : 0
+            let t0 = min(max(prevEnd + v, 0), max(len - width, 0))
+            place(t0, t0 + width)
+            lose = ["after"]
+            if let nextId { unlock(&scan, nextId, "before") }
+        case .after:
+            let t0 = max(len - v - width, 0)
+            place(t0, t0 + width)
+            lose = ["before"]
+        case .width:
+            guard v > 10 else { return }
+            place(s.t0, min(s.t0 + v, len))
+            lose = ["after"]
+            if let nextId { unlock(&scan, nextId, "before") }
+        case .sill:
+            let sill = min(v, H - 10)
+            scan.openings[k].sillMm = sill.rounded()
+            scan.openings[k].heightMm = min(scan.openings[k].heightMm, H - sill).rounded()
+            lose = ["head"]
+        case .height:
+            guard v > 10 else { return }
+            scan.openings[k].heightMm = min(v, H - s.bottom).rounded()
+            lose = ["head"]
+        case .head:
+            scan.openings[k].heightMm = max(H - s.bottom - v, 10).rounded()
+            lose = ["height"]
+        }
+        var parts = Set(scan.openings[k].measuredParts ?? [])
+        parts.subtract(lose)
+        parts.insert(seg.part)
+        scan.openings[k].measuredParts = parts.sorted()
+    }
+
+    static func unlock(_ scan: inout ScanPayload, _ opening: String, _ part: String) {
+        guard let k = scan.openings.firstIndex(where: { $0.id == opening }) else { return }
+        scan.openings[k].measuredParts?.removeAll { $0 == part }
     }
 
     static func pointInPolygon(_ p: V2, _ poly: [V2]) -> Bool {
@@ -143,6 +295,8 @@ enum PlanGeom {
     static func setLength(_ scan: inout ScanPayload, wall i: Int, to newLen: Double) {
         guard scan.walls.indices.contains(i), newLen > 10 else { return }
         let w = scan.walls[i]
+        // Koniec ściany się przesuwa → odcinek „ostatni otwór → narożnik" już nie jest zmierzony.
+        if let last = spans(w, scan.openings).last { unlock(&scan, last.id, "after") }
         let u = w.dir
         let d = u * (newLen - w.length)
         let start = w.a

@@ -22,6 +22,8 @@ struct ScanOpening: Codable {
     var widthMm: Double
     var heightMm: Double
     var sillMm: Double
+    /// Odcinki zmierzone ręcznie / dalmierzem: before, after, width, sill, height, head.
+    var measuredParts: [String]?
 }
 
 struct ScanObject: Codable {

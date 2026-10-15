@@ -28,6 +28,8 @@ export type ScanOpening = {
   height_mm: number;
   /** Wysokość dolnej krawędzi od podłogi (parapet dla okna, 0 dla drzwi). */
   sill_mm: number;
+  /** Odcinki zmierzone dalmierzem na iPadzie: before, after, width, sill, height, head. */
+  measured_parts?: string[];
 };
 
 export type ScanObject = {
