@@ -426,6 +426,11 @@ struct PlanModel {
         let ws = scan.walls
         objects = scan.objects
         markers = scan.markers
+        // Przy rozgałęzieniu (dorysowana ścianka działowa) obrys idzie po istniejących ścianach.
+        func nextOf(_ i: Int) -> Int? {
+            let c = ws.indices.filter { $0 != i && PlanGeom.dist(ws[$0].a, ws[i].b) < 1 }
+            return c.first { ws[$0].planned != true } ?? c.first
+        }
         var loop: [V2] = []
         if ws.count >= 3 {
             var idx = 0
@@ -433,7 +438,7 @@ struct PlanModel {
             while !visited.contains(idx) {
                 visited.insert(idx)
                 loop.append(ws[idx].a)
-                guard let n = ws.indices.first(where: { PlanGeom.dist(ws[$0].a, ws[idx].b) < 1 }) else { loop = []; break }
+                guard let n = nextOf(idx) else { loop = []; break }
                 idx = n
             }
             if idx != 0 { loop = [] }
@@ -452,7 +457,7 @@ struct PlanModel {
             while !visited.contains(idx) {
                 visited.insert(idx)
                 pts.append(ws[idx].a)
-                guard let n = ws.indices.first(where: { $0 != idx && PlanGeom.dist(ws[$0].a, ws[idx].b) < 1 }) else {
+                guard let n = nextOf(idx) else {
                     pts.append(ws[idx].b)
                     break
                 }

@@ -151,7 +151,11 @@ export function planModel(data: ScanData): PlanModel {
   const ws = data.walls;
   const A = (w: ScanWall): V2 => [w.x1, w.y1];
   const B = (w: ScanWall): V2 => [w.x2, w.y2];
-  const nextOf = (i: number) => ws.findIndex((w, j) => j !== i && dist(A(w), B(ws[i])) < 1);
+  // Przy rozgałęzieniu (dorysowana ścianka działowa) obrys idzie po istniejących ścianach.
+  const nextOf = (i: number) => {
+    const c = ws.map((w, j) => j).filter((j) => j !== i && dist(A(ws[j]), B(ws[i])) < 1);
+    return c.find((j) => !ws[j].planned) ?? c[0] ?? -1;
+  };
 
   let loop: V2[] = [];
   if (ws.length >= 3) {
@@ -431,13 +435,20 @@ export function planSvg(data: ScanData, opts: { name?: string; uid?: string; let
   }
 
   // Szary pas + czarna ściana.
-  m.walls.forEach((_, i) => {
+  m.walls.forEach((g, i) => {
+    if (g.w.planned) return;
     const [o1a, o1b] = outerEdge(m, i, T);
     const [o2a, o2b] = outerEdge(m, i, T * 1.9);
     s += poly([o1a, o1b, o2b, o2a], `fill="${BAND}"`);
   });
   m.walls.forEach((g, i) => {
     const [oa, ob] = outerEdge(m, i, T);
+    if (g.w.planned) {
+      // Do wybudowania: kreskowanie zamiast czarnej ściany.
+      s += `<defs><pattern id="ht-${uid}" patternUnits="userSpaceOnUse" width="${8 * u}" height="${8 * u}" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="${8 * u}" stroke="${INK}" stroke-width="${u}"/></pattern></defs>`;
+      s += poly([g.a, g.b, ob, oa], `fill="url(#ht-${uid})" stroke="${INK}" stroke-width="${1.2 * u}"`);
+      return;
+    }
     s += poly([g.a, g.b, ob, oa], `fill="${INK}"`);
   });
 

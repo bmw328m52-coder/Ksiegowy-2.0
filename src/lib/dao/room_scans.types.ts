@@ -12,6 +12,8 @@ export type ScanWall = {
   height_mm: number;
   /** Wymiar potwierdzony ręcznie / dalmierzem na iPadzie. */
   measured?: boolean;
+  /** Ściana do wybudowania (dorysowana na pomiarze, jeszcze jej nie ma). */
+  planned?: boolean;
 };
 
 export type ScanOpeningKind = "door" | "window" | "opening";

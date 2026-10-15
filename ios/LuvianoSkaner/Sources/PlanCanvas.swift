@@ -22,18 +22,22 @@ enum PlanStyle {
 struct PlanLayout {
     let scale, ox, oy, minX, minY: Double
 
-    init(points: [V2], size: CGSize, margin: Double = 96) {
+    /// Dopasowanie do widoku, potem powiększenie `zoom` wokół środka i przesunięcie `pan` (pt).
+    init(points: [V2], size: CGSize, margin: Double = 96, zoom: Double = 1, pan: CGSize = .zero) {
         let xs = points.map(\.x), ys = points.map(\.y)
         minX = xs.min() ?? 0
         minY = ys.min() ?? 0
         let w = max((xs.max() ?? 1) - minX, 1)
         let h = max((ys.max() ?? 1) - minY, 1)
-        scale = max(0.005, min((size.width - 2 * margin) / w, (size.height - 2 * margin) / h))
-        ox = (size.width - w * scale) / 2
-        oy = (size.height - h * scale) / 2
+        let s0 = max(0.005, min((size.width - 2 * margin) / w, (size.height - 2 * margin) / h))
+        let cx = size.width / 2, cy = size.height / 2
+        scale = s0 * zoom
+        ox = cx + ((size.width - w * s0) / 2 - cx) * zoom + pan.width
+        oy = cy + ((size.height - h * s0) / 2 - cy) * zoom + pan.height
     }
 
     func pt(_ p: V2) -> CGPoint { CGPoint(x: ox + (p.x - minX) * scale, y: oy + (p.y - minY) * scale) }
+    func mm(_ q: CGPoint) -> V2 { V2((q.x - ox) / scale + minX, (q.y - oy) / scale + minY) }
 }
 
 extension CGPoint {
@@ -100,39 +104,256 @@ enum Draft {
     }
 }
 
+enum PlanTool { case select, drawWall }
+
 /// Rzut 2D w stylu MagicPlan: grube ściany, podłoga w kratkę, wymiary, symbole okien i drzwi.
+/// Dwa palce = powiększenie, przeciąganie pustego miejsca = przesuwanie widoku.
+/// Zaznaczona ściana: chwytaki narożników i środka (przesuwanie); zaznaczony mebel/otwór: przeciąganie.
 struct PlanCanvas: View {
-    let scan: ScanPayload
+    @Binding var scan: ScanPayload
     let roomName: String
-    var selected: Int?
-    var onTapWall: (Int?) -> Void = { _ in }
+    @Binding var selected: Int?
+    @Binding var selectedObject: String?
+    @Binding var selectedOpening: String?
+    var tool: PlanTool = .select
+    /// Zmiana tego licznika (np. obrót) dopasowuje rzut na nowo.
+    var fitToken = 0
     /// Stuknięcie w liczbę długości ściany — wpisanie wymiaru / pomiar dalmierzem (jak w MagicPlan).
     var onTapDimension: (Int) -> Void = { _ in }
     /// Stuknięcie w odcinek przy otworze (narożnik → okno, szerokość okna…).
     var onTapSegment: (Int, PlanGeom.Segment) -> Void = { _, _ in }
+    /// Stuknięcie w odległość mebla od ściany / innego mebla (strona 0…3).
+    var onTapGap: (String, Int) -> Void = { _, _ in }
+    /// Przed zmianą rzutu (zrzut do „Cofnij") i po jej zakończeniu (zapis).
+    var onEditBegan: () -> Void = {}
+    var onEditEnded: () -> Void = {}
+    var onWallDrawn: (Int) -> Void = { _ in }
+
+    @State private var zoom = 1.0
+    @State private var pan = CGSize.zero
+    @State private var pinchBase: PinchBase?
+    /// Granice rzutu zamrożone po pierwszej edycji — rysunek nie „skacze" przy przesuwaniu ścian.
+    @State private var frozen: [V2]?
+    @State private var drag: DragState?
+    @State private var draft: Draft2?
+
+    private struct PinchBase { let zoom: Double; let pan: CGSize }
+    struct Draft2 { let a, b: V2 }
+
+    private enum DragKind {
+        case pan(CGSize)
+        case corner(V2)
+        case wall(Int)
+        case object(String, V2)
+        case opening(String, Int, Double)
+        case draw(V2)
+        case ignored
+    }
+
+    private struct DragState {
+        var kind: DragKind
+        let base: ScanPayload
+        let layout: PlanLayout
+    }
 
     var body: some View {
         GeometryReader { geo in
             let model = PlanModel(scan)
-            let layout = PlanLayout(points: model.walls.flatMap { [$0.w.a, $0.w.b] } + model.floor, size: geo.size)
+            let fit = frozen ?? model.walls.flatMap { [$0.w.a, $0.w.b] } + model.floor
+            let layout = PlanLayout(points: fit, size: geo.size, zoom: zoom, pan: pan)
+            let gaps = selectedObject.map { PlanEdit.gaps(scan, $0) } ?? []
             Canvas { ctx, _ in
-                PlanDraw.draw(ctx, model, layout, roomName: roomName, selected: selected)
+                PlanDraw.draw(ctx, model, layout, roomName: roomName, selected: selected,
+                              selectedObject: selectedObject, selectedOpening: selectedOpening,
+                              gaps: gaps, draft: draft.map { ($0.a, $0.b) }, handles: tool == .select)
             }
             .contentShape(Rectangle())
-            .onTapGesture { loc in
-                switch PlanDraw.hitDimension(loc, model, layout) {
-                case .length(let i): onTapDimension(i)
-                case .segment(let i, let s): onTapSegment(i, s)
-                case nil: onTapWall(PlanDraw.hitWall(loc, model, layout))
+            .gesture(
+                DragGesture(minimumDistance: 6)
+                    .onChanged { v in dragChanged(v, layout, fit) }
+                    .onEnded { _ in dragEnded() }
+            )
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .onChanged { v in pinch(v, geo.size) }
+                    .onEnded { _ in pinchBase = nil }
+            )
+            .simultaneousGesture(
+                SpatialTapGesture().onEnded { v in tap(v.location, model, layout, gaps) }
+            )
+            .overlay(alignment: .topLeading) {
+                if zoom != 1 || pan != .zero || frozen != nil {
+                    Button { refit() } label: { Label("Dopasuj", systemImage: "arrow.up.left.and.down.right.magnifyingglass") }
+                        .buttonStyle(.bordered)
+                        .padding(16)
                 }
             }
         }
         .background(PlanStyle.canvas)
+        .onChange(of: fitToken) { _, _ in refit() }
+    }
+
+    private func refit() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            zoom = 1
+            pan = .zero
+            frozen = nil
+        }
+    }
+
+    private func tap(_ loc: CGPoint, _ model: PlanModel, _ L: PlanLayout, _ gaps: [PlanEdit.Gap]) {
+        guard tool == .select else { return }
+        switch PlanDraw.hitDimension(loc, model, L) {
+        case .length(let i): onTapDimension(i); return
+        case .segment(let i, let s): onTapSegment(i, s); return
+        case nil: break
+        }
+        if let id = selectedObject, let g = gaps.first(where: { g in
+            let c = L.pt((g.from + g.to) / 2)
+            return hypot(c.x - loc.x, c.y - loc.y) < 24
+        }) {
+            onTapGap(id, g.side)
+            return
+        }
+        let p = L.mm(loc)
+        if let o = scan.objects.last(where: { PlanEdit.contains($0, p, margin: 8 / L.scale) }) {
+            selectedObject = o.id
+            selectedOpening = nil
+            selected = nil
+            return
+        }
+        if let hit = PlanDraw.hitOpening(loc, model, L) {
+            selected = hit.wall
+            selectedOpening = hit.id
+            selectedObject = nil
+            return
+        }
+        selectedObject = nil
+        selectedOpening = nil
+        selected = PlanDraw.hitWall(loc, model, L)
+    }
+
+    private func dragChanged(_ v: DragGesture.Value, _ layout: PlanLayout, _ fit: [V2]) {
+        if pinchBase != nil { return }
+        if drag == nil {
+            let kind = startKind(v.startLocation, layout)
+            switch kind {
+            case .pan, .ignored: break
+            case .draw: frozen = fit
+            default:
+                frozen = fit
+                onEditBegan()
+            }
+            drag = DragState(kind: kind, base: scan, layout: layout)
+        }
+        guard let st = drag else { return }
+        let L = st.layout
+        let dm = V2(v.translation.width, v.translation.height) / L.scale
+        let tol = 12 / L.scale
+        switch st.kind {
+        case .pan(let p0):
+            pan = CGSize(width: p0.width + v.translation.width, height: p0.height + v.translation.height)
+        case .corner(let c):
+            var s = st.base
+            PlanEdit.moveCorner(&s, from: c, to: PlanEdit.snapCorner(st.base, corner: c, to: c + dm, tol: tol))
+            scan = s
+        case .wall(let i):
+            guard st.base.walls.indices.contains(i) else { return }
+            let w = st.base.walls[i]
+            let d = (PlanGeom.dot(dm, V2(-w.dir.y, w.dir.x)) / 5).rounded() * 5
+            var s = st.base
+            PlanEdit.moveWall(&s, i, by: d)
+            scan = s
+        case .object(let id, let c0):
+            var s = st.base
+            PlanEdit.moveObject(&s, id, to: c0 + dm, tol: 15 / L.scale)
+            scan = s
+        case .opening(let id, let i, let t0):
+            guard st.base.walls.indices.contains(i) else { return }
+            var s = st.base
+            PlanEdit.slideOpening(&s, id, wall: i, t0: t0 + PlanGeom.dot(dm, st.base.walls[i].dir))
+            scan = s
+        case .draw(let a):
+            draft = Draft2(a: a, b: PlanEdit.snapDraw(st.base, a + dm, from: a, tol: tol))
+        case .ignored:
+            break
+        }
+    }
+
+    private func dragEnded() {
+        defer { drag = nil; draft = nil }
+        guard let st = drag else { return }
+        switch st.kind {
+        case .pan, .ignored:
+            break
+        case .draw:
+            guard let d = draft, PlanGeom.dist(d.a, d.b) > 50 else { return }
+            onEditBegan()
+            if let i = PlanEdit.addWall(&scan, from: d.a, to: d.b) {
+                onWallDrawn(i)
+                onEditEnded()
+            }
+        default:
+            onEditEnded()
+        }
+    }
+
+    /// Co przeciągamy: w trybie rysowania — nową ścianę; inaczej zaznaczony element pod palcem, albo widok.
+    private func startKind(_ loc: CGPoint, _ L: PlanLayout) -> DragKind {
+        if tool == .drawWall {
+            return .draw(PlanEdit.snapDraw(scan, L.mm(loc), from: nil, tol: 12 / L.scale))
+        }
+        func near(_ p: V2, _ r: Double) -> Bool { hypot(L.pt(p).x - loc.x, L.pt(p).y - loc.y) < r }
+        let p = L.mm(loc)
+        if let id = selectedOpening, let i = selected, scan.walls.indices.contains(i),
+           let s = PlanGeom.spans(scan.walls[i], scan.openings).first(where: { $0.id == id }) {
+            let w = scan.walls[i]
+            let t = PlanGeom.dot(p - w.a, w.dir)
+            let off = abs(PlanGeom.cross(w.dir, p - w.a)) * L.scale
+            if t > s.t0 - 20 / L.scale, t < s.t1 + 20 / L.scale, off < 40 { return .opening(id, i, s.t0) }
+        }
+        if let i = selected, scan.walls.indices.contains(i) {
+            let w = scan.walls[i]
+            if near(w.a, 30) { return .corner(w.a) }
+            if near(w.b, 30) { return .corner(w.b) }
+            let m = PlanModel(scan)
+            if m.walls.indices.contains(i) {
+                let h = PlanDraw.wallHandle(m.walls[i], L)
+                if hypot(h.x - loc.x, h.y - loc.y) < 30 { return .wall(i) }
+            }
+            if PlanDraw.segDist(loc, L.pt(w.a), L.pt(w.b)) < 22 { return .wall(i) }
+        }
+        if let id = selectedObject, let o = scan.objects.first(where: { $0.id == id }),
+           PlanEdit.contains(o, p, margin: 15 / L.scale) {
+            return .object(id, V2(o.cx, o.cy))
+        }
+        return .pan(pan)
+    }
+
+    private func pinch(_ v: MagnifyGesture.Value, _ size: CGSize) {
+        if pinchBase == nil {
+            pinchBase = PinchBase(zoom: zoom, pan: pan)
+            // Drugi palec w trakcie przeciągania elementu — cofamy ruch, liczy się powiększenie.
+            if let st = drag {
+                if case .pan = st.kind {} else { scan = st.base }
+                drag?.kind = .ignored
+                draft = nil
+            }
+        }
+        guard let b = pinchBase else { return }
+        let z = min(max(b.zoom * v.magnification, 0.5), 14)
+        let k = z / b.zoom
+        let a = v.startLocation, c = CGPoint(x: size.width / 2, y: size.height / 2)
+        zoom = z
+        pan = CGSize(width: a.x + (c.x + b.pan.width - a.x) * k - c.x,
+                     height: a.y + (c.y + b.pan.height - a.y) * k - c.y)
     }
 }
 
 enum PlanDraw {
-    static func draw(_ ctx: GraphicsContext, _ m: PlanModel, _ L: PlanLayout, roomName: String, selected: Int?) {
+    static func draw(_ ctx: GraphicsContext, _ m: PlanModel, _ L: PlanLayout, roomName: String, selected: Int?,
+                     selectedObject: String? = nil, selectedOpening: String? = nil,
+                     gaps: [PlanEdit.Gap] = [], draft: (V2, V2)? = nil, handles: Bool = false) {
         let T = PlanGeom.wallT
 
         // Podłoga w kratkę (10 cm, co 50 cm mocniej).
@@ -166,14 +387,23 @@ enum PlanDraw {
         }
 
         // Szary pas zewnętrzny + czarna ściana (narożniki na ucios).
-        for i in m.walls.indices {
+        for i in m.walls.indices where m.walls[i].w.planned != true {
             let (o1a, o1b) = m.outer(i, T)
             let (o2a, o2b) = m.outer(i, T * 1.9)
             ctx.fill(Draft.poly([o1a, o1b, o2b, o2a].map(L.pt)), with: .color(PlanStyle.band))
         }
         for (i, g) in m.walls.enumerated() {
             let (oa, ob) = m.outer(i, T)
-            ctx.fill(Draft.poly([g.w.a, g.w.b, ob, oa].map(L.pt)), with: .color(selected == i ? PlanStyle.selected : PlanStyle.wall))
+            let shape = Draft.poly([g.w.a, g.w.b, ob, oa].map(L.pt))
+            let ink = selected == i ? PlanStyle.selected : PlanStyle.wall
+            if g.w.planned == true {
+                // Do wybudowania: kreskowanie zamiast pełnej ściany.
+                ctx.fill(shape, with: .color(.white))
+                hatch(ctx, shape, color: ink)
+                ctx.stroke(shape, with: .color(ink), lineWidth: 1.2)
+            } else {
+                ctx.fill(shape, with: .color(ink))
+            }
         }
 
         // Otwory: przerwa w ścianie + symbol.
@@ -215,6 +445,15 @@ enum PlanDraw {
             t.rotate(by: .degrees(o.rotationDeg))
             let r = CGRect(x: -o.widthMm * L.scale / 2, y: -o.depthMm * L.scale / 2, width: o.widthMm * L.scale, height: o.depthMm * L.scale)
             Symbols.draw(t, o.category, r, widthMm: o.widthMm)
+            if o.id == selectedObject {
+                t.stroke(Path(r.insetBy(dx: -3, dy: -3)), with: .color(PlanStyle.selected), lineWidth: 2)
+            }
+        }
+        for g in m.walls {
+            for s in g.spans where s.id == selectedOpening {
+                let r = Draft.poly([g.at(s.t0, -6), g.at(s.t1, -6), g.at(s.t1, T + 6), g.at(s.t0, T + 6)].map(L.pt))
+                ctx.stroke(r, with: .color(PlanStyle.selected), lineWidth: 2.5)
+            }
         }
 
         // Punkty instalacji przy wewnętrznej krawędzi ściany.
@@ -258,6 +497,81 @@ enum PlanDraw {
             ctx.draw(Text(roomName).font(.system(size: 15, weight: .semibold)).foregroundColor(PlanStyle.wall), at: CGPoint(x: c.x, y: c.y - 9))
             ctx.draw(Text(String(format: "%.2f m²", m.areaM2)).font(.system(size: 12).monospacedDigit()).foregroundColor(Color(white: 0.4)), at: CGPoint(x: c.x, y: c.y + 10))
         }
+
+        drawEditing(ctx, m, L, selected: selected, gaps: gaps, draft: draft, handles: handles)
+    }
+
+    /// Kreskowanie 45° wewnątrz kształtu.
+    static func hatch(_ ctx: GraphicsContext, _ shape: Path, color: Color) {
+        var c = ctx
+        c.clip(to: shape)
+        let b = shape.boundingRect
+        var x = b.minX - b.height
+        while x < b.maxX {
+            c.stroke(Draft.line(CGPoint(x: x, y: b.maxY), CGPoint(x: x + b.height, y: b.minY)), with: .color(color), lineWidth: 0.8)
+            x += 6
+        }
+    }
+
+    /// Nakładki edycji: odległości mebla, chwytaki zaznaczonej ściany, rysowana ściana.
+    static func drawEditing(_ ctx: GraphicsContext, _ m: PlanModel, _ L: PlanLayout, selected: Int?,
+                            gaps: [PlanEdit.Gap], draft: (V2, V2)?, handles: Bool) {
+        let blue = PlanStyle.selected
+        for g in gaps where g.dist >= 1 {
+            let a = L.pt(g.from), b = L.pt(g.to)
+            ctx.stroke(Draft.line(a, b), with: .color(blue.opacity(0.5)), style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
+            Draft.dimension(ctx, a, b, out: CGVector(dx: -g.dir.y, dy: g.dir.x), off: 0,
+                            text: "\(Int(g.dist.rounded()))", color: blue, bg: .white)
+        }
+        if handles, let i = selected, m.walls.indices.contains(i) {
+            let g = m.walls[i]
+            for p in [g.w.a, g.w.b] {
+                let c = L.pt(p)
+                let r = CGRect(x: c.x - 10, y: c.y - 10, width: 20, height: 20)
+                ctx.fill(Path(ellipseIn: r), with: .color(.white))
+                ctx.stroke(Path(ellipseIn: r), with: .color(blue), lineWidth: 2.5)
+            }
+            let h = wallHandle(g, L)
+            var t = ctx
+            t.translateBy(x: h.x, y: h.y)
+            t.rotate(by: .radians(atan2(g.dir.y, g.dir.x)))
+            let pill = Path(roundedRect: CGRect(x: -16, y: -9, width: 32, height: 18), cornerRadius: 9)
+            t.fill(pill, with: .color(blue))
+            t.draw(Text(Image(systemName: "arrow.up.and.down")).font(.system(size: 10, weight: .bold)).foregroundColor(.white), at: .zero)
+        }
+        if let dr = draft {
+            let (a, b) = dr
+            let d = b - a
+            let l = PlanGeom.len(d)
+            guard l > 1 else { return }
+            let u = d / l, n = V2(-u.y, u.x) * PlanGeom.wallT
+            let shape = Draft.poly([a, b, b + n, a + n].map(L.pt))
+            ctx.fill(shape, with: .color(blue.opacity(0.15)))
+            hatch(ctx, shape, color: blue)
+            ctx.stroke(shape, with: .color(blue), lineWidth: 1.5)
+            for p in [a, b] {
+                let c = L.pt(p)
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x - 6, y: c.y - 6, width: 12, height: 12)), with: .color(blue))
+            }
+            Draft.dimension(ctx, L.pt(a), L.pt(b), out: CGVector(-V2(-u.y, u.x)), off: 26,
+                            text: "\(Int(l.rounded()))", color: blue, bg: PlanStyle.canvas)
+        }
+    }
+
+    /// Chwytak do przesuwania zaznaczonej ściany — od środka do wnętrza pomieszczenia.
+    static func wallHandle(_ g: PlanModel.Wall, _ L: PlanLayout) -> CGPoint {
+        L.pt(g.at(g.len / 2)) + CGVector(g.inN) * 34
+    }
+
+    /// Otwór pod palcem (na linii ściany, w granicach otworu).
+    static func hitOpening(_ p: CGPoint, _ m: PlanModel, _ L: PlanLayout) -> (wall: Int, id: String)? {
+        for (i, g) in m.walls.enumerated() {
+            for s in g.spans {
+                let a = L.pt(g.at(s.t0, PlanGeom.wallT / 2)), b = L.pt(g.at(s.t1, PlanGeom.wallT / 2))
+                if segDist(p, a, b) < 20 { return (i, s.id) }
+            }
+        }
+        return nil
     }
 
     /// Odsunięcie wymiaru długości od ściany (pt) — to samo co przy rysowaniu.

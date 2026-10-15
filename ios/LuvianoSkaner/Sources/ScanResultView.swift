@@ -12,12 +12,17 @@ private enum EditTarget: Identifiable {
     case wallLength(Int), roomHeight
     case segment(Int, PlanGeom.Segment)
     case marker(ScanMarker, isNew: Bool)
+    /// Odległość mebla od przeszkody (strona 0…3) / wymiar mebla (w, d, h, e).
+    case objectGap(String, Int)
+    case objectSize(String, String)
     var id: String {
         switch self {
         case .wallLength(let i): return "w\(i)"
         case .segment(let i, let s): return "s\(i)\(s.part)\(s.opening)"
         case .roomHeight: return "h"
         case .marker(let m, _): return "m" + m.id
+        case .objectGap(let o, let k): return "g\(k)" + o
+        case .objectSize(let o, let f): return "o" + f + o
         }
     }
 }
@@ -38,6 +43,11 @@ struct ScanResultView: View {
     @State private var edit: EditTarget?
     @State private var selectedMarker: String?
     @State private var selectedOpening: String?
+    @State private var selectedObject: String?
+    @State private var tool: PlanTool = .select
+    @State private var fitToken = 0
+    @State private var undoStack: [ScanPayload] = []
+    @State private var redoStack: [ScanPayload] = []
     @State private var version = 0
     @State private var sending = false
     @State private var error: String?
@@ -92,19 +102,34 @@ struct ScanResultView: View {
                 switch target {
                 case .wallLength(let i):
                     MeasureSheet(title: "Ściana \(wallLetter(i))", initial: scan.walls[i].length) { v in
-                        PlanGeom.setLength(&scan, wall: i, to: v)
-                        changed()
+                        apply { PlanGeom.setLength(&$0, wall: i, to: v) }
                     }
                 case .segment(let i, let seg):
                     MeasureSheet(title: "Ściana \(wallLetter(i)) · \(PlanGeom.segmentTitle(scan, wall: i, seg))",
                                  initial: PlanGeom.segmentValue(scan, wall: i, seg)) { v in
-                        PlanGeom.setSegment(&scan, wall: i, seg, to: v)
-                        changed()
+                        apply { PlanGeom.setSegment(&$0, wall: i, seg, to: v) }
+                    }
+                case .objectGap(let id, let side):
+                    MeasureSheet(title: "\(objectLabel(id)) — odległość",
+                                 initial: PlanEdit.gaps(scan, id).first { $0.side == side }?.dist ?? 0) { v in
+                        apply { PlanEdit.setGap(&$0, id, side: side, to: v) }
+                    }
+                case .objectSize(let id, let f):
+                    MeasureSheet(title: "\(objectLabel(id)) — \(Self.fieldName(f))",
+                                 initial: objectValue(id, f)) { v in
+                        apply { s in
+                            guard let k = s.objects.firstIndex(where: { $0.id == id }), v > 0 else { return }
+                            switch f {
+                            case "w": s.objects[k].widthMm = v.rounded()
+                            case "d": s.objects[k].depthMm = v.rounded()
+                            case "h": s.objects[k].heightMm = v.rounded()
+                            default: s.objects[k].elevationMm = v.rounded()
+                            }
+                        }
                     }
                 case .roomHeight:
                     MeasureSheet(title: "Wysokość pomieszczenia", initial: PlanModel(scan).roomHeight) { v in
-                        PlanGeom.setRoomHeight(&scan, v)
-                        changed()
+                        apply { PlanGeom.setRoomHeight(&$0, v) }
                     }
                 case .marker(let mk, let isNew):
                     let wi = scan.walls.firstIndex { $0.id == mk.wallId } ?? 0
@@ -116,7 +141,68 @@ struct ScanResultView: View {
         }
     }
 
+    /// Zmiana rzutu z zapisem do „Cofnij".
+    private func apply(_ f: (inout ScanPayload) -> Void) {
+        snapshot()
+        f(&scan)
+        fixSelection()
+        changed()
+    }
+
+    private func snapshot() {
+        undoStack.append(scan)
+        if undoStack.count > 50 { undoStack.removeFirst() }
+        redoStack.removeAll()
+    }
+
+    private func undo() {
+        guard let prev = undoStack.popLast() else { return }
+        redoStack.append(scan)
+        scan = prev
+        fixSelection()
+        changed()
+    }
+
+    private func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(scan)
+        scan = next
+        fixSelection()
+        changed()
+    }
+
+    /// Po cofnięciu / usunięciu zaznaczenie może wskazywać na coś, czego już nie ma.
+    private func fixSelection() {
+        if let i = selected, !scan.walls.indices.contains(i) { selected = nil }
+        if let id = selectedObject, !scan.objects.contains(where: { $0.id == id }) { selectedObject = nil }
+        if let id = selectedOpening, !scan.openings.contains(where: { $0.id == id }) { selectedOpening = nil }
+    }
+
+    struct ObjField { let key, name: String }
+    static let objectFields = [ObjField(key: "w", name: "Szerokość"), ObjField(key: "d", name: "Głębokość"),
+                               ObjField(key: "h", name: "Wysokość"), ObjField(key: "e", name: "Od podłogi")]
+
+    static func fieldName(_ f: String) -> String {
+        objectFields.first { $0.key == f }?.name.lowercased() ?? ""
+    }
+
+    private func objectLabel(_ id: String) -> String {
+        let c = scan.objects.first { $0.id == id }?.category ?? ""
+        return scanObjectLabels[c] ?? "Obiekt"
+    }
+
+    private func objectValue(_ id: String, _ f: String) -> Double {
+        guard let o = scan.objects.first(where: { $0.id == id }) else { return 0 }
+        switch f {
+        case "w": return o.widthMm
+        case "d": return o.depthMm
+        case "h": return o.heightMm
+        default: return o.elevationMm
+        }
+    }
+
     private func saveMarker(_ mk: ScanMarker) {
+        snapshot()
         if let k = scan.markers.firstIndex(where: { $0.id == mk.id }) {
             scan.markers[k] = mk
         } else {
@@ -127,6 +213,7 @@ struct ScanResultView: View {
     }
 
     private func deleteMarker(_ id: String) {
+        snapshot()
         scan.markers.removeAll { $0.id == id }
         if selectedMarker == id { selectedMarker = nil }
         changed()
@@ -151,8 +238,9 @@ struct ScanResultView: View {
             Group {
                 switch mode {
                 case .plan:
-                    PlanCanvas(scan: scan, roomName: name, selected: selected,
-                               onTapWall: { selected = $0 },
+                    PlanCanvas(scan: $scan, roomName: name, selected: $selected,
+                               selectedObject: $selectedObject, selectedOpening: $selectedOpening,
+                               tool: tool, fitToken: fitToken,
                                onTapDimension: { i in
                                    selected = i
                                    edit = .wallLength(i)
@@ -161,14 +249,26 @@ struct ScanResultView: View {
                                    selected = i
                                    selectedOpening = seg.opening
                                    edit = .segment(i, seg)
+                               },
+                               onTapGap: { id, side in edit = .objectGap(id, side) },
+                               onEditBegan: { snapshot() },
+                               onEditEnded: { changed() },
+                               onWallDrawn: { i in
+                                   selected = i
+                                   selectedObject = nil
+                                   selectedOpening = nil
+                                   tool = .select
                                })
-                        .overlay(alignment: .topTrailing) {
-                            HStack(spacing: 8) {
-                                Button { rotate(clockwise: false) } label: { Image(systemName: "rotate.left") }
-                                Button { rotate(clockwise: true) } label: { Image(systemName: "rotate.right") }
+                        .overlay(alignment: .topTrailing) { planTools }
+                        .overlay(alignment: .top) {
+                            if tool == .drawWall {
+                                Text("Przeciągnij palcem od punktu do punktu — przyciąga do narożników, ścian i pionu/poziomu")
+                                    .font(.footnote)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(.thinMaterial, in: Capsule())
+                                    .padding(.top, 70)
                             }
-                            .buttonStyle(.bordered)
-                            .padding(16)
                         }
                 case .threeD:
                     Scan3DView(scan: scan).id(version)
@@ -188,10 +288,48 @@ struct ScanResultView: View {
     }
 
     private func rotate(clockwise: Bool) {
+        snapshot()
         withAnimation(.easeInOut(duration: 0.2)) {
             PlanGeom.rotate(&scan, clockwise: clockwise)
         }
+        fitToken += 1
         changed()
+    }
+
+    private var planTools: some View {
+        HStack(spacing: 8) {
+            Button { undo() } label: { Image(systemName: "arrow.uturn.backward") }
+                .disabled(undoStack.isEmpty)
+            Button { redo() } label: { Image(systemName: "arrow.uturn.forward") }
+                .disabled(redoStack.isEmpty)
+            Button {
+                tool = tool == .drawWall ? .select : .drawWall
+                if tool == .drawWall { selectedObject = nil; selectedOpening = nil }
+            } label: {
+                Label(tool == .drawWall ? "Gotowe" : "Ściana", systemImage: tool == .drawWall ? "checkmark" : "plus")
+            }
+            .tint(tool == .drawWall ? PlanStyle.selected : Brand.ink)
+            Menu {
+                ForEach(PlanEdit.objectKinds, id: \.category) { k in
+                    Button(k.label) { addObject(k) }
+                }
+            } label: {
+                Label("Mebel", systemImage: "plus.square")
+            }
+            Button { rotate(clockwise: false) } label: { Image(systemName: "rotate.left") }
+            Button { rotate(clockwise: true) } label: { Image(systemName: "rotate.right") }
+        }
+        .buttonStyle(.bordered)
+        .padding(16)
+    }
+
+    private func addObject(_ k: PlanEdit.ObjectKind) {
+        tool = .select
+        var id = ""
+        apply { id = PlanEdit.addObject(&$0, k, at: PlanModel($0).center) }
+        selected = nil
+        selectedOpening = nil
+        selectedObject = id
     }
 
     private var wallView: some View {
@@ -267,6 +405,8 @@ struct ScanResultView: View {
                 .buttonStyle(.bordered)
             }
 
+            if mode == .plan { selectionCard }
+
             HStack(spacing: 0) {
                 stat(String(format: "%.2f m²", m.areaM2), "Podłoga")
                 stat(String(format: "%.2f m²", m.wallAreaM2), "Ściany")
@@ -337,6 +477,116 @@ struct ScanResultView: View {
             }
         }
         .padding(20)
+    }
+
+    /// Karta zaznaczonego elementu rzutu: ściana (otwory, podział, „do wybudowania") albo mebel.
+    @ViewBuilder
+    private var selectionCard: some View {
+        if let id = selectedObject, let o = scan.objects.first(where: { $0.id == id }) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Menu {
+                        ForEach(PlanEdit.objectKinds, id: \.category) { k in
+                            Button(k.label) {
+                                apply { s in
+                                    if let i = s.objects.firstIndex(where: { $0.id == id }) { s.objects[i].category = k.category }
+                                }
+                            }
+                        }
+                    } label: {
+                        Label(scanObjectLabels[o.category] ?? o.category, systemImage: "chevron.up.chevron.down")
+                            .font(.headline)
+                    }
+                    Spacer()
+                    Button { apply { PlanEdit.rotateObject(&$0, id) } } label: { Image(systemName: "rotate.right") }
+                        .buttonStyle(.bordered)
+                    Button(role: .destructive) {
+                        apply { s in s.objects.removeAll { $0.id == id } }
+                    } label: { Image(systemName: "trash") }
+                        .buttonStyle(.bordered)
+                }
+                ForEach(Self.objectFields, id: \.key) { f in
+                    Button { edit = .objectSize(id, f.key) } label: {
+                        HStack {
+                            Text(f.name).foregroundStyle(.primary)
+                            Spacer()
+                            Text("\(Int(objectValue(id, f.key).rounded())) mm").monospacedDigit().foregroundStyle(.secondary)
+                            Image(systemName: "pencil").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                Text("Przeciągnij mebel na rzucie (przyciąga do ścian i sąsiadów) · stuknij niebieską odległość, żeby ją wpisać")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        } else if let i = selected, scan.walls.indices.contains(i) {
+            let w = scan.walls[i]
+            let spans = PlanGeom.spans(w, scan.openings)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Ściana \(wallLetter(i))").font(.headline)
+                    Text("\(Int(w.length.rounded())) mm").monospacedDigit().foregroundStyle(.secondary)
+                    Spacer()
+                    Button { apply { PlanEdit.splitWall(&$0, i) } } label: { Label("Podziel", systemImage: "scissors") }
+                        .buttonStyle(.bordered)
+                    Button(role: .destructive) {
+                        apply { PlanEdit.deleteWall(&$0, i) }
+                        selected = nil
+                    } label: { Image(systemName: "trash") }
+                        .buttonStyle(.bordered)
+                }
+                Toggle("Do wybudowania (jeszcze jej nie ma)", isOn: Binding(
+                    get: { scan.walls.indices.contains(i) && scan.walls[i].planned == true },
+                    set: { v in apply { s in if s.walls.indices.contains(i) { s.walls[i].planned = v ? true : nil } } }
+                ))
+                .font(.subheadline)
+                HStack {
+                    Button {
+                        var id: String?
+                        apply { id = PlanEdit.addOpening(&$0, wall: i, kind: "window") }
+                        selectedOpening = id
+                    } label: { Label("Okno", systemImage: "plus") }
+                    Button {
+                        var id: String?
+                        apply { id = PlanEdit.addOpening(&$0, wall: i, kind: "door") }
+                        selectedOpening = id
+                    } label: { Label("Drzwi", systemImage: "plus") }
+                    Button {
+                        var id: String?
+                        apply { id = PlanEdit.addOpening(&$0, wall: i, kind: "opening") }
+                        selectedOpening = id
+                    } label: { Label("Przejście", systemImage: "plus") }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                ForEach(spans, id: \.id) { sp in
+                    HStack {
+                        Text(PlanGeom.openingName(sp.kind)).font(.subheadline)
+                        Text("\(Int((sp.t1 - sp.t0).rounded())) × \(Int((sp.top - sp.bottom).rounded()))")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button(role: .destructive) {
+                            apply { PlanEdit.deleteOpening(&$0, sp.id) }
+                        } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless)
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .background(selectedOpening == sp.id ? PlanStyle.selected.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(Rectangle())
+                    .onTapGesture { selectedOpening = sp.id }
+                }
+                Text("Przeciągnij kółko = narożnik, niebieski uchwyt = cała ściana, zaznaczony otwór = wzdłuż ściany")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        }
     }
 
     private var markersSection: some View {
