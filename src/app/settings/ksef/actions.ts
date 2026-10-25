@@ -71,20 +71,19 @@ export async function syncKsefAction(_prev: KsefActionState): Promise<KsefAction
     revalidatePath("/invoices");
     revalidatePath("/finanse");
     revalidatePath("/dashboard");
+    revalidatePath("/invoices/sprzedaz");
+    revalidatePath("/jobs");
+    revalidatePath("/");
     const parts = [
-      r.added === 0 ? "Brak nowych faktur" : `Pobrano ${r.added} ${plural(r.added)}`,
+      r.added === 0 ? "Brak nowych faktur kosztowych" : `Kosztowe: +${r.added}`,
       r.linked > 0 ? `${r.linked} połączono z już wgranymi` : null,
-      r.more ? "są kolejne — kliknij jeszcze raz" : null,
+      r.sales && r.sales.added > 0
+        ? `Sprzedażowe: +${r.sales.added}${r.sales.matched ? ` (${r.sales.matched} przypięto do zleceń)` : ""}`
+        : null,
+      r.more || r.sales?.more ? "są kolejne — kliknij jeszcze raz" : null,
     ].filter(Boolean);
     return { ok: parts.join(" · ") + "." };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Błąd synchronizacji z KSeF." };
   }
-}
-
-function plural(n: number): string {
-  if (n === 1) return "fakturę";
-  const d = n % 10;
-  const t = n % 100;
-  return d >= 2 && d <= 4 && (t < 12 || t > 14) ? "faktury" : "faktur";
 }

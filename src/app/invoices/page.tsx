@@ -5,6 +5,7 @@ import { listInvoiceCategoriesMap, COST_CATEGORIES } from "@/lib/dao/cost_lines"
 import ExportMonthCard from "./ExportMonthCard";
 import KsefSyncCard from "./KsefSyncCard";
 import { getKsefStatus } from "@/lib/dao/ksef";
+import { createClient } from "@/lib/supabase/server";
 import InvoicesListClient from "./InvoicesListClient";
 import {
   PageContainer,
@@ -38,10 +39,11 @@ export default async function InvoicesPage({
   const cat =
     rawCat && (COST_CATEGORIES as readonly string[]).includes(rawCat) ? rawCat : null;
 
-  const [all, categoriesMap, ksef] = await Promise.all([
+  const [all, categoriesMap, ksef, sales] = await Promise.all([
     listInvoices(),
     listInvoiceCategoriesMap(),
     getKsefStatus(),
+    salesSummary(),
   ]);
 
   const byStatus = all.filter((inv) => {
@@ -109,6 +111,8 @@ export default async function InvoicesPage({
       />
 
       <KsefSyncCard status={ksef} />
+
+      {sales && sales.total > 0 && <SalesLink total={sales.total} unlinked={sales.unlinked} />}
 
       {all.length > 0 && <GrantLink invoices={all} />}
 
@@ -179,6 +183,32 @@ function CategoryPills({
         ))}
       </div>
     </div>
+  );
+}
+
+async function salesSummary(): Promise<{ total: number; unlinked: number } | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("sales_invoices").select("job_id");
+  if (error) return null;
+  return { total: data.length, unlinked: data.filter((r) => !r.job_id).length };
+}
+
+function SalesLink({ total, unlinked }: { total: number; unlinked: number }) {
+  return (
+    <Link
+      href="/invoices/sprzedaz"
+      className={`flex items-center gap-3 rounded-2xl border p-3.5 active:opacity-80 ${
+        unlinked > 0 ? "border-[#e2c79c] bg-[#fffaf0]" : "border-[#ededea] bg-white"
+      }`}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#1f1d1b]">Faktury sprzedażowe</p>
+        <p className="text-xs text-[#6f6c66]">
+          {total} z KSeF{unlinked > 0 ? ` · ${unlinked} do przypisania do zlecenia` : " · wszystkie przypięte"}
+        </p>
+      </div>
+      <span className="text-[#a06f3f] text-lg">›</span>
+    </Link>
   );
 }
 

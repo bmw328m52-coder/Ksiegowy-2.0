@@ -138,6 +138,7 @@ export type KsefInvoiceMetadata = {
   issueDate: string;
   permanentStorageDate: string;
   seller: { nip: string; name?: string | null };
+  buyer?: { identifier?: { type: string; value?: string | null } | null; name?: string | null } | null;
   netAmount: number;
   grossAmount: number;
   vatAmount: number;
@@ -154,14 +155,18 @@ type MetadataPage = {
 
 const MAX_RANGE_MS = 95 * 24 * 3600 * 1000; // API pozwala na 100 dni — zostawiamy zapas
 
+export type KsefSubject = "Subject1" | "Subject2";
+
 /**
- * Wszystkie faktury zakupowe (Artur = nabywca) zapisane w KSeF od `from`.
+ * Wszystkie faktury zapisane w KSeF od `from` — Subject2 = zakupowe (Artur
+ * nabywcą), Subject1 = sprzedażowe (Artur wystawcą).
  * Scenariusz przyrostowy wg dokumentacji MF: data PermanentStorage, sortowanie Asc.
  * Zwraca też `syncedUntil` — do tej chwili dane są kompletne i nie trzeba ich
  * pobierać ponownie.
  */
-export async function listPurchaseInvoices(
+export async function listInvoices(
   accessToken: string,
+  subjectType: KsefSubject,
   from: Date
 ): Promise<{ invoices: KsefInvoiceMetadata[]; syncedUntil: string }> {
   const out: KsefInvoiceMetadata[] = [];
@@ -182,7 +187,7 @@ export async function listPurchaseInvoices(
           method: "POST",
           bearer: accessToken,
           body: {
-            subjectType: "Subject2",
+            subjectType,
             dateRange: {
               dateType: "PermanentStorage",
               from: rangeFrom,

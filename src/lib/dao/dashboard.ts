@@ -86,6 +86,7 @@ export type DashboardData = {
 };
 
 type JobRow = {
+  id?: string;
   amount_gross: string | number;
   vat_rate: string | number;
   status: string;
@@ -221,10 +222,10 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
   const monthEndDate = new Date(year, monthIdx + 1, 0);
   const monthEnd = isoDate(monthEndDate);
 
-  const [jobsRes, openJobsRes, costsRes] = await Promise.all([
+  const [jobsRes, openJobsRes, costsRes, sales] = await Promise.all([
     supabase
       .from("jobs")
-      .select("amount_gross, vat_rate, status, paid_date, completed_date, invoiced")
+      .select("id, amount_gross, vat_rate, status, paid_date, completed_date, invoiced")
       .in("status", ["installed", "settled", "archived"]),
     supabase
       .from("jobs")
@@ -234,14 +235,19 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       .gte("deposit_date", yearStart)
       .lte("deposit_date", yearEnd),
     selectCosts(supabase, yearStart, yearEnd),
+    selectSales(supabase),
   ]);
+  // Zlecenia z przypiętą fakturą sprzedażową z KSeF — ich przychód podatkowy
+  // liczymy z faktury (data wystawienia), nie ze zlecenia, żeby nie dublować.
+  const linkedJobIds = new Set(sales.filter((s) => s.job_id).map((s) => s.job_id as string));
+  const yearSales = sales.filter((s) => inRange(s.issue_date, yearStart, yearEnd));
 
   let jobsData: unknown[] = jobsRes.data ?? [];
   if (jobsRes.error) {
     if (jobsRes.error.code === "42703") {
       const retry = await supabase
         .from("jobs")
-        .select("amount_gross, vat_rate, status, paid_date, completed_date")
+        .select("id, amount_gross, vat_rate, status, paid_date, completed_date")
         .in("status", ["installed", "settled", "archived"]);
       if (retry.error) throw retry.error;
       jobsData = retry.data ?? [];
@@ -308,7 +314,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     }
     const d = jobRevenueDate(j);
     if (!d) continue;
-    const isTaxable = !hasInvoicedCol || j.invoiced === true;
+    const isTaxable = (!hasInvoicedCol || j.invoiced === true) && !(j.id && linkedJobIds.has(j.id));
     if (inRange(d, yearStart, yearEnd)) {
       addJobRevenue(ytd, j, settings.is_vat_payer);
       if (isTaxable) addJobRevenue(ytdTaxable, j, settings.is_vat_payer);
@@ -330,6 +336,12 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
         }
       }
     }
+  }
+
+  for (const si of yearSales) {
+    addSalesInvoice(ytdTaxable, si);
+    const m = Number(si.issue_date.slice(5, 7)) - 1;
+    if (m >= 0 && m < 12) addSalesInvoice(trendTaxable[m], si);
   }
 
   const monthRevenueSplit: RevenueSplit | null = hasInvoicedCol
@@ -434,8 +446,12 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       if (j.status === "installed" && !j.paid_date) continue;
       // Bez faktury = poza VAT (i tak sprzedaż paragonowa/symulacja) — nie do rejestru VAT.
       if (hasInvoicedCol && j.invoiced !== true) continue;
+      if (j.id && linkedJobIds.has(j.id)) continue;
       const d = jobRevenueDate(j);
       if (inRange(d, from, to)) addJobRevenue(vatPeriod, j, true);
+    }
+    for (const si of sales) {
+      if (inRange(si.issue_date, from, to)) addSalesInvoice(vatPeriod, si);
     }
     let vatGrantInput = 0;
     for (const c of costs) {
@@ -531,6 +547,29 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     year,
     month_index: monthIdx,
   };
+}
+
+type SalesRow = {
+  issue_date: string;
+  amount_net: string | number;
+  amount_vat: string | number;
+  amount_gross: string | number;
+  job_id: string | null;
+};
+
+function addSalesInvoice(totals: PeriodTotals, s: SalesRow): void {
+  totals.revenueNet += toNum(s.amount_net);
+  totals.revenueVat += toNum(s.amount_vat);
+  totals.revenueGross += toNum(s.amount_gross);
+}
+
+// Faktury sprzedażowe z KSeF (migr. 0051). Brak tabeli = pusta lista.
+async function selectSales(supabase: Awaited<ReturnType<typeof createClient>>): Promise<SalesRow[]> {
+  const { data, error } = await supabase
+    .from("sales_invoices")
+    .select("issue_date, amount_net, amount_vat, amount_gross, job_id");
+  if (error) return [];
+  return (data ?? []) as SalesRow[];
 }
 
 // Koszty z flagą dotacji z faktury. Bez migracji 0050 (brak kolumny) — zapytanie

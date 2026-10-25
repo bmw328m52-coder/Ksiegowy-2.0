@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { authenticateWithToken, downloadInvoiceXml, listPurchaseInvoices, type KsefInvoiceMetadata } from "./client";
+import { authenticateWithToken, downloadInvoiceXml, listInvoices, type KsefInvoiceMetadata } from "./client";
 import { parseFa, type FaLine } from "./fa";
 import { decryptSecret } from "./secret";
 import { suggestedVatDeduction } from "@/lib/dao/cost_lines.types";
 import { guessCategory } from "./categories";
+import { syncSales } from "./sales";
 
 export type KsefConnection = {
   user_id: string;
@@ -11,12 +12,20 @@ export type KsefConnection = {
   token_enc: string;
   sync_from: string;
   synced_until: string | null;
+  sales_synced_until?: string | null;
   last_sync_at: string | null;
   last_sync_added: number | null;
   last_error: string | null;
 };
 
-export type KsefSyncResult = { added: number; linked: number; skipped: number; more: boolean };
+export type KsefSyncResult = {
+  added: number;
+  linked: number;
+  skipped: number;
+  more: boolean;
+  // Faktury sprzedażowe: nowe / od razu dopasowane do zlecenia / null = brak tabeli (migr. 0051)
+  sales: { added: number; matched: number; more: boolean } | null;
+};
 
 // Jedno przebiegnięcie nie pobiera więcej faktur — reszta przyjdzie w kolejnym
 // (cron codziennie albo ponowne kliknięcie), żeby nie przekroczyć czasu funkcji.
@@ -55,8 +64,18 @@ export async function syncKsef(supabase: SupabaseClient, userId: string): Promis
 
 async function runSync(supabase: SupabaseClient, conn: KsefConnection): Promise<KsefSyncResult> {
   const accessToken = await authenticateWithToken(decryptSecret(conn.token_enc), conn.nip);
+  const purchases = await syncPurchases(supabase, conn, accessToken);
+  const sales = await syncSales(supabase, conn, accessToken, MAX_PER_RUN);
+  return { ...purchases, sales };
+}
+
+async function syncPurchases(
+  supabase: SupabaseClient,
+  conn: KsefConnection,
+  accessToken: string
+): Promise<Omit<KsefSyncResult, "sales">> {
   const from = new Date(conn.synced_until ?? conn.sync_from);
-  const { invoices: found, syncedUntil } = await listPurchaseInvoices(accessToken, from);
+  const { invoices: found, syncedUntil } = await listInvoices(accessToken, "Subject2", from);
 
   // Już zapisane po numerze KSeF
   const known = new Set<string>();
