@@ -135,6 +135,13 @@ function Thumbnail({ src, mime }: { src: string | null; mime: string | null }) {
       />
     );
   }
+  if (mime === "application/xml") {
+    return (
+      <div className="w-12 h-12 rounded-md bg-[#282624] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+        KSeF
+      </div>
+    );
+  }
   if (mime === "application/pdf") {
     return (
       <div className="w-12 h-12 rounded-md bg-red-50 border border-red-200 flex items-center justify-center text-red-700 text-[10px] font-bold shrink-0">

@@ -29,6 +29,8 @@ export type Invoice = {
   payment_method: string | null;
   doc_source: string | null;
   accounting_status: AccountingStatus;
+  // Numer KSeF — faktura pobrana automatycznie z KSeF (migracja 0049)
+  ksef_number: string | null;
   created_at: string;
   updated_at: string;
 };

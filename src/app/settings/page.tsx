@@ -3,6 +3,8 @@ import { PageContainer } from "@/components/ui";
 import SettingsForm, { type SettingsInitial } from "./SettingsForm";
 import { saveSettings } from "./actions";
 import { getUserSettings, DEFAULT_SETTINGS } from "@/lib/dao/user_settings";
+import { getKsefStatus } from "@/lib/dao/ksef";
+import KsefSettings from "./ksef/KsefSettings";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ustawienia" };
@@ -13,7 +15,8 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string }>;
 }) {
   const sp = await searchParams;
-  const current = await getUserSettings();
+  const [current, ksef] = await Promise.all([getUserSettings(), getKsefStatus()]);
+  const ksefFrom = current?.zus_start_date ?? daysAgoIso(90);
 
   const initial: SettingsInitial = current
     ? {
@@ -60,6 +63,16 @@ export default async function SettingsPage({
       )}
 
       <SettingsForm action={saveSettings} initial={initial} />
+
+      <div id="ksef" className="scroll-mt-20 border-t border-[#ededea] pt-5">
+        <KsefSettings status={ksef} defaultNip={current?.business_nip ?? null} defaultSyncFrom={ksefFrom} />
+      </div>
     </PageContainer>
   );
+}
+
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
 }

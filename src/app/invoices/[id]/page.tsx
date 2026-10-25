@@ -172,6 +172,21 @@ export default async function InvoiceDetailPage({
           <div className="mb-4 rounded-xl overflow-hidden border border-zinc-200 bg-white">
             {isImage ? (
               <InvoicePhotoViewer src={fileUrl} />
+            ) : invoice.ksef_number ? (
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-4 active:bg-zinc-50"
+              >
+                <div className="w-10 h-12 rounded bg-[#282624] flex items-center justify-center text-white text-[10px] font-bold">
+                  KSeF
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Faktura z KSeF (XML)</p>
+                  <p className="text-[11px] text-zinc-500 truncate tabular-nums">{invoice.ksef_number}</p>
+                </div>
+              </a>
             ) : (
               <a
                 href={fileUrl}

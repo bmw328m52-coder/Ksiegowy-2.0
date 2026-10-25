@@ -3,6 +3,8 @@ import PageHeader from "@/components/PageHeader";
 import { listInvoices, getSignedThumbnailUrl } from "@/lib/dao/invoices";
 import { listInvoiceCategoriesMap, COST_CATEGORIES } from "@/lib/dao/cost_lines";
 import ExportMonthCard from "./ExportMonthCard";
+import KsefSyncCard from "./KsefSyncCard";
+import { getKsefStatus } from "@/lib/dao/ksef";
 import InvoicesListClient from "./InvoicesListClient";
 import {
   PageContainer,
@@ -13,6 +15,8 @@ import {
 } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+// Pobieranie z KSeF (akcja serwera z tej strony) potrafi trwać kilkadziesiąt sekund.
+export const maxDuration = 300;
 export const metadata = { title: "Faktury" };
 
 type Filter = "all" | "todo" | "done";
@@ -34,7 +38,11 @@ export default async function InvoicesPage({
   const cat =
     rawCat && (COST_CATEGORIES as readonly string[]).includes(rawCat) ? rawCat : null;
 
-  const [all, categoriesMap] = await Promise.all([listInvoices(), listInvoiceCategoriesMap()]);
+  const [all, categoriesMap, ksef] = await Promise.all([
+    listInvoices(),
+    listInvoiceCategoriesMap(),
+    getKsefStatus(),
+  ]);
 
   const byStatus = all.filter((inv) => {
     if (filter === "todo") return needsReview(inv);
@@ -99,6 +107,8 @@ export default async function InvoicesPage({
           </ButtonLink>
         }
       />
+
+      <KsefSyncCard status={ksef} />
 
       {all.length > 0 && (
         <>
