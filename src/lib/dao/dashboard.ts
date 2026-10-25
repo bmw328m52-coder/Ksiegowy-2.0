@@ -23,6 +23,9 @@ export type VatPeriodInfo = {
   vatToPay: number;
   // Nadwyżka VAT naliczonego nad należnym → do przeniesienia na następny okres lub zwrotu.
   vatToReclaim: number;
+  // VAT naliczony z zakupów sfinansowanych dotacją — wchodzi do odliczenia,
+  // ale wg umowy z PUP zwykle trzeba go oddać (nie jest „zyskiem").
+  vatGrantInput: number;
   deadline: string;
 };
 
@@ -100,7 +103,12 @@ type CostRow = {
   cost_date: string;
   category?: string | null;
   vat_deduction?: number | null;
+  invoice?: { funded_by_grant?: boolean | null } | null;
 };
+
+// Zakup z dotacji (np. PUP) — wydatek sfinansowany zwolnioną z podatku dotacją
+// nie jest kosztem uzyskania przychodu, więc nie liczy się do kosztów ani PIT.
+const isGrantCost = (c: CostRow) => c.invoice?.funded_by_grant === true;
 
 export type CategoryBreakdownRow = {
   category: string;
@@ -225,11 +233,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       .not("deposit_date", "is", null)
       .gte("deposit_date", yearStart)
       .lte("deposit_date", yearEnd),
-    supabase
-      .from("cost_lines")
-      .select("amount_net, amount_vat, amount_gross, cost_date, category, vat_deduction")
-      .gte("cost_date", yearStart)
-      .lte("cost_date", yearEnd),
+    selectCosts(supabase, yearStart, yearEnd),
   ]);
 
   let jobsData: unknown[] = jobsRes.data ?? [];
@@ -341,6 +345,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
 
   const categoryAgg = new Map<string, { net: number; gross: number }>();
   for (const c of costs) {
+    if (isGrantCost(c)) continue;
     addCost(ytd, c, settings.is_vat_payer);
     addCost(ytdTaxable, c, settings.is_vat_payer);
     const m = Number(c.cost_date.slice(5, 7)) - 1;
@@ -432,8 +437,11 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       const d = jobRevenueDate(j);
       if (inRange(d, from, to)) addJobRevenue(vatPeriod, j, true);
     }
+    let vatGrantInput = 0;
     for (const c of costs) {
-      if (inRange(c.cost_date, from, to)) addCost(vatPeriod, c, true);
+      if (!inRange(c.cost_date, from, to)) continue;
+      addCost(vatPeriod, c, true);
+      if (isGrantCost(c)) vatGrantInput += toNum(c.amount_vat) * ((c.vat_deduction ?? 100) / 100);
     }
 
     const vatDl = vatDeadline(year, monthIdx, settings.vat_period);
@@ -446,6 +454,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       vatInput: vatPeriod.costsVat,
       vatToPay: Math.max(0, vatBalance),
       vatToReclaim: Math.max(0, -vatBalance),
+      vatGrantInput,
       deadline: isoDate(vatDl.due),
     };
   }
@@ -522,6 +531,23 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     year,
     month_index: monthIdx,
   };
+}
+
+// Koszty z flagą dotacji z faktury. Bez migracji 0050 (brak kolumny) — zapytanie
+// bez flagi, żeby pulpit nie padł.
+async function selectCosts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  from: string,
+  to: string
+) {
+  const base = "amount_net, amount_vat, amount_gross, cost_date, category, vat_deduction";
+  const res = await supabase
+    .from("cost_lines")
+    .select(`${base}, invoice:invoices(funded_by_grant)`)
+    .gte("cost_date", from)
+    .lte("cost_date", to);
+  if (!res.error) return res;
+  return supabase.from("cost_lines").select(base).gte("cost_date", from).lte("cost_date", to);
 }
 
 export { MONTH_NAMES_PL };

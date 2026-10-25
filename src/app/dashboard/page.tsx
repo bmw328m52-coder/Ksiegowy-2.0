@@ -50,6 +50,9 @@ export default async function DashboardPage() {
               rows={[
                 { label: "VAT należny (sprzedaż)", value: fmtPLN(d.vat.vatDue) },
                 { label: "VAT naliczony (koszty)", value: `− ${fmtPLN(d.vat.vatInput)}` },
+                ...(d.vat.vatGrantInput > 0
+                  ? [{ label: "w tym z zakupów z dotacji (do zwrotu do PUP)", value: fmtPLN(d.vat.vatGrantInput), sub: true }]
+                  : []),
               ]}
               total={
                 d.vat.vatToReclaim > 0

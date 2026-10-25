@@ -31,6 +31,8 @@ export type Invoice = {
   accounting_status: AccountingStatus;
   // Numer KSeF — faktura pobrana automatycznie z KSeF (migracja 0049)
   ksef_number: string | null;
+  // Zakup sfinansowany dotacją (PUP) — poza kosztami/PIT (migracja 0050)
+  funded_by_grant?: boolean;
   created_at: string;
   updated_at: string;
 };

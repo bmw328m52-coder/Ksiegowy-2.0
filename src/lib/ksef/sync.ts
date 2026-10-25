@@ -3,6 +3,7 @@ import { authenticateWithToken, downloadInvoiceXml, listPurchaseInvoices, type K
 import { parseFa, type FaLine } from "./fa";
 import { decryptSecret } from "./secret";
 import { suggestedVatDeduction } from "@/lib/dao/cost_lines.types";
+import { guessCategory } from "./categories";
 
 export type KsefConnection = {
   user_id: string;
@@ -170,7 +171,7 @@ async function saveInvoice(
     throw invErr;
   }
 
-  const fallbackCategory = guessCategory(supplierName, fa.lines);
+  const fallbackCategory = guessCategory(supplierName, fa.lines.map((l) => l.name));
   const linesSum = fa.lines.reduce((a, l) => a + l.gross, 0);
   // Pozycje z XML tylko gdy sumują się do kwoty faktury (korekty, rabaty itp.
   // potrafią to rozjechać) — inaczej jedna pozycja zbiorcza z metadanych.
@@ -185,7 +186,9 @@ async function saveInvoice(
           amount_gross: l.gross,
           qty: l.qty ?? 1,
           vat_rate: l.vatRate,
-          category: guessCategory(supplierName, [l]) ?? fallbackCategory,
+          // Pozycja sama w sobie, potem sam dostawca — nie cała faktura, bo jedna
+          // „usługa transportowa" potrafiła zrobić z frezarki koszt transportu.
+          category: guessCategory(null, [l.name]) ?? guessCategory(supplierName, []),
         }))
       : [
           {
@@ -217,20 +220,4 @@ function describeLine(l: FaLine): string {
     return `${l.name} (${qty}${l.unit ? ` ${l.unit}` : ""})`;
   }
   return l.name;
-}
-
-// Podpowiedź kategorii po dostawcy i nazwie pozycji — Artur może ją zmienić.
-const CATEGORY_RULES: { match: RegExp; category: string }[] = [
-  { match: /orlen|\bbp\b|shell|circle\s?k|moya|lotos|amic|olej nap|benzyn|\bpb\s?95|\blpg\b|paliw/i, category: "paliwo" },
-  { match: /zimex|p[łl]yt|formatk|hdf|mdf|blat|obrze|okleina|laminat|sklejk|drewn/i, category: "płyty/drewno" },
-  { match: /mercury|merkury|blum|hettich|grass|zawias|prowadnic|uchwyt|aventos|legrabox|tandembox|okuci|n[oó][żz]k|cargo/i, category: "okucia" },
-  { match: /castorama|leroy|obi\b|bricoman|wkr[eę]t|klej|silikon|tasma|ta[śs]m/i, category: "materiały" },
-  { match: /makita|bosch|festool|dewalt|narz[eę]dz|wiert|pi[łl]a/i, category: "narzędzia" },
-  { match: /transport|przesy[łl]k|kurier|dostaw|inpost|dpd|\bdhl\b/i, category: "transport" },
-  { match: /orange|t-mobile|ksi[eę]gow|biuro|papier|toner|abonament/i, category: "biuro" },
-];
-
-function guessCategory(supplier: string | null, lines: FaLine[]): string | null {
-  const text = [supplier ?? "", ...lines.map((l) => l.name)].join(" ");
-  return CATEGORY_RULES.find((r) => r.match.test(text))?.category ?? null;
 }

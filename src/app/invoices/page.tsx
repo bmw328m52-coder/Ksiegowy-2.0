@@ -110,6 +110,8 @@ export default async function InvoicesPage({
 
       <KsefSyncCard status={ksef} />
 
+      {all.length > 0 && <GrantLink invoices={all} />}
+
       {all.length > 0 && (
         <>
           <ExportMonthCard />
@@ -177,6 +179,27 @@ function CategoryPills({
         ))}
       </div>
     </div>
+  );
+}
+
+function GrantLink({ invoices }: { invoices: { funded_by_grant?: boolean; amount_gross: string | null }[] }) {
+  const grant = invoices.filter((i) => i.funded_by_grant === true);
+  const sum = grant.reduce((a, i) => a + Number(i.amount_gross ?? 0), 0);
+  return (
+    <Link
+      href="/invoices/dotacja"
+      className="flex items-center gap-3 rounded-2xl border border-[#ededea] bg-white p-3.5 active:bg-[#f6f6f5]"
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#1f1d1b]">Zakupy z dotacji</p>
+        <p className="text-xs text-[#6f6c66]">
+          {grant.length > 0
+            ? `${grant.length} faktur · ${sum.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} zł brutto — poza kosztami`
+            : "Zaznacz faktury opłacone z dotacji PUP"}
+        </p>
+      </div>
+      <span className="text-[#a06f3f] text-lg">›</span>
+    </Link>
   );
 }
 

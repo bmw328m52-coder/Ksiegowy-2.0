@@ -308,3 +308,39 @@ function numChanged(a: string | number | null, b: number | null): boolean {
   if (aN === null || bN === null) return true;
   return Math.abs(aN - bN) > 1e-6;
 }
+
+/** Zapisuje, które faktury zostały sfinansowane dotacją (ekran /invoices/dotacja). */
+export async function setGrantInvoicesAction(ids: string[]): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Brak sesji." };
+
+  const { error: clearErr } = await supabase
+    .from("invoices")
+    .update({ funded_by_grant: false })
+    .eq("user_id", user.id)
+    .eq("funded_by_grant", true);
+  if (clearErr) return { error: clearErr.message };
+  if (ids.length > 0) {
+    const { error } = await supabase.from("invoices").update({ funded_by_grant: true }).in("id", ids);
+    if (error) return { error: error.message };
+  }
+  revalidatePath("/invoices");
+  revalidatePath("/dashboard");
+  revalidatePath("/finanse");
+  revalidatePath("/");
+  return {};
+}
+
+export async function toggleInvoiceGrantAction(formData: FormData) {
+  const id = String(formData.get("invoice_id") ?? "");
+  const on = String(formData.get("funded_by_grant") ?? "") === "1";
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("invoices").update({ funded_by_grant: on }).eq("id", id);
+  revalidatePath(`/invoices/${id}`);
+  revalidatePath("/invoices");
+  revalidatePath("/dashboard");
+}

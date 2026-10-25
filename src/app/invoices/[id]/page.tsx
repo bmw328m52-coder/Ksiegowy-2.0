@@ -19,7 +19,7 @@ import { listJobs } from "@/lib/dao/jobs";
 import { fmtDate, fmtPLN } from "@/lib/format";
 import InvoiceEditForm from "../InvoiceEditForm";
 import CostLineCard from "../CostLineCard";
-import { deleteInvoiceAction, setInvoiceVatDeductionAction } from "../actions";
+import { deleteInvoiceAction, setInvoiceVatDeductionAction, toggleInvoiceGrantAction } from "../actions";
 import InvoicePhotoViewer from "./InvoicePhotoViewer";
 
 export const dynamic = "force-dynamic";
@@ -205,6 +205,37 @@ export default async function InvoiceDetailPage({
             )}
           </div>
         )}
+
+        <form action={toggleInvoiceGrantAction} className="mb-4">
+          <input type="hidden" name="invoice_id" value={invoice.id} />
+          <input type="hidden" name="funded_by_grant" value={invoice.funded_by_grant ? "0" : "1"} />
+          <button
+            type="submit"
+            className={`w-full flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left ${
+              invoice.funded_by_grant ? "border-[#a06f3f] bg-[#fbf6ee]" : "border-zinc-200 bg-white"
+            }`}
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Zakup z dotacji (PUP)</span>
+              <span className="block text-[11px] text-zinc-500">
+                {invoice.funded_by_grant
+                  ? "Poza kosztami i PIT · VAT do zwrotu do PUP"
+                  : "Zaznacz, jeśli opłacone z dotacji"}
+              </span>
+            </span>
+            <span
+              className={`shrink-0 w-10 h-6 rounded-full p-0.5 transition-colors ${
+                invoice.funded_by_grant ? "bg-[#a06f3f]" : "bg-zinc-300"
+              }`}
+            >
+              <span
+                className={`block w-5 h-5 rounded-full bg-white transition-transform ${
+                  invoice.funded_by_grant ? "translate-x-4" : ""
+                }`}
+              />
+            </span>
+          </button>
+        </form>
 
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-zinc-700 mb-2">Dane faktury</h2>
