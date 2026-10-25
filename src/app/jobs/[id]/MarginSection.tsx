@@ -4,6 +4,7 @@ import { CATEGORY_COLORS } from "@/lib/dao/cost_lines.types";
 import { listMaterialsByJob } from "@/lib/dao/material_catalog";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { computeJobMarginFull } from "@/lib/jobMargin";
+import { listEntriesByJob, totalMinutes } from "@/lib/dao/time_entries";
 import { fmtPLN, fmtDate } from "@/lib/format";
 import type { Job } from "@/lib/dao/jobs.types";
 
@@ -15,11 +16,13 @@ export default async function MarginSection({
 }: {
   job: Pick<Job, "id" | "amount_gross" | "vat_rate">;
 }) {
-  const [lines, materials, settings] = await Promise.all([
+  const [lines, materials, settings, entries] = await Promise.all([
     listCostLinesByJob(job.id),
     listMaterialsByJob(job.id),
     getUserSettingsOrDefault(),
+    listEntriesByJob(job.id),
   ]);
+  const hours = totalMinutes(entries) / 60;
   const isVat = settings.is_vat_payer;
   const m = computeJobMarginFull(job, lines, materials, isVat);
   // VAT liczony tylko, gdy jesteś VAT-owcem I zlecenie ma niezerową stawkę.
@@ -82,6 +85,24 @@ export default async function MarginSection({
             </div>
             {m.estMarginPct !== null && <MarginBadge pct={m.estMarginPct} />}
           </div>
+
+          {hours > 0 && (
+            <div className="mt-2 pt-2 border-t border-[#d7e3ef] flex items-baseline justify-between">
+              <div>
+                <p className="text-[#8d8a85] text-xs">Na godzinę pracy</p>
+                <p className="text-[10px] text-[#8d8a85]">
+                  zysk ÷ {hours.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} h
+                </p>
+              </div>
+              <p
+                className={`font-semibold text-base tabular-nums ${
+                  m.estProfit / hours >= (settings.default_hourly_rate ?? 0) ? "text-[#3a6b4d]" : "text-[#b08968]"
+                }`}
+              >
+                {Math.round(m.estProfit / hours).toLocaleString("pl-PL")} zł/h
+              </p>
+            </div>
+          )}
 
           {m.materialCount === 0 && (
             <p className="mt-2 text-[11px] text-[#b08968]">

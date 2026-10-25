@@ -17,6 +17,7 @@ import {
 } from "../actions";
 import InvoiceSection from "./InvoiceSection";
 import MarginSection from "./MarginSection";
+import LaborSection from "./LaborSection";
 import PomiarSection from "./PomiarSection";
 import RoomScanSection from "./RoomScanSection";
 import { listScansByJob } from "@/lib/dao/room_scans";
@@ -135,6 +136,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           amountGross={Number(job.amount_gross) || 0}
           status={job.status}
         />
+
+        {!isCancelled && (
+          <LaborSection jobId={id} defaultDate={job.completed_date ?? new Date().toISOString().slice(0, 10)} />
+        )}
 
         {!isCancelled && <MarginSection job={job} />}
 
