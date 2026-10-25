@@ -9,6 +9,7 @@ import {
 } from "@/lib/dao/job_checklist.types";
 import {
   getBriefSchema,
+  SCAN_FIELDS,
   type BriefField,
   type BriefSchema,
 } from "@/lib/briefSchema";
@@ -161,6 +162,7 @@ export default function BriefForm({
   defaultProjectType,
   submitLabel,
   openPostByDefault = false,
+  scanned = false,
 }: {
   action?: Action;
   initial?: QuoteBrief;
@@ -175,6 +177,8 @@ export default function BriefForm({
   defaultProjectType?: ProjectType;
   submitLabel?: string;
   openPostByDefault?: boolean;
+  /** Zlecenie ma skan z iPada — wymiary/okna/przyłącza biorą się ze skanu. */
+  scanned?: boolean;
 }) {
   const [tab, setTab] = useState<"measurement" | "post">(
     openPostByDefault ? "post" : "measurement"
@@ -187,8 +191,13 @@ export default function BriefForm({
   const schema: BriefSchema = getBriefSchema(projectType);
   const initialData = initial?.data ?? {};
 
-  const diagramUtilities: UtilityDef[] | null =
-    projectType === "kitchen"
+  const scanKeys = scanned ? SCAN_FIELDS[projectType] : undefined;
+  const isFromScan = (f: BriefField) => scanKeys?.has(f.key) === true;
+
+  // Ze skanem diagramy A/B/C/D są zbędne — pozostałe pola rysujemy zwyczajnie.
+  const diagramUtilities: UtilityDef[] | null = scanKeys
+    ? null
+    : projectType === "kitchen"
       ? KITCHEN_UTILITIES
       : projectType === "bathroom"
         ? BATHROOM_UTILITIES
@@ -407,14 +416,26 @@ export default function BriefForm({
 
             {/* Panel: Pomiar — tylko dane zbierane na wizycie */}
             <div className={showMeasurement ? "flex flex-col gap-5" : "hidden"}>
+              {scanKeys && (
+                <p className="rounded-xl border border-[#cfe4d4] bg-[#eef6f0] px-3.5 py-2.5 text-xs text-[#3a6b4d]">
+                  Wymiary ścian, okna i położenie przyłączy biorą się ze skanu iPada — tu zostają tylko wybory.
+                </p>
+              )}
               {schema.groups.map((group) => {
                 const measurementFields = group.fields.filter((f) => !isPost(f));
                 if (measurementFields.length === 0) return null;
+                const visible = measurementFields.filter((f) => !isFromScan(f));
+                const hidden = measurementFields.filter(isFromScan);
+                const hiddenInputs = hidden.map((f) => (
+                  <HiddenField key={f.key} field={f} value={initialData[f.key]} />
+                ));
+                if (visible.length === 0) return <div key={group.title}>{hiddenInputs}</div>;
                 return (
                   <section key={group.title} className="rounded-xl border border-zinc-200 bg-white p-4">
                     <h3 className="text-sm font-semibold text-zinc-700 mb-3">{group.title}</h3>
                     <div className="flex flex-col gap-3">
-                      {measurementFields.map(renderFieldNode)}
+                      {visible.map(renderFieldNode)}
+                      {hiddenInputs}
                     </div>
                   </section>
                 );
@@ -468,6 +489,19 @@ export default function BriefForm({
       </button>
     </form>
   );
+}
+
+/** Pole ze skanu — niewidoczne, ale zachowuje wartość wpisaną przed skanem. */
+function HiddenField({
+  field,
+  value,
+}: {
+  field: BriefField;
+  value: string | number | boolean | number[] | null | undefined;
+}) {
+  if (value === undefined || value === null || value === "" || value === false) return null;
+  const v = field.type === "checkbox" ? "on" : Array.isArray(value) ? value.join(",") : String(value);
+  return <input type="hidden" name={`data.${field.key}`} value={v} />;
 }
 
 function FieldRender({

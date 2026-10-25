@@ -73,6 +73,14 @@ struct JobScansView: View {
         }
         .overlay { if loading && local.isEmpty && remote.isEmpty { ProgressView() } }
         .navigationTitle(job.clients?.name ?? job.title)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Link(destination: Config.pomiarURL(jobId: job.id)) {
+                    Label("Wybory w meble-app", systemImage: "list.bullet.clipboard")
+                        .labelStyle(.titleAndIcon)
+                }
+            }
+        }
         .refreshable { await load() }
         .task { await load() }
         .fullScreenCover(item: $opened, onDismiss: { Task { await load() } }) { s in

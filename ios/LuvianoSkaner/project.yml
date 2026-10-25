@@ -17,6 +17,9 @@ targets:
         NSCameraUsageDescription: Kamera i LiDAR są potrzebne do skanowania pomieszczenia i zdjęć punktów instalacji.
         NSBluetoothAlwaysUsageDescription: Bluetooth łączy dalmierz Bosch GLM — pomiar trafia prosto do wymiaru.
         UILaunchScreen: {}
+        CFBundleURLTypes:
+          - CFBundleURLName: pl.luviano.skaner
+            CFBundleURLSchemes: [luvianoskaner]
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

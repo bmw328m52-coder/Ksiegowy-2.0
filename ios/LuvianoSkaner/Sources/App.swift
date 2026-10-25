@@ -22,6 +22,12 @@ struct LuvianoSkanerApp: App {
             }
             .environmentObject(session)
             .environmentObject(laser)
+            .onOpenURL { url in
+                // luvianoskaner://job/{id}
+                guard url.scheme == "luvianoskaner", url.host == "job", let id = url.pathComponents.dropFirst().first
+                else { return }
+                session.deepLinkJobId = id
+            }
             .tint(Brand.gold)
         }
     }

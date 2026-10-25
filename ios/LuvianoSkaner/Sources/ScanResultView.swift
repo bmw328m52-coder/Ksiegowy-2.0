@@ -491,6 +491,10 @@ struct ScanResultView: View {
                 }
                 Spacer()
                 if saved.synced {
+                    Link(destination: Config.pomiarURL(jobId: job.id)) {
+                        Label("Wybory w meble-app", systemImage: "list.bullet.clipboard")
+                    }
+                    .buttonStyle(.bordered)
                     Button("Gotowe", action: onDone).buttonStyle(.borderedProminent).tint(Brand.ink)
                 } else {
                     Button {
@@ -806,6 +810,8 @@ struct ScanResultView: View {
             saved.remoteId = id
             saved.synced = true
             ScanStore.save(saved)
+            // Etap zlecenia — błąd nie cofa wysłanego skanu.
+            try? await session.markMeasuring(jobId: job.id)
             error = nil
         } catch {
             self.error = error.localizedDescription

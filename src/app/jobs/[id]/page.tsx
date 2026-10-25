@@ -20,8 +20,12 @@ import MarginSection from "./MarginSection";
 import LaborSection from "./LaborSection";
 import PomiarSection from "./PomiarSection";
 import RoomScanSection from "./RoomScanSection";
+import ScanStatusCard from "./ScanStatusCard";
 import { listScansByJob } from "@/lib/dao/room_scans";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
+
+// Etapy, na których karta skanu ma sens nawet bez skanu (zachęta „Skanuj iPadem”).
+const MEASURE_STAGES: JobStatus[] = ["new_inquiry", "scheduled_measurement", "to_measure", "after_measure"];
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -97,7 +101,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
         <StageTimeline stages={stages} />
 
-        <PomiarSection jobId={id} brief={brief} />
+        {(scans.length > 0 || MEASURE_STAGES.includes(job.status)) && <ScanStatusCard jobId={id} scans={scans} />}
+
+        <PomiarSection jobId={id} brief={brief} scanned={scans.length > 0} />
 
         <RoomScanSection jobId={id} scans={scans} />
 

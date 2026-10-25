@@ -7,6 +7,7 @@ struct JobsView: View {
     @State private var query = ""
     @State private var loading = false
     @State private var error: String?
+    @State private var path: [JobRow] = []
 
     private var filtered: [JobRow] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
@@ -17,7 +18,7 @@ struct JobsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if !RoomCaptureSession.isSupported {
                     Text("To urządzenie nie ma LiDAR-a — skanowanie niedostępne.")
@@ -28,9 +29,7 @@ struct JobsView: View {
                 }
                 Section("Wybierz zlecenie") {
                     ForEach(filtered) { job in
-                        NavigationLink {
-                            JobScansView(job: job)
-                        } label: {
+                        NavigationLink(value: job) {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(job.clients?.name ?? "Bez klienta")
                                     .font(.headline)
@@ -61,9 +60,23 @@ struct JobsView: View {
                     }
                 }
             }
+            .navigationDestination(for: JobRow.self) { JobScansView(job: $0) }
             .refreshable { await load() }
-            .task { await load() }
+            .task {
+                await load()
+                await openDeepLink()
+            }
+            .onChange(of: session.deepLinkJobId) { Task { await openDeepLink() } }
         }
+    }
+
+    /// Otwiera zlecenie wskazane linkiem z meble-app.
+    private func openDeepLink() async {
+        guard let id = session.deepLinkJobId else { return }
+        session.deepLinkJobId = nil
+        var job = jobs.first { $0.id == id }
+        if job == nil { job = try? await session.job(id: id) }
+        if let job { path = [job] } else { error = "Nie znaleziono zlecenia z linku." }
     }
 
     private func load() async {

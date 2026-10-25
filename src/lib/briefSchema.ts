@@ -30,6 +30,34 @@ export type BriefSchema = {
   groups: BriefGroup[];
 };
 
+// Pola, które dostarcza skan z iPada (LUVIANO Skaner): układ i wymiary ścian,
+// okna, położenie przyłączy. Gdy zlecenie ma skan, formularz ich nie pokazuje
+// (wartości wpisane wcześniej zostają zachowane jako ukryte).
+export const SCAN_FIELDS: Partial<Record<ProjectType, ReadonlySet<string>>> = {
+  kitchen: new Set([
+    "room_layout",
+    "room_rotation",
+    "room_mirror",
+    "window_wall",
+    "wall_a_mm",
+    "wall_b_mm",
+    "wall_c_mm",
+    "wall_d_mm",
+    "ceiling_mm",
+    "window_sill_height_mm",
+    "window_width_mm",
+    "wall_above_window_mm",
+    "wall_left_of_window_mm",
+    "wall_right_of_window_mm",
+    "plumbing_wall",
+    "plumbing_offset_mm",
+    "plumbing_height_mm",
+    "gas_wall",
+    "gas_offset_mm",
+    "gas_height_mm",
+  ]),
+};
+
 const KITCHEN: BriefSchema = {
   groups: [
     {

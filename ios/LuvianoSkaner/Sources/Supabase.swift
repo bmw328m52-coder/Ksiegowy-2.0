@@ -18,6 +18,8 @@ struct JobRow: Decodable, Identifiable, Hashable {
 final class Session: ObservableObject {
     @Published private(set) var isLoggedIn: Bool
     @Published private(set) var email: String?
+    /// Zlecenie z linku luvianoskaner://job/{id} (przycisk „Otwórz w Skanerze” w meble-app).
+    @Published var deepLinkJobId: String?
 
     private var accessToken: String?
     private var refreshToken: String?
@@ -109,6 +111,23 @@ final class Session: ObservableObject {
             URLQueryItem(name: "order", value: "created_at.desc"),
         ])
         return try JSONDecoder().decode([JobRow].self, from: data)
+    }
+
+    func job(id: String) async throws -> JobRow? {
+        let data = try await rest("jobs", query: [
+            URLQueryItem(name: "select", value: "id,title,status,clients(name)"),
+            URLQueryItem(name: "id", value: "eq.\(id)"),
+        ])
+        return try JSONDecoder().decode([JobRow].self, from: data).first
+    }
+
+    /// Po wysłaniu skanu zlecenie przechodzi z „Umówiony pomiar” na „Pomiar” —
+    /// dalsze etapy (Uzupełnienie, wycena…) zostają bez zmian.
+    func markMeasuring(jobId: String) async throws {
+        _ = try await rest("jobs", query: [
+            URLQueryItem(name: "id", value: "eq.\(jobId)"),
+            URLQueryItem(name: "status", value: "in.(new_inquiry,scheduled_measurement)"),
+        ], method: "PATCH", body: try JSONEncoder().encode(["status": "to_measure"]))
     }
 
     /// Skan zlecenia zapisany w meble-app.

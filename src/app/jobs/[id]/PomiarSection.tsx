@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { QuoteBrief } from "@/lib/dao/quote_briefs";
 import type { BriefData } from "@/lib/dao/quote_briefs.types";
-import { getBriefSchema, type BriefField } from "@/lib/briefSchema";
+import { getBriefSchema, SCAN_FIELDS, type BriefField } from "@/lib/briefSchema";
 import { PROJECT_TYPE_LABELS } from "@/lib/dao/job_checklist.types";
 import { fmtDate } from "@/lib/format";
 import RoomMiniDiagram from "./RoomMiniDiagram";
@@ -20,22 +20,27 @@ const ROOM_DIAGRAM_KEYS = new Set([
 export default function PomiarSection({
   jobId,
   brief,
+  scanned = false,
 }: {
   jobId: string;
   brief: QuoteBrief | null;
+  /** Zlecenie ma skan iPada — wymiary pokazuje karta skanu, tu tylko wybory. */
+  scanned?: boolean;
 }) {
   if (!brief) {
     return (
       <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 flex flex-col gap-2">
-        <h2 className="text-sm font-semibold text-zinc-700">Pomiar</h2>
+        <h2 className="text-sm font-semibold text-zinc-700">{scanned ? "Pomiar · wybory" : "Pomiar"}</h2>
         <p className="text-xs text-zinc-500">
-          Brak danych pomiaru. Wypełnij wymiary, kolory, AGD, LED-y itd.
+          {scanned
+            ? "Wymiary są w skanie. Uzupełnij wybory: fronty, blat, AGD, LED-y itd."
+            : "Brak danych pomiaru. Wypełnij wymiary, kolory, AGD, LED-y itd."}
         </p>
         <Link
           href={`/jobs/${jobId}/pomiar/edit`}
           className="rounded-md bg-accent text-white py-2 text-sm font-medium text-center"
         >
-          + Wypełnij pomiar
+          {scanned ? "+ Uzupełnij wybory" : "+ Wypełnij pomiar"}
         </Link>
       </section>
     );
@@ -43,11 +48,13 @@ export default function PomiarSection({
 
   const schema = getBriefSchema(brief.project_type);
   const data = brief.data;
+  const scanKeys = scanned ? SCAN_FIELDS[brief.project_type] : undefined;
 
   const filledGroups = schema.groups
     .map((g) => ({
       title: g.title,
       rows: g.fields
+        .filter((f) => !scanKeys?.has(f.key))
         .map((f) => ({ field: f, value: data[f.key] }))
         .filter((r) =>
           r.field.type === "checkbox"
@@ -60,7 +67,7 @@ export default function PomiarSection({
   return (
     <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-4 flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-zinc-700">Pomiar</h2>
+        <h2 className="text-sm font-semibold text-zinc-700">{scanned ? "Pomiar · wybory" : "Pomiar"}</h2>
         <Link
           href={`/jobs/${jobId}/pomiar/edit`}
           className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-[#a06f3f] text-[#a06f3f] text-xs font-medium px-2.5 py-1.5 active:bg-[#f1e5d2] hover:bg-[#faf5ed] transition-colors"
@@ -132,7 +139,7 @@ export default function PomiarSection({
               <OkuciaRows data={data} fields={schema.groups.find((s) => s.title === g.title)?.fields ?? []} />
             ) : g.title === "Pomieszczenie" ? (
               <div className="flex flex-col gap-2">
-                <RoomMiniDiagram data={data} />
+                {!scanKeys && <RoomMiniDiagram data={data} />}
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                   {g.rows
                     .filter((r) => !ROOM_DIAGRAM_KEYS.has(r.field.key))
