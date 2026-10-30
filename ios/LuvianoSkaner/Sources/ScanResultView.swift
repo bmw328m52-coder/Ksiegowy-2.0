@@ -58,6 +58,7 @@ struct ScanResultView: View {
     @State private var version = 0
     @State private var sending = false
     @State private var error: String?
+    @State private var notes: String
     @State private var pdf: PDFFile?
     @State private var makingPDF = false
 
@@ -70,6 +71,7 @@ struct ScanResultView: View {
         _saved = State(initialValue: saved)
         _scan = State(initialValue: saved.scan)
         _name = State(initialValue: saved.name)
+        _notes = State(initialValue: saved.scan.notes ?? "")
     }
 
     var body: some View {
@@ -117,6 +119,7 @@ struct ScanResultView: View {
                 }
             }
             .onChange(of: name) { _, _ in persist() }
+            .onChange(of: notes) { _, _ in persist() }
             .sheet(item: $edit) { target in
                 switch target {
                 case .wallLength(let i):
@@ -256,6 +259,8 @@ struct ScanResultView: View {
 
     /// Zapis na iPadzie po każdej zmianie — wyjście ze skanu niczego nie gubi.
     private func persist() {
+        // Notatki żyją poza „Cofnij" — zawsze bierzemy to, co wpisane.
+        scan.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes
         saved.scan = scan
         saved.name = name
         saved.synced = false
@@ -484,6 +489,14 @@ struct ScanResultView: View {
             }
             .padding(.vertical, 10)
             .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Notatki z pomiaru").font(.footnote).foregroundStyle(.secondary)
+                TextField("Ustalenia z klientem, uwagi do montażu, krzywe ściany…", text: $notes, axis: .vertical)
+                    .lineLimit(3...10)
+                    .padding(12)
+                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+            }
 
             ChecklistCard(items: checkItems, onAction: checkAction, onToggleNone: toggleNone)
 

@@ -133,6 +133,11 @@ private struct PlanPage: View {
                            "\(Int(w.length.rounded())) mm", measured: w.measured == true)
                     }
                 }
+                if let n = scan.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !n.isEmpty {
+                    PDFSection(title: "Notatki z pomiaru") {
+                        Text(n).font(.system(size: 10)).foregroundStyle(Brand.ink).lineLimit(14)
+                    }
+                }
                 let ops = openingRows
                 if !ops.isEmpty {
                     PDFSection(title: "Okna i drzwi") {

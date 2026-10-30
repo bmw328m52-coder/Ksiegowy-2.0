@@ -48,6 +48,13 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
               ))}
             </div>
 
+            {scan.data.notes?.trim() && (
+              <div className="rounded-lg border border-[#ededea] bg-[#fbfaf7] p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[#a06f3f]">Notatki z pomiaru</div>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800">{scan.data.notes}</p>
+              </div>
+            )}
+
             <p className="text-[11px] text-zinc-500">
               Dokładność skanu ±2–5 cm — wymiary produkcyjne potwierdź dalmierzem.
               {scan.data.room_height_mm ? ` Wysokość pomieszczenia: ${mm(scan.data.room_height_mm)}.` : ""}

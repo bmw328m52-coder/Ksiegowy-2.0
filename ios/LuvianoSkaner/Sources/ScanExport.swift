@@ -70,6 +70,8 @@ struct ScanPayload: Codable {
     var markers: [ScanMarker] = []
     /// Lista kontrolna: potwierdzone ręcznie pozycje („room_height", „none:gas" = brak gazu…).
     var checks: [String]? = nil
+    /// Notatki z pomiaru (całe pomieszczenie).
+    var notes: String? = nil
 }
 
 // Odczyt (zapis lokalny i skany z meble-app): pola dodane później mogą nie istnieć w starszych skanach.
@@ -91,7 +93,7 @@ extension ScanObject {
 }
 
 extension ScanPayload {
-    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers, checks }
+    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers, checks, notes }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
@@ -104,6 +106,7 @@ extension ScanPayload {
         floor = try c.decodeIfPresent([[Double]].self, forKey: .floor)
         markers = try c.decodeIfPresent([ScanMarker].self, forKey: .markers) ?? []
         checks = try c.decodeIfPresent([String].self, forKey: .checks)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes)
     }
 }
 

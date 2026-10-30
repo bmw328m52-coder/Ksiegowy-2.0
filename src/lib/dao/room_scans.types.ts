@@ -93,6 +93,8 @@ export type ScanData = {
   markers?: ScanMarker[];
   /** Lista kontrolna: potwierdzone ręcznie pozycje ("room_height", "none:gas"…). */
   checks?: string[];
+  /** Notatki z pomiaru (całe pomieszczenie) wpisane na iPadzie. */
+  notes?: string;
 };
 
 export type RoomScan = {
