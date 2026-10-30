@@ -77,6 +77,8 @@ struct ScanPayload: Codable {
     var checks: [String]? = nil
     /// Elementy na ścianach (grzejnik, rury, skrzynka…).
     var features: [ScanFeature] = []
+    /// Szkice szaf przy ścianach (układ wnętrza do ustalenia z klientem).
+    var wardrobes: [ScanWardrobe] = []
     /// Notatki z pomiaru (całe pomieszczenie).
     var notes: String? = nil
 }
@@ -100,7 +102,7 @@ extension ScanObject {
 }
 
 extension ScanPayload {
-    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers, checks, features, notes }
+    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers, checks, features, wardrobes, notes }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
@@ -114,6 +116,7 @@ extension ScanPayload {
         markers = try c.decodeIfPresent([ScanMarker].self, forKey: .markers) ?? []
         checks = try c.decodeIfPresent([String].self, forKey: .checks)
         features = try c.decodeIfPresent([ScanFeature].self, forKey: .features) ?? []
+        wardrobes = try c.decodeIfPresent([ScanWardrobe].self, forKey: .wardrobes) ?? []
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
     }
 }

@@ -512,6 +512,18 @@ export function planSvg(data: ScanData, opts: { name?: string; uid?: string; let
     }
   }
 
+  // Szafy (szkic z iPada): prostokąt przy ścianie.
+  for (const w of data.wardrobes ?? []) {
+    const g = m.walls.find((x) => x.w.id === w.wall_id);
+    if (!g) continue;
+    const t0 = w.offset_mm;
+    const t1 = w.offset_mm + w.width_mm;
+    s += poly([at(g, t0, 0), at(g, t1, 0), at(g, t1, -w.depth_mm), at(g, t0, -w.depth_mm)],
+      `fill="#ddcbb3" fill-opacity="0.55" stroke="#8c7354" stroke-width="${1.2 * u}"`);
+    const c = at(g, (t0 + t1) / 2, -w.depth_mm / 2);
+    s += `<text x="${c[0].toFixed(1)}" y="${c[1].toFixed(1)}" font-size="${(11 * u).toFixed(1)}" font-weight="600" fill="#8c7354" text-anchor="middle" dominant-baseline="central" font-family="system-ui,sans-serif">Szafa</text>`;
+  }
+
   for (const o of m.objects) s += symbol(o, u);
 
   // Punkty instalacji przy wewnętrznej krawędzi ściany.

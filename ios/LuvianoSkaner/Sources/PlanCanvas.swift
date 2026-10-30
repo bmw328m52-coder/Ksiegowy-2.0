@@ -447,6 +447,7 @@ enum PlanDraw {
             }
         }
         for f in m.features { FeatureDraw.plan(ctx, m, L, f) }
+        for w in m.wardrobes { WardrobeDraw.plan(ctx, m, L, w) }
 
         // Sprzęty / meble jako symbole architektoniczne.
         for o in m.objects {

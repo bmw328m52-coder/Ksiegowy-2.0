@@ -19,6 +19,10 @@ struct ElevationCanvas: View {
     /// Meble/sprzęty stojące przy tej ścianie (włączane w widoku).
     var showObjects = true
     var selectedFeature: String?
+    /// Stuknięcie w szafę (gdy meble są widoczne) — edytor szafy.
+    var onTapWardrobe: (String) -> Void = { _ in }
+    /// Wyłączone, gdy wstawiamy punkt / element — stuknięcie trafia w ścianę za szafą.
+    var wardrobeHits = true
     /// Stuknięcie w element na ścianie (grzejnik, skrzynka…).
     var onTapFeature: (String) -> Void = { _ in }
 
@@ -28,12 +32,13 @@ struct ElevationCanvas: View {
             let g = m.walls.indices.contains(wallIndex) ? m.walls[wallIndex] : nil
             let markers = g.map { w in scan.markers.filter { $0.wallId == w.w.id } } ?? []
             let features = g.map { w in scan.features.filter { $0.wallId == w.w.id } } ?? []
+            let wardrobes = showObjects ? (g.map { w in scan.wardrobes.filter { $0.wallId == w.w.id } } ?? []) : []
             let active = g.flatMap { ElevationDraw.activeSpan($0, selectedOpening) }
             Canvas { ctx, size in
                 guard let g, let L = ElevLayout(size, g) else { return }
                 ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker, active: active?.id,
                                    objects: showObjects ? ElevationDraw.objectsOnWall(scan, g) : [],
-                                   features: features, selectedFeature: selectedFeature)
+                                   features: features, selectedFeature: selectedFeature, wardrobes: wardrobes)
             }
             .contentShape(Rectangle())
             .onTapGesture { loc in
@@ -52,6 +57,13 @@ struct ElevationCanvas: View {
                     .min { $0.1 < $1.1 }
                 if let hit { onTap(0, 0, hit.0); return }
                 if let fid = FeatureDraw.hit(loc, L, features) { onTapFeature(fid); return }
+                if wardrobeHits {
+                    let (t, z) = L.inv(loc)
+                    if let wd = wardrobes.first(where: { t >= $0.offsetMm && t <= $0.offsetMm + $0.widthMm && z >= 0 && z <= $0.heightMm }) {
+                        onTapWardrobe(wd.id)
+                        return
+                    }
+                }
                 let (t, z) = L.inv(loc)
                 guard t >= 0, t <= L.W, z >= 0, z <= L.H else { return }
                 // W otworze nie ma instalacji — stuknięcie wybiera otwór do wymiarowania w pionie.
@@ -189,7 +201,8 @@ enum ElevationDraw {
     }
 
     static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?, active: String?,
-                     objects: [Front] = [], features: [ScanFeature] = [], selectedFeature: String? = nil) {
+                     objects: [Front] = [], features: [ScanFeature] = [], selectedFeature: String? = nil,
+                     wardrobes: [ScanWardrobe] = []) {
         let (H, W, s) = (L.H, L.W, L.s)
         func p(_ t: Double, _ z: Double) -> CGPoint { L.p(t, z) }
         let ink = GraphicsContext.Shading.color(PlanStyle.wall)
@@ -250,6 +263,13 @@ enum ElevationDraw {
 
         for f in features where f.flush { FeatureDraw.elevation(ctx, L, f, selected: f.id == selectedFeature) }
         for f in objects { drawFront(ctx, L, f) }
+        for w in wardrobes {
+            WardrobeDraw.draw(ctx, w, s: L.s, p: { L.p(w.offsetMm + $0, $1) }, labels: L.s * 600 > 60)
+        }
+        // Elementy z wymaganym dostępem widać także na szafie.
+        if !wardrobes.isEmpty {
+            for f in features where f.access == true { FeatureDraw.elevation(ctx, L, f, selected: f.id == selectedFeature) }
+        }
         for f in features where !f.flush { FeatureDraw.elevation(ctx, L, f, selected: f.id == selectedFeature) }
 
         // Wymiary: odcinki u góry, długość na dole, wysokość z lewej, pion aktywnego otworu z prawej.

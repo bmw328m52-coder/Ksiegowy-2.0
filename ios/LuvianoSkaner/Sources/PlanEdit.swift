@@ -171,6 +171,7 @@ enum PlanEdit {
         scan.openings.removeAll { ids.contains($0.id) || $0.wallId == w.id }
         scan.markers.removeAll { $0.wallId == w.id }
         scan.features.removeAll { $0.wallId == w.id }
+        scan.wardrobes.removeAll { $0.wallId == w.id }
         scan.walls.remove(at: i)
         scan.closed = PlanModel(scan).closed
     }

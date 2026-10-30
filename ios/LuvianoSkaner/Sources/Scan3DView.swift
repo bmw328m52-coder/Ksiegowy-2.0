@@ -393,6 +393,61 @@ enum Scan3D {
             objects.addChildNode(objectNode(o, walls: m.walls, P))
         }
 
+        // Szafy — korpus z wnętrzem (bez drzwi, żeby było widać układ).
+        let board = material(rgb(0.87, 0.80, 0.70), rough: 0.7)
+        let backMat = material(rgb(0.95, 0.93, 0.90), rough: 0.9)
+        let metal = material(rgb(0.75, 0.75, 0.76), rough: 0.3, metal: 0.8)
+        let frontMat = material(rgb(0.97, 0.96, 0.94), rough: 0.5)
+        for w in scan.wardrobes {
+            guard let i = m.walls.firstIndex(where: { $0.w.id == w.wallId }) else { continue }
+            let g = m.walls[i]
+            let B = WardrobeGeom.board
+            /// Płyta: wzdłuż t0…t1 (od lewego boku szafy), w głąb d0…d1 (od ściany), w pionie z0…z1.
+            func slab(_ t0: Double, _ t1: Double, _ d0: Double, _ d1: Double, _ z0: Double, _ z1: Double, _ mat: SCNMaterial) {
+                let a = w.offsetMm + t0, b = w.offsetMm + t1
+                prism(objects, [g.at(a, -d0), g.at(b, -d0), g.at(b, -d1), g.at(a, -d1)], z0, z1, top: mat, side: mat)
+            }
+            let D = w.depthMm, top = w.heightMm - w.topMm
+            let (zIn0, zIn1) = WardrobeGeom.innerZ(w)
+            slab(0, w.widthMm, 0, 8, w.plinthMm, top, backMat)
+            slab(0, B, 0, D, 0, top, board)
+            slab(w.widthMm - B, w.widthMm, 0, D, 0, top, board)
+            slab(B, w.widthMm - B, 0, D, zIn0 - B, zIn0, board)
+            slab(B, w.widthMm - B, 0, D, zIn1, zIn1 + B, board)
+            if w.plinthMm > 1 { slab(B, w.widthMm - B, D - 60, D - 42, 0, w.plinthMm, board) }
+            if w.topMm > 1 { slab(0, w.widthMm, D - 18, D, top, w.heightMm, board) }
+            for sec in WardrobeGeom.sections(w) {
+                if sec.index < w.sections.count - 1 { slab(sec.t1, sec.t1 + B, 8, D, zIn0, zIn1, board) }
+                for zn in sec.zones {
+                    if zn.index > 0 { slab(sec.t0, sec.t1, 8, D - 20, zn.z0 - B, zn.z0, board) }
+                    switch zn.kind {
+                    case .shelves:
+                        for k in 1..<max(zn.count, 1) {
+                            let z = zn.z0 + (zn.z1 - zn.z0) * Double(k) / Double(zn.count) - B / 2
+                            slab(sec.t0, sec.t1, 8, D - 20, z, z + B, board)
+                        }
+                    case .rail, .pantograph:
+                        slab(sec.t0, sec.t1, D / 2 - 12, D / 2 + 12, zn.z1 - 72, zn.z1 - 48, metal)
+                    case .drawers:
+                        let n = max(zn.count, 1)
+                        for k in 0..<n {
+                            let fz0 = zn.z0 + (zn.z1 - zn.z0) * Double(k) / Double(n) + 3
+                            let fz1 = zn.z0 + (zn.z1 - zn.z0) * Double(k + 1) / Double(n) - 3
+                            slab(sec.t0 + 3, sec.t1 - 3, D - 38, D - 20, fz0, fz1, frontMat)
+                        }
+                    case .shoes:
+                        let n = max(zn.count, 1)
+                        for k in 0..<n {
+                            let z = zn.z0 + (zn.z1 - zn.z0) * Double(k) / Double(n) + 40
+                            slab(sec.t0, sec.t1, 60, D - 60, z, z + B, board)
+                        }
+                    case .empty:
+                        break
+                    }
+                }
+            }
+        }
+
         // Punkty instalacji — kolorowe „pinezki" z krążkiem na wewnętrznej powierzchni ściany.
         for mk in scan.markers {
             guard let g = m.walls.first(where: { $0.w.id == mk.wallId }) else { continue }

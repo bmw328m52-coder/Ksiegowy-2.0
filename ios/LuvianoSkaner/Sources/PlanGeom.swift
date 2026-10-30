@@ -394,6 +394,9 @@ enum PlanGeom {
         for k in scan.features.indices where scan.features[k].wallId == id {
             scan.features[k].offsetMm = max(0, (scan.features[k].offsetMm + dt).rounded())
         }
+        for k in scan.wardrobes.indices where scan.wardrobes[k].wallId == id {
+            scan.wardrobes[k].offsetMm = max(0, (scan.wardrobes[k].offsetMm + dt).rounded())
+        }
     }
 
     static func setRoomHeight(_ scan: inout ScanPayload, _ h: Double) {
@@ -422,6 +425,7 @@ struct PlanModel {
     let objects: [ScanObject]
     let markers: [ScanMarker]
     let features: [ScanFeature]
+    let wardrobes: [ScanWardrobe]
     /// Obrys podłogi (zamknięty łańcuch ścian, w innym razie otoczka wypukła).
     let floor: [V2]
     let closed: Bool
@@ -435,6 +439,7 @@ struct PlanModel {
         objects = scan.objects
         markers = scan.markers
         features = scan.features
+        wardrobes = scan.wardrobes
         // Przy rozgałęzieniu (dorysowana ścianka działowa) obrys idzie po istniejących ścianach.
         func nextOf(_ i: Int) -> Int? {
             let c = ws.indices.filter { $0 != i && PlanGeom.dist(ws[$0].a, ws[i].b) < 1 }

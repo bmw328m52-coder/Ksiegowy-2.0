@@ -63,6 +63,8 @@ struct ScanResultView: View {
     /// Element wybrany z menu — następne stuknięcie w ścianę go wstawia.
     @State private var pendingFeature: FeatureKind?
     @State private var selectedFeature: String?
+    /// Szafa otwarta w edytorze.
+    @State private var wardrobeEdit: ScanWardrobe?
     @State private var confirmSend = false
     @State private var undoStack: [ScanPayload] = []
     @State private var redoStack: [ScanPayload] = []
@@ -130,6 +132,13 @@ struct ScanResultView: View {
                 }
             }
             .onChange(of: name) { _, _ in persist() }
+            .fullScreenCover(item: $wardrobeEdit) { wd in
+                let wi = scan.walls.firstIndex { $0.id == wd.wallId } ?? 0
+                WardrobeEditor(wardrobe: wd, wallName: wallLetter(wi),
+                               wallLength: scan.walls.indices.contains(wi) ? scan.walls[wi].length : wd.widthMm,
+                               conflicts: { WardrobeGeom.accessConflicts($0, scan) },
+                               onSave: { saveWardrobe($0) }, onDelete: { deleteWardrobe(wd.id) })
+            }
             .onChange(of: notes) { _, _ in persist() }
             .sheet(item: $edit) { target in
                 switch target {
@@ -333,6 +342,23 @@ struct ScanResultView: View {
     private func sillValue(_ id: String, _ k: String) -> Double {
         let o = scan.openings.first { $0.id == id }
         return (k == "d" ? o?.sillDepthMm : o?.sillThicknessMm) ?? (k == "d" ? 60 : 20)
+    }
+
+    private func saveWardrobe(_ w: ScanWardrobe) {
+        apply { s in
+            if let k = s.wardrobes.firstIndex(where: { $0.id == w.id }) { s.wardrobes[k] = w } else { s.wardrobes.append(w) }
+        }
+    }
+
+    private func deleteWardrobe(_ id: String) {
+        apply { s in s.wardrobes.removeAll { $0.id == id } }
+    }
+
+    /// Nowa szafa na ścianie: na całą długość, do sufitu (bez dodawania do skanu — dopiero „Gotowe").
+    private func newWardrobe(wall i: Int) {
+        guard scan.walls.indices.contains(i) else { return }
+        let w = scan.walls[i]
+        wardrobeEdit = ScanWardrobe.make(wallId: w.id, offset: 0, width: w.length.rounded(), height: w.heightMm.rounded())
     }
 
     private func saveFeature(_ f: ScanFeature) {
@@ -558,6 +584,8 @@ struct ScanResultView: View {
             },
             showObjects: showObjects,
             selectedFeature: selectedFeature,
+            onTapWardrobe: { id in wardrobeEdit = scan.wardrobes.first { $0.id == id } },
+            wardrobeHits: pendingFeature == nil && pendingKind == nil,
             onTapFeature: { id in
                 guard let f = scan.features.first(where: { $0.id == id }) else { return }
                 if selectedFeature == id { edit = .feature(f, isNew: false) } else { selectedFeature = id; selectedMarker = nil }
@@ -588,6 +616,16 @@ struct ScanResultView: View {
                         Label("Element", systemImage: "plus.rectangle.on.rectangle")
                     }
                     .tint(pendingFeature == nil ? Brand.ink : PlanStyle.selected)
+                    Menu {
+                        let onWall = scan.walls.indices.contains(i) ? scan.wardrobes.filter { $0.wallId == scan.walls[i].id } : []
+                        ForEach(onWall) { wd in
+                            Button("Szafa \(Int(wd.widthMm.rounded())) × \(Int(wd.heightMm.rounded()))") { wardrobeEdit = wd }
+                        }
+                        Button { newWardrobe(wall: i) } label: { Label("Nowa szafa na tej ścianie", systemImage: "plus") }
+                    } label: {
+                        Label("Szafa", systemImage: "door.sliding.left.hand.closed")
+                    }
+                    .tint(Brand.ink)
                     Toggle(isOn: $showObjects) { Label("Meble", systemImage: "cabinet") }
                         .toggleStyle(.button)
                         .tint(Brand.ink)
@@ -684,6 +722,8 @@ struct ScanResultView: View {
             markersSection
 
             featuresSection
+
+            wardrobesSection
 
             Text("Okna: \(windows) · Drzwi: \(doors) · Sprzęty: \(scan.objects.count)")
                 .font(.footnote)
@@ -1004,6 +1044,50 @@ struct ScanResultView: View {
             }
             ForEach(rows, id: \.f.id) { row in
                 featureRow(row.f, wall: row.wall)
+            }
+        }
+    }
+
+    private var wardrobesSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Szafy — projekt wnętrza").font(.footnote).foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    let i = selected ?? 0
+                    selected = i
+                    mode = .wall
+                    newWardrobe(wall: i)
+                } label: {
+                    Label(selected.map { "Szafa na ścianie \(wallLetter($0))" } ?? "Szafa", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(scan.walls.isEmpty)
+            }
+            ForEach(scan.wardrobes) { wd in
+                let wi = scan.walls.firstIndex { $0.id == wd.wallId }
+                Button { wardrobeEdit = wd } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "door.sliding.left.hand.closed")
+                            .font(.caption)
+                            .foregroundStyle(.white)
+                            .frame(width: 26, height: 26)
+                            .background(WardrobeDraw.woodEdge, in: RoundedRectangle(cornerRadius: 6))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Szafa · ściana \(wi.map(wallLetter) ?? "?")").font(.subheadline).foregroundStyle(.primary)
+                            Text("\(Int(wd.widthMm.rounded()))×\(Int(wd.heightMm.rounded()))×\(Int(wd.depthMm.rounded())) · \(wd.sections.count) sekcji · \(wd.doorsLabel)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
             }
         }
     }

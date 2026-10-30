@@ -26,6 +26,15 @@ function curveText(c: ScanWallCurve | undefined): { text: string; warn: boolean 
   return { text: ps.map((p) => p.text).join(" · "), warn: ps.some((p) => p.d >= 5) };
 }
 
+const WARDROBE_ZONE_LABELS: Record<string, string> = {
+  shelves: "półki",
+  rail: "drążek",
+  drawers: "szuflady",
+  shoes: "na buty",
+  pantograph: "pantograf",
+  empty: "wolne",
+};
+
 const wallIndex0 = (walls: { id: string }[], id: string) => walls.findIndex((w) => w.id === id);
 
 export default async function RoomScanSection({ jobId, scans }: { jobId: string; scans: RoomScan[] }) {
@@ -142,6 +151,37 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                 </table>
               </div>
             )}
+
+            {(scan.data.wardrobes ?? []).map((wd) => {
+              const wi = wallIndex0(walls, wd.wall_id);
+              const doors =
+                wd.doors === "none" ? "bez drzwi" : `drzwi ${wd.doors === "sliding" ? "przesuwne" : "uchylne"} ×${wd.door_count}`;
+              return (
+                <div key={wd.id} className="rounded-lg border border-[#ededea] bg-[#fbfaf7] p-3 text-xs">
+                  <div className="font-semibold text-zinc-800">
+                    Szafa — ściana {wi >= 0 ? wallLetter(wi) : "?"} · {Math.round(wd.width_mm)} × {Math.round(wd.height_mm)} ×{" "}
+                    {Math.round(wd.depth_mm)} mm
+                  </div>
+                  <div className="text-zinc-500">
+                    od lewego narożnika {mm(wd.offset_mm)} · cokół {mm(wd.plinth_mm)} · {doors}
+                  </div>
+                  <ol className="mt-1.5 grid gap-1 sm:grid-cols-2">
+                    {wd.sections.map((sec, k) => (
+                      <li key={k}>
+                        <span className="font-medium">Sekcja {k + 1}</span>
+                        {sec.width_mm ? ` (${Math.round(sec.width_mm)} mm)` : ""}:{" "}
+                        {[...sec.zones]
+                          .reverse()
+                          .map((z) => `${WARDROBE_ZONE_LABELS[z.kind] ?? z.kind}${z.count && z.count > 1 ? ` ×${z.count}` : ""}${z.height_mm ? ` ${Math.round(z.height_mm)}` : ""}`)
+                          .join(" / ")}
+                      </li>
+                    ))}
+                  </ol>
+                  {wd.note && <p className="mt-1 text-zinc-700">{wd.note}</p>}
+                  <p className="mt-1 text-[10px] text-zinc-400">Rysunek wnętrza — w PDF z iPada.</p>
+                </div>
+              );
+            })}
 
             {(scan.data.features ?? []).length > 0 && (
               <div className="overflow-x-auto">

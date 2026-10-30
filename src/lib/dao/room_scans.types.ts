@@ -27,6 +27,25 @@ export type ScanWallCurve = {
   height_right?: number;
 };
 
+export type WardrobeZoneKind = "shelves" | "rail" | "drawers" | "shoes" | "pantograph" | "empty";
+
+export type ScanWardrobe = {
+  id: string;
+  wall_id: string;
+  /** Lewy bok od lewego narożnika ściany. */
+  offset_mm: number;
+  width_mm: number;
+  height_mm: number;
+  depth_mm: number;
+  plinth_mm: number;
+  top_mm: number;
+  doors: "sliding" | "hinged" | "none";
+  door_count: number;
+  /** Sekcje od lewej; strefy od dołu. Szerokość / wysokość brak = równy podział reszty. */
+  sections: { width_mm?: number; zones: { kind: WardrobeZoneKind; height_mm?: number; count?: number }[] }[];
+  note?: string;
+};
+
 export type ScanOpeningKind = "door" | "window" | "opening";
 
 export type ScanOpening = {
@@ -127,6 +146,8 @@ export type ScanData = {
   markers?: ScanMarker[];
   /** Elementy na ścianach (grzejnik, rury, skrzynka…). */
   features?: ScanFeature[];
+  /** Szkice szaf przy ścianach (Wardrobe.swift). */
+  wardrobes?: ScanWardrobe[];
   /** Lista kontrolna: potwierdzone ręcznie pozycje ("room_height", "none:gas"…). */
   checks?: string[];
   /** Notatki z pomiaru (całe pomieszczenie) wpisane na iPadzie. */

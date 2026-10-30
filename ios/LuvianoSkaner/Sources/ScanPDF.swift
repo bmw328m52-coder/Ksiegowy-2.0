@@ -16,6 +16,10 @@ enum ScanPDF {
         for i in m.walls.indices where m.walls[i].w.planned != true {
             pages.append(AnyView(WallPage(scan: scan, model: m, index: i)))
         }
+        for w in scan.wardrobes {
+            let wi = scan.walls.firstIndex { $0.id == w.wallId } ?? 0
+            pages.append(AnyView(WardrobePage(w: w, wall: wi, conflicts: WardrobeGeom.accessConflicts(w, scan))))
+        }
         let rows = markerRows(scan)
         let checks = MeasureCheck.items(scan)
         // Tabela punktów po 7 na stronę (ze zdjęciami), lista kontrolna na ostatniej.
@@ -306,6 +310,67 @@ private struct MarkersPage: View {
                 }
                 .frame(width: 250, alignment: .topLeading)
             }
+        }
+    }
+}
+
+private struct WardrobePage: View {
+    let w: ScanWardrobe
+    let wall: Int
+    let conflicts: [(feature: ScanFeature, section: Int?)]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Szafa — ściana \(wallLetter(wall)) · \(Int(w.widthMm.rounded())) × \(Int(w.heightMm.rounded())) × \(Int(w.depthMm.rounded())) mm")
+                    .font(.system(size: 14, weight: .semibold))
+                Canvas { ctx, size in
+                    let m = 54.0
+                    let s = max(0.01, min((size.width - 2 * m) / w.widthMm, (size.height - 2 * m) / w.heightMm))
+                    let x0 = (size.width - w.widthMm * s) / 2, yb = (size.height + w.heightMm * s) / 2
+                    let p: (Double, Double) -> CGPoint = { CGPoint(x: x0 + $0 * s, y: yb - $1 * s) }
+                    WardrobeDraw.draw(ctx, w, s: s, p: p)
+                    Draft.dimension(ctx, p(0, 0), p(w.widthMm, 0), out: CGVector(dx: 0, dy: 1), off: 26,
+                                    text: "\(Int(w.widthMm.rounded()))", color: PlanStyle.wall, bg: .white)
+                    Draft.dimension(ctx, p(0, 0), p(0, w.heightMm), out: CGVector(dx: -1, dy: 0), off: 28,
+                                    text: "\(Int(w.heightMm.rounded()))", color: PlanStyle.wall, bg: .white)
+                    for sec in WardrobeGeom.sections(w) where (sec.t1 - sec.t0) * s > 26 {
+                        Draft.dimension(ctx, p(sec.t0, w.heightMm), p(sec.t1, w.heightMm), out: CGVector(dx: 0, dy: -1), off: 18,
+                                        text: "\(Int((sec.t1 - sec.t0).rounded()))", color: PlanStyle.dim, bg: .white)
+                    }
+                }
+                .background(Color(white: 0.985))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                PDFSection(title: "Korpus") {
+                    KV("Od lewego narożnika", "\(Int(w.offsetMm.rounded())) mm")
+                    KV("Cokół", "\(Int(w.plinthMm.rounded())) mm")
+                    KV("Blenda górna", "\(Int(w.topMm.rounded())) mm")
+                    KV("Fronty", w.doorsLabel)
+                }
+                ForEach(WardrobeGeom.sections(w), id: \.index) { sec in
+                    PDFSection(title: "Sekcja \(sec.index + 1) · \(Int((sec.t1 - sec.t0).rounded())) mm") {
+                        ForEach(sec.zones.reversed(), id: \.index) { zn in
+                            KV(zn.kind.hasCount && zn.count > 1 ? "\(zn.kind.label) ×\(zn.count)" : zn.kind.label,
+                               "\(Int((zn.z1 - zn.z0).rounded())) mm")
+                        }
+                    }
+                }
+                if !conflicts.isEmpty {
+                    PDFSection(title: "Wymagany dostęp") {
+                        ForEach(conflicts, id: \.feature.id) { c in
+                            Text("\(FeatureKind(key: c.feature.kind).label)" + (c.section.map { " — sekcja \($0 + 1)" } ?? ""))
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(FeatureDraw.accessColor)
+                        }
+                    }
+                }
+                if let n = w.note, !n.isEmpty {
+                    PDFSection(title: "Uwagi") { Text(n).font(.system(size: 10)) }
+                }
+            }
+            .frame(width: 220)
         }
     }
 }

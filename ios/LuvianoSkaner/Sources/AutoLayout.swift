@@ -126,6 +126,9 @@ enum AutoLayout {
             && f.elevationMm < z1 && f.elevationMm + f.heightMm > z0 {
             blocked.append(Iv(a: max(f.offsetMm, 0), b: min(f.offsetMm + f.widthMm, g.len)))
         }
+        for w in scan.wardrobes where w.wallId == g.w.id {
+            blocked.append(Iv(a: max(w.offsetMm, 0), b: min(w.offsetMm + w.widthMm, g.len)))
+        }
         for ob in scan.objects where ob.elevationMm < z1 && ob.elevationMm + ob.heightMm > z0 {
             if let s = span(ob, g, depth: depth) { blocked.append(s) }
         }
