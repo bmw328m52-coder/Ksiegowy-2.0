@@ -131,11 +131,24 @@ private struct PlanPage: View {
                     ForEach(Array(scan.walls.enumerated()), id: \.offset) { i, w in
                         KV("\(wallLetter(i))\(w.planned == true ? " (do wybudowania)" : "")",
                            "\(Int(w.length.rounded())) mm", measured: w.measured == true)
+                        if let s = w.curve?.summary {
+                            Text(s).font(.system(size: 8).monospacedDigit())
+                                .foregroundStyle(w.curve?.warn == true ? Brand.gold : .secondary)
+                        }
                     }
                 }
                 if let n = scan.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !n.isEmpty {
                     PDFSection(title: "Notatki z pomiaru") {
                         Text(n).font(.system(size: 10)).foregroundStyle(Brand.ink).lineLimit(14)
+                    }
+                }
+                let skew = model.skewedCorners()
+                if !skew.isEmpty {
+                    PDFSection(title: "Narożniki ≠ 90° (ze skanu)") {
+                        ForEach(skew, id: \.wall) { c in
+                            KV("\(wallLetter(c.wall)) / \(wallLetter(model.walls[c.wall].next ?? 0))",
+                               String(format: "%.1f°", c.angle).replacingOccurrences(of: ".", with: ","))
+                        }
                     }
                 }
                 let ops = openingRows
@@ -176,6 +189,11 @@ private struct WallPage: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Ściana \(wallLetter(index)) — \(Int(g.len.rounded())) × \(Int(g.w.heightMm.rounded())) mm")
                 .font(.system(size: 14, weight: .semibold))
+            if let c = g.w.curve, let s = c.summary {
+                Text("Krzywizny: " + s)
+                    .font(.system(size: 10, weight: .medium).monospacedDigit())
+                    .foregroundStyle(c.warn ? Brand.gold : Brand.ink)
+            }
             Canvas { ctx, size in
                 guard let L = ElevLayout(size, g) else { return }
                 ElevationDraw.draw(ctx, L, g, markers: markers, selected: nil,

@@ -15,6 +15,8 @@ private enum EditTarget: Identifiable {
     /// Odległość mebla od przeszkody (strona 0…3) / wymiar mebla (w, d, h, e).
     case objectGap(String, Int)
     case objectSize(String, String)
+    /// Krzywizna ściany: klucz pola WallCurve (lb, lm, lt, hl, hm, hr).
+    case curve(Int, String)
     case autoLayout
     var id: String {
         switch self {
@@ -24,6 +26,7 @@ private enum EditTarget: Identifiable {
         case .marker(let m, _): return "m" + m.id
         case .objectGap(let o, let k): return "g\(k)" + o
         case .objectSize(let o, let f): return "o" + f + o
+        case .curve(let i, let k): return "c\(i)" + k
         case .autoLayout: return "auto"
         }
     }
@@ -149,6 +152,17 @@ struct ScanResultView: View {
                             }
                         }
                     }
+                case .curve(let i, let key):
+                    let f = WallCurve.fields.first { $0.key == key }
+                    MeasureSheet(title: "Ściana \(wallLetter(i)) · \(f?.group ?? "") — \(f?.name ?? "")",
+                                 initial: curveValue(i, key)) { v in
+                        apply { s in
+                            guard s.walls.indices.contains(i), v > 0 else { return }
+                            var c = s.walls[i].curve ?? WallCurve()
+                            c[key] = v.rounded()
+                            s.walls[i].curve = c
+                        }
+                    }
                 case .roomHeight:
                     MeasureSheet(title: "Wysokość pomieszczenia", initial: PlanModel(scan).roomHeight) { v in
                         apply { s in
@@ -231,6 +245,67 @@ struct ScanResultView: View {
         case "d": return o.depthMm
         case "h": return o.heightMm
         default: return o.elevationMm
+        }
+    }
+
+    /// Pomiar krzywizny albo — gdy go jeszcze nie ma — wymiar ściany jako punkt wyjścia.
+    private func curveValue(_ i: Int, _ key: String) -> Double {
+        guard scan.walls.indices.contains(i) else { return 0 }
+        let w = scan.walls[i]
+        return w.curve?[key] ?? (key.hasPrefix("l") ? w.length : w.heightMm)
+    }
+
+    private func clearCurve(_ i: Int, _ key: String) {
+        apply { s in
+            guard s.walls.indices.contains(i), var c = s.walls[i].curve else { return }
+            c[key] = nil
+            s.walls[i].curve = c.isEmpty ? nil : c
+        }
+    }
+
+    private func curveSection(_ i: Int) -> some View {
+        let c = scan.walls.indices.contains(i) ? scan.walls[i].curve : nil
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Krzywizny — dalmierz").font(.subheadline.weight(.medium))
+                Spacer()
+                if let c, c.warn {
+                    Label("ponad \(Int(WallCurve.warnMm)) mm", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Brand.gold)
+                }
+            }
+            ForEach(["Długość", "Wysokość"], id: \.self) { group in
+                HStack(spacing: 6) {
+                    Text(group).font(.caption).foregroundStyle(.secondary).frame(width: 62, alignment: .leading)
+                    ForEach(WallCurve.fields.filter { $0.group == group }, id: \.key) { f in
+                        let v = c?[f.key]
+                        Button { edit = .curve(i, f.key) } label: {
+                            VStack(spacing: 0) {
+                                Text(f.name).font(.caption2).foregroundStyle(.secondary)
+                                Text(v.map { "\(Int($0.rounded()))" } ?? "—")
+                                    .font(.caption.monospacedDigit().weight(.medium))
+                                    .foregroundStyle(v == nil ? Color.secondary : PlanStyle.measured)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .contextMenu {
+                            if v != nil {
+                                Button("Usuń pomiar", role: .destructive) { clearCurve(i, f.key) }
+                            }
+                        }
+                    }
+                }
+            }
+            if let s = c?.summary {
+                Text(s).font(.caption.monospacedDigit()).foregroundStyle(c?.warn == true ? Brand.gold : .secondary)
+            } else {
+                Text("Długość: strzel dalmierzem przy podłodze, w połowie i pod sufitem — różnica = krzywe sąsiednie ściany. Wysokość: lewo / środek / prawo — krzywa podłoga lub sufit.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -450,6 +525,20 @@ struct ScanResultView: View {
                 }
                 .buttonStyle(.bordered)
                 .padding(16)
+            }
+            .overlay(alignment: .top) {
+                if scan.walls.indices.contains(i), let c = scan.walls[i].curve, let s = c.summary {
+                    Button { selected = i; mode = .plan } label: {
+                        Label(s, systemImage: c.warn ? "exclamationmark.triangle.fill" : "ruler")
+                            .font(.footnote.monospacedDigit())
+                            .foregroundStyle(c.warn ? Brand.gold : .secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.thinMaterial, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 66)
+                }
             }
     }
 
@@ -690,6 +779,7 @@ struct ScanResultView: View {
                     set: { v in apply { s in if s.walls.indices.contains(i) { s.walls[i].planned = v ? true : nil } } }
                 ))
                 .font(.subheadline)
+                curveSection(i)
                 HStack {
                     Button {
                         var id: String?
@@ -810,6 +900,9 @@ struct ScanResultView: View {
                 .foregroundStyle(locked ? PlanStyle.measured : Color.primary)
             if locked {
                 Image(systemName: "lock.fill").font(.caption2).foregroundStyle(PlanStyle.measured)
+            }
+            if let c = w.curve, c.warn {
+                Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(Brand.gold)
             }
             Spacer()
             Button("Wymiar") {

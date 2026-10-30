@@ -14,6 +14,17 @@ export type ScanWall = {
   measured?: boolean;
   /** Ściana do wybudowania (dorysowana na pomiarze, jeszcze jej nie ma). */
   planned?: boolean;
+  /** Krzywizny z dalmierza: długość dół/środek/góra, wysokość lewo/środek/prawo (mm). */
+  curve?: ScanWallCurve;
+};
+
+export type ScanWallCurve = {
+  length_bottom?: number;
+  length_middle?: number;
+  length_top?: number;
+  height_left?: number;
+  height_middle?: number;
+  height_right?: number;
 };
 
 export type ScanOpeningKind = "door" | "window" | "opening";

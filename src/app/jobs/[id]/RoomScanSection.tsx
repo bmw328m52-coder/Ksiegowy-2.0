@@ -1,5 +1,5 @@
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
-import type { RoomScan } from "@/lib/dao/room_scans.types";
+import type { RoomScan, ScanWallCurve } from "@/lib/dao/room_scans.types";
 import { SCAN_OBJECT_LABELS, SCAN_OPENING_LABELS } from "@/lib/dao/room_scans.types";
 import { fmtDate } from "@/lib/format";
 import { wallLetter } from "./RoomScanPlan";
@@ -9,6 +9,23 @@ import { deleteScanAction } from "./scanActions";
 import { scanPhotoUrls } from "@/lib/dao/room_scans";
 
 const mm = (v: number) => `${Math.round(v)} mm`;
+/** „dół/środek/góra 2302/2305/2310 · 8 mm" — krzywizny z dalmierza (ScanWall.curve). */
+function curveText(c: ScanWallCurve | undefined): { text: string; warn: boolean } | null {
+  if (!c) return null;
+  const part = (label: string, vs: (number | undefined)[]) => {
+    const got = vs.filter((v): v is number => typeof v === "number");
+    if (got.length < 2) return null;
+    const d = Math.max(...got) - Math.min(...got);
+    return { d, text: `${label} ${vs.map((v) => (v === undefined ? "—" : Math.round(v))).join("/")} · ${Math.round(d)} mm` };
+  };
+  const ps = [
+    part("dł. d/ś/g", [c.length_bottom, c.length_middle, c.length_top]),
+    part("wys. l/ś/p", [c.height_left, c.height_middle, c.height_right]),
+  ].filter((p): p is { d: number; text: string } => p !== null);
+  if (ps.length === 0) return null;
+  return { text: ps.map((p) => p.text).join(" · "), warn: ps.some((p) => p.d >= 5) };
+}
+
 const wallIndex0 = (walls: { id: string }[], id: string) => walls.findIndex((w) => w.id === id);
 
 export default async function RoomScanSection({ jobId, scans }: { jobId: string; scans: RoomScan[] }) {
@@ -66,17 +83,24 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                   <tr>
                     <th className="py-1 pr-3 font-medium">Ściana</th>
                     <th className="py-1 pr-3 font-medium">Długość</th>
-                    <th className="py-1 font-medium">Wysokość</th>
+                    <th className="py-1 pr-3 font-medium">Wysokość</th>
+                    <th className="py-1 font-medium">Krzywizny</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {walls.map((w, i) => (
-                    <tr key={w.id} className="border-t border-[#f0efec]">
-                      <td className="py-1 pr-3 font-semibold">{wallLetter(i)}</td>
-                      <td className="py-1 pr-3 tabular-nums">{mm(w.length_mm)}</td>
-                      <td className="py-1 tabular-nums">{mm(w.height_mm)}</td>
-                    </tr>
-                  ))}
+                  {walls.map((w, i) => {
+                    const c = curveText(w.curve);
+                    return (
+                      <tr key={w.id} className="border-t border-[#f0efec]">
+                        <td className="py-1 pr-3 font-semibold">{wallLetter(i)}</td>
+                        <td className="py-1 pr-3 tabular-nums">{mm(w.length_mm)}</td>
+                        <td className="py-1 pr-3 tabular-nums">{mm(w.height_mm)}</td>
+                        <td className={`py-1 tabular-nums ${c?.warn ? "text-[#a06f3f] font-medium" : "text-zinc-500"}`}>
+                          {c?.text ?? "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

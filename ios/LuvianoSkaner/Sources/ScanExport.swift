@@ -14,6 +14,8 @@ struct ScanWall: Codable {
     var measured: Bool?
     /// Ściana do wybudowania — dorysowana na pomiarze, jeszcze jej nie ma.
     var planned: Bool?
+    /// Krzywizny zmierzone dalmierzem (długość na 3 wysokościach, wysokość w 3 miejscach).
+    var curve: WallCurve?
 }
 
 struct ScanOpening: Codable {

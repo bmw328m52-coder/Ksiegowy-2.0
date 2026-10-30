@@ -5,8 +5,8 @@ struct ApiError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-struct JobRow: Decodable, Identifiable, Hashable {
-    struct ClientRef: Decodable, Hashable { let name: String }
+struct JobRow: Codable, Identifiable, Hashable {
+    struct ClientRef: Codable, Hashable { let name: String }
     let id: String
     let title: String
     let status: String
@@ -111,6 +111,38 @@ final class Session: ObservableObject {
             URLQueryItem(name: "order", value: "created_at.desc"),
         ])
         return try JSONDecoder().decode([JobRow].self, from: data)
+    }
+
+    struct ClientRow: Decodable, Identifiable, Hashable { let id: String; let name: String }
+
+    func clients() async throws -> [ClientRow] {
+        let data = try await rest("clients", query: [
+            URLQueryItem(name: "select", value: "id,name"),
+            URLQueryItem(name: "order", value: "created_at.desc"),
+        ])
+        return try JSONDecoder().decode([ClientRow].self, from: data)
+    }
+
+    /// Nowe zlecenie prosto z pomiaru (etap „Pomiar"); z `newClient` zakłada też klienta (osoba prywatna).
+    func createJob(clientId: String?, newClient: String?, title: String) async throws -> JobRow {
+        let uid = try await userId()
+        var cid = clientId
+        if cid == nil, let name = newClient {
+            struct C: Encodable { let user_id: String; let type: String; let name: String }
+            struct R: Decodable { let id: String }
+            let out = try await rest("clients", query: [URLQueryItem(name: "select", value: "id")], method: "POST",
+                                     body: try JSONEncoder().encode(C(user_id: uid, type: "individual", name: name)), returning: true)
+            cid = try JSONDecoder().decode([R].self, from: out).first?.id
+        }
+        guard let cid else { throw ApiError(message: "Wybierz albo wpisz klienta.") }
+        struct J: Encodable { let user_id: String; let client_id: String; let title: String; let status: String }
+        let out = try await rest("jobs", query: [URLQueryItem(name: "select", value: "id,title,status,clients(name)")], method: "POST",
+                                 body: try JSONEncoder().encode(J(user_id: uid, client_id: cid, title: title, status: "to_measure")),
+                                 returning: true)
+        guard let job = try JSONDecoder().decode([JobRow].self, from: out).first else {
+            throw ApiError(message: "Serwer nie zwrócił zlecenia.")
+        }
+        return job
     }
 
     func job(id: String) async throws -> JobRow? {

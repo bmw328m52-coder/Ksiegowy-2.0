@@ -499,6 +499,20 @@ enum PlanDraw {
             ctx.draw(Text(wallLetter(i)).font(.system(size: 11, weight: .bold)).foregroundColor(.white), at: mid)
         }
 
+        // Narożniki nie pod kątem prostym — kąt wewnętrzny przy narożniku.
+        for c in m.skewedCorners() {
+            let g = m.walls[c.wall]
+            guard let j = g.next else { continue }
+            var bis = g.inN + m.walls[j].inN
+            let bl = (bis.x * bis.x + bis.y * bis.y).squareRoot()
+            bis = bl > 0.01 ? bis / bl : g.inN
+            let p = L.pt(g.w.b) + CGVector(bis) * 30
+            let txt = Text(String(format: "%.1f°", c.angle).replacingOccurrences(of: ".", with: ","))
+                .font(.system(size: 10, weight: .medium).monospacedDigit())
+                .foregroundColor(Color(red: 0.75, green: 0.42, blue: 0.1))
+            Draft.label(ctx, txt, at: p, dir: CGVector(dx: 1, dy: 0), bg: .white)
+        }
+
         // Nazwa i powierzchnia na środku.
         if m.floor.count >= 3 {
             let c = L.pt(m.center)
