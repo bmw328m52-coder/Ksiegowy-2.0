@@ -58,6 +58,10 @@ struct ScanResultView: View {
     @State private var version = 0
     @State private var sending = false
     @State private var error: String?
+    @State private var pdf: PDFFile?
+    @State private var makingPDF = false
+
+    struct PDFFile: Identifiable { let url: URL; var id: String { url.path } }
 
     init(job: JobRow, saved: SavedScan, onRescan: (() -> Void)? = nil, onDone: @escaping () -> Void) {
         self.job = job
@@ -96,6 +100,14 @@ struct ScanResultView: View {
                     Button { onDone() } label: { Label("Skany", systemImage: "chevron.left").labelStyle(.titleAndIcon) }
                 }
                 ToolbarItem(placement: .topBarTrailing) { LaserButton() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { makePDF() } label: {
+                        if makingPDF { ProgressView() } else { Label("PDF", systemImage: "doc.richtext") }
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .disabled(makingPDF || scan.walls.isEmpty)
+                    .sheet(item: $pdf) { f in ShareSheet(url: f.url) }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Label(saved.synced ? "W zleceniu" : "Zapisano na iPadzie",
                           systemImage: saved.synced ? "checkmark.icloud" : "ipad")
@@ -278,6 +290,16 @@ struct ScanResultView: View {
                                    tool = .select
                                })
                         .overlay(alignment: .topTrailing) { planTools }
+                        .overlay(alignment: .bottomTrailing) {
+                            if let id = selectedObject, tool == .select {
+                                Button(role: .destructive) { deleteObject(id) } label: {
+                                    Label("Usuń \(objectLabel(id).lowercased())", systemImage: "trash")
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.red)
+                                .padding(16)
+                            }
+                        }
                         .overlay(alignment: .top) {
                             if tool == .drawWall {
                                 Text("Przeciągnij palcem od punktu do punktu — przyciąga do narożników, ścian i pionu/poziomu")
@@ -341,6 +363,27 @@ struct ScanResultView: View {
         }
         .buttonStyle(.bordered)
         .padding(16)
+    }
+
+    /// Usunięcie mebla — z „Cofnij", więc bez dodatkowego pytania.
+    private func deleteObject(_ id: String) {
+        apply { s in s.objects.removeAll { $0.id == id } }
+        selectedObject = nil
+    }
+
+    private func makePDF() {
+        makingPDF = true
+        // Klatka na pokazanie kółka — renderowanie stron idzie na wątku głównym.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(50))
+            defer { makingPDF = false }
+            do {
+                let url = try ScanPDF.make(scan: scan, roomName: name, client: job.clients?.name ?? "", jobTitle: job.title)
+                pdf = PDFFile(url: url)
+            } catch {
+                self.error = error.localizedDescription
+            }
+        }
     }
 
     private func addObject(_ k: PlanEdit.ObjectKind) {
@@ -588,10 +631,6 @@ struct ScanResultView: View {
                     Spacer()
                     Button { apply { PlanEdit.rotateObject(&$0, id) } } label: { Image(systemName: "rotate.right") }
                         .buttonStyle(.bordered)
-                    Button(role: .destructive) {
-                        apply { s in s.objects.removeAll { $0.id == id } }
-                    } label: { Image(systemName: "trash") }
-                        .buttonStyle(.bordered)
                 }
                 ForEach(Self.objectFields, id: \.key) { f in
                     Button { edit = .objectSize(id, f.key) } label: {
@@ -607,6 +646,11 @@ struct ScanResultView: View {
                 Text("Przeciągnij mebel na rzucie (przyciąga do ścian i sąsiadów) · stuknij niebieską odległość, żeby ją wpisać")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Button(role: .destructive) { deleteObject(id) } label: {
+                    Label("Usuń mebel", systemImage: "trash").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
             .padding(14)
             .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
