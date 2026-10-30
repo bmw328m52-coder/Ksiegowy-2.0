@@ -4,7 +4,7 @@ import { SCAN_OBJECT_LABELS, SCAN_OPENING_LABELS } from "@/lib/dao/room_scans.ty
 import { fmtDate } from "@/lib/format";
 import { wallLetter } from "./RoomScanPlan";
 import RoomScanViews from "./RoomScanViews";
-import { markerKind, planModel, planStats } from "@/lib/scan2d";
+import { featureKind, markerKind, planModel, planStats } from "@/lib/scan2d";
 import { deleteScanAction } from "./scanActions";
 import { scanPhotoUrls } from "@/lib/dao/room_scans";
 
@@ -126,10 +126,56 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                           <td className="py-1 pr-3 tabular-nums">
                             {Math.round(o.width_mm)} × {Math.round(o.height_mm)}
                           </td>
-                          <td className="py-1 tabular-nums">{mm(o.sill_mm)}</td>
+                          <td className="py-1 tabular-nums">
+                            {mm(o.sill_mm)}
+                            {o.sill_depth_mm !== undefined || o.sill_thickness_mm !== undefined ? (
+                              <span className="text-zinc-500">
+                                {" "}· parapet{o.sill_depth_mm !== undefined ? ` wysunięcie ${mm(o.sill_depth_mm)}` : ""}
+                                {o.sill_thickness_mm !== undefined ? `, grubość ${mm(o.sill_thickness_mm)}` : ""}
+                              </span>
+                            ) : null}
+                          </td>
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {(scan.data.features ?? []).length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-zinc-500 text-left">
+                    <tr>
+                      <th className="py-1 pr-3 font-medium">Element na ścianie</th>
+                      <th className="py-1 pr-3 font-medium">Ściana</th>
+                      <th className="py-1 pr-3 font-medium">Szer. × wys.</th>
+                      <th className="py-1 pr-3 font-medium">Od lewej / od podłogi</th>
+                      <th className="py-1 font-medium">Wystaje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...(scan.data.features ?? [])]
+                      .sort((a, b) => wallIndex0(walls, a.wall_id) - wallIndex0(walls, b.wall_id) || a.offset_mm - b.offset_mm)
+                      .map((f) => {
+                        const wi = wallIndex0(walls, f.wall_id);
+                        const k = featureKind(f.kind);
+                        return (
+                          <tr key={f.id} className="border-t border-[#f0efec] align-top">
+                            <td className="py-1 pr-3">
+                              <span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ background: k.color }} />
+                              {k.label}
+                              {f.access && <span className="ml-1.5 text-[10px] font-bold text-[#ed801a]">DOSTĘP</span>}
+                              {f.note && <div className="text-[11px] text-zinc-500">{f.note}</div>}
+                            </td>
+                            <td className="py-1 pr-3 font-semibold">{wi >= 0 ? wallLetter(wi) : "—"}</td>
+                            <td className="py-1 pr-3 tabular-nums">{Math.round(f.width_mm)} × {Math.round(f.height_mm)}</td>
+                            <td className="py-1 pr-3 tabular-nums">{mm(f.offset_mm)} / {mm(f.elevation_mm)}</td>
+                            <td className="py-1 tabular-nums">{f.depth_mm < 1 ? "w licu" : mm(f.depth_mm)}</td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>

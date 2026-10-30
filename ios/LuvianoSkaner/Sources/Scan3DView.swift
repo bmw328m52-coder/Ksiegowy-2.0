@@ -338,7 +338,8 @@ enum Scan3D {
                         pane.castsShadow = false
                     }
                     // Parapet wewnętrzny.
-                    prism(full, foot(i, s.t0 - 30, s.t1 + 30, -60, a), s.bottom - 20, s.bottom, top: P.frame, side: P.frame)
+                    let sd = s.sillDepth ?? 60, st = s.sillThickness ?? 20
+                    prism(full, foot(i, s.t0 - 30, s.t1 + 30, -sd, a), s.bottom - st, s.bottom, top: P.frame, side: P.frame)
                 case "door":
                     prism(full, foot(i, s.t0, s.t1, -10, T + 10), s.top - f, s.top, top: P.frame, side: P.frame)
                     prism(full, foot(i, s.t0, s.t0 + f, -10, T + 10), 0, s.top, top: P.frame, side: P.frame)
@@ -357,6 +358,15 @@ enum Scan3D {
                 default:
                     break
                 }
+            }
+
+            // Elementy na ścianie: odstające jako bryły, w licu — cienka płytka.
+            for f in scan.features where f.wallId == g.w.id {
+                let t0 = max(f.offsetMm, 0), t1 = min(f.offsetMm + f.widthMm, g.len)
+                guard t1 - t0 > 1 else { continue }
+                let col = UIColor(FeatureKind(key: f.kind).color)
+                let mat = material(col.withAlphaComponent(1), rough: 0.6)
+                prism(full, foot(i, t0, t1, -max(f.depthMm, 3), 0), f.elevationMm, f.elevationMm + f.heightMm, top: mat, side: mat)
             }
 
             let c = g.at(g.len / 2, T / 2)

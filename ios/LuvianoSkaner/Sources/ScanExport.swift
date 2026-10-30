@@ -28,6 +28,9 @@ struct ScanOpening: Codable {
     var sillMm: Double
     /// Odcinki zmierzone ręcznie / dalmierzem: before, after, width, sill, height, head.
     var measuredParts: [String]?
+    /// Parapet wewnętrzny: wysunięcie przed lico ściany i grubość deski (mm).
+    var sillDepthMm: Double?
+    var sillThicknessMm: Double?
 }
 
 struct ScanObject: Codable {
@@ -72,6 +75,8 @@ struct ScanPayload: Codable {
     var markers: [ScanMarker] = []
     /// Lista kontrolna: potwierdzone ręcznie pozycje („room_height", „none:gas" = brak gazu…).
     var checks: [String]? = nil
+    /// Elementy na ścianach (grzejnik, rury, skrzynka…).
+    var features: [ScanFeature] = []
     /// Notatki z pomiaru (całe pomieszczenie).
     var notes: String? = nil
 }
@@ -95,7 +100,7 @@ extension ScanObject {
 }
 
 extension ScanPayload {
-    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers, checks, notes }
+    private enum K: String, CodingKey { case version, scannedAt, walls, openings, objects, roomHeightMm, closed, floor, markers, checks, features, notes }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
@@ -108,6 +113,7 @@ extension ScanPayload {
         floor = try c.decodeIfPresent([[Double]].self, forKey: .floor)
         markers = try c.decodeIfPresent([ScanMarker].self, forKey: .markers) ?? []
         checks = try c.decodeIfPresent([String].self, forKey: .checks)
+        features = try c.decodeIfPresent([ScanFeature].self, forKey: .features) ?? []
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
     }
 }

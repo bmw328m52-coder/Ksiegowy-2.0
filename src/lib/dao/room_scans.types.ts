@@ -43,6 +43,29 @@ export type ScanOpening = {
   sill_mm: number;
   /** Odcinki zmierzone dalmierzem na iPadzie: before, after, width, sill, height, head. */
   measured_parts?: string[];
+  /** Parapet wewnętrzny: wysunięcie przed lico ściany i grubość deski (mm). */
+  sill_depth_mm?: number;
+  sill_thickness_mm?: number;
+};
+
+/** Element na ścianie (grzejnik, rura, skrzynka…) — FeatureKind w WallFeatures.swift. */
+export type ScanFeatureKind = "radiator" | "pipe_v" | "pipe_h" | "fuse_box" | "riser" | "beam" | "box";
+
+export type ScanFeature = {
+  id: string;
+  kind: ScanFeatureKind;
+  wall_id: string;
+  /** Lewa krawędź od lewego narożnika ściany. */
+  offset_mm: number;
+  /** Dolna krawędź od podłogi. */
+  elevation_mm: number;
+  width_mm: number;
+  height_mm: number;
+  /** Ile wystaje przed ścianę; 0 = w licu. */
+  depth_mm: number;
+  /** Zabudowa musi zostawić dostęp (drzwiczki / otwierany front). */
+  access?: boolean;
+  note?: string;
 };
 
 export type ScanObject = {
@@ -102,6 +125,8 @@ export type ScanData = {
   floor?: [number, number][];
   /** Punkty instalacji (woda, odpływ, gniazdka…); brak w starszych skanach. */
   markers?: ScanMarker[];
+  /** Elementy na ścianach (grzejnik, rury, skrzynka…). */
+  features?: ScanFeature[];
   /** Lista kontrolna: potwierdzone ręcznie pozycje ("room_height", "none:gas"…). */
   checks?: string[];
   /** Notatki z pomiaru (całe pomieszczenie) wpisane na iPadzie. */

@@ -1,7 +1,7 @@
 // Rzut 2D skanu w stylu MagicPlan — ta sama geometria co aplikacja iPad
 // (ios/LuvianoSkaner/Sources/PlanGeom.swift + PlanCanvas.swift). Wszystko w mm.
 // Moduł bez zależności runtime (tylko typy), żeby dało się go uruchomić poza Next.
-import type { ScanData, ScanMarkerKind, ScanObject, ScanOpening, ScanWall } from "@/lib/dao/room_scans.types";
+import type { ScanData, ScanFeatureKind, ScanMarkerKind, ScanObject, ScanOpening, ScanWall } from "@/lib/dao/room_scans.types";
 
 /** Punkty instalacji: nazwa, skrót na rzucie, kolor (jak MarkerKind w Markers.swift). */
 export const SCAN_MARKER_KINDS: Record<ScanMarkerKind, { label: string; code: string; color: string }> = {
@@ -16,6 +16,19 @@ export const SCAN_MARKER_KINDS: Record<ScanMarkerKind, { label: string; code: st
   switch: { label: "Włącznik", code: "Wł", color: "#8c734d" },
   other: { label: "Inne", code: "•", color: "#666666" },
 };
+
+/** Elementy na ścianach (jak FeatureKind w WallFeatures.swift). */
+export const SCAN_FEATURE_KINDS: Record<ScanFeatureKind, { label: string; color: string }> = {
+  radiator: { label: "Grzejnik", color: "#d94d40" },
+  pipe_v: { label: "Rura pionowa", color: "#4d80b3" },
+  pipe_h: { label: "Rura pozioma", color: "#4d80b3" },
+  fuse_box: { label: "Skrzynka elektryczna", color: "#ed801a" },
+  riser: { label: "Pion / obudowa pionu", color: "#6b6157" },
+  beam: { label: "Belka / podciąg", color: "#737373" },
+  box: { label: "Inny element", color: "#808080" },
+};
+
+export const featureKind = (k: string) => SCAN_FEATURE_KINDS[k as ScanFeatureKind] ?? SCAN_FEATURE_KINDS.box;
 
 export const markerKind = (k: string) => SCAN_MARKER_KINDS[k as ScanMarkerKind] ?? SCAN_MARKER_KINDS.other;
 
@@ -479,6 +492,23 @@ export function planSvg(data: ScanData, opts: { name?: string; uid?: string; let
         s += `<polyline points="${arc.map(P).join(" ")}" ${st}/>`;
         s += line(at(g, sp.t0, 0), at(g, sp.t0, T), st) + line(at(g, sp.t1, 0), at(g, sp.t1, T), st);
       }
+    }
+  }
+
+  // Elementy na ścianach: odstające jako prostokąt przy ścianie, w licu — kolorowa kreska.
+  for (const f of data.features ?? []) {
+    const g = m.walls.find((w) => w.w.id === f.wall_id);
+    if (!g) continue;
+    const k = featureKind(f.kind);
+    const t0 = Math.min(Math.max(f.offset_mm, 0), g.len);
+    const t1 = Math.min(Math.max(f.offset_mm + f.width_mm, 0), g.len);
+    if (t1 - t0 <= 1) continue;
+    if (f.depth_mm < 1) {
+      s += line(at(g, t0, -3), at(g, t1, -3), `stroke="${k.color}" stroke-width="${4 * u}"`);
+    } else {
+      const high = f.elevation_mm >= 1500;
+      s += poly([at(g, t0, 0), at(g, t1, 0), at(g, t1, -f.depth_mm), at(g, t0, -f.depth_mm)],
+        `fill="${k.color}" fill-opacity="${high ? 0.08 : 0.22}" stroke="${k.color}" stroke-width="${1.2 * u}"${high ? ` stroke-dasharray="${5 * u} ${3 * u}"` : ""}`);
     }
   }
 

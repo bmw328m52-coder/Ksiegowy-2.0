@@ -170,7 +170,11 @@ private struct PlanPage: View {
         model.walls.enumerated().flatMap { i, g in
             g.spans.map { s in
                 var v = "\(Int((s.t1 - s.t0).rounded())) × \(Int((s.top - s.bottom).rounded()))"
-                if s.kind == "window" { v += " · par. \(Int(s.bottom.rounded()))" }
+                if s.kind == "window" {
+                    v += " · par. \(Int(s.bottom.rounded()))"
+                    if let d = s.sillDepth { v += " wys. \(Int(d.rounded()))" }
+                    if let t = s.sillThickness { v += " gr. \(Int(t.rounded()))" }
+                }
                 return OpRow(id: s.id, name: "\(PlanGeom.openingName(s.kind)) \(wallLetter(i))", value: v,
                              measured: s.parts.contains("width"))
             }
@@ -186,6 +190,7 @@ private struct WallPage: View {
     var body: some View {
         let g = model.walls[index]
         let markers = scan.markers.filter { $0.wallId == g.w.id }
+        let features = scan.features.filter { $0.wallId == g.w.id }.sorted { $0.offsetMm < $1.offsetMm }
         VStack(alignment: .leading, spacing: 8) {
             Text("Ściana \(wallLetter(index)) — \(Int(g.len.rounded())) × \(Int(g.w.heightMm.rounded())) mm")
                 .font(.system(size: 14, weight: .semibold))
@@ -198,10 +203,20 @@ private struct WallPage: View {
                 guard let L = ElevLayout(size, g) else { return }
                 ElevationDraw.draw(ctx, L, g, markers: markers, selected: nil,
                                    active: ElevationDraw.activeSpan(g, nil)?.id,
-                                   objects: ElevationDraw.objectsOnWall(scan, g))
+                                   objects: ElevationDraw.objectsOnWall(scan, g),
+                                   features: features)
             }
             .background(PlanStyle.canvas)
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            ForEach(features) { f in
+                let k = FeatureKind(key: f.kind)
+                Text("\(k.label): \(Int(f.widthMm.rounded()))×\(Int(f.heightMm.rounded())) mm, \(Int(f.offsetMm.rounded())) od lewej, \(Int(f.elevationMm.rounded())) od podłogi, "
+                     + (f.flush ? "w licu ściany" : "wystaje \(Int(f.depthMm.rounded())) mm")
+                     + (f.access == true ? " — WYMAGANY DOSTĘP" : "") + (f.note.map { " · \($0)" } ?? ""))
+                    .font(.system(size: 9, weight: f.access == true ? .semibold : .regular).monospacedDigit())
+                    .foregroundStyle(f.access == true ? FeatureDraw.accessColor : Brand.ink)
+                    .lineLimit(1)
+            }
             if !markers.isEmpty {
                 Text(markers.sorted { $0.offsetMm < $1.offsetMm }.map {
                     "\(MarkerKind(key: $0.kind).label) \(Int($0.offsetMm.rounded()))/\(Int($0.heightMm.rounded()))"

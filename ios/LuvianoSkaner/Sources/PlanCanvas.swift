@@ -437,6 +437,17 @@ enum PlanDraw {
             }
         }
 
+        // Parapety wewnętrzne (wysunięcie przed lico) i elementy na ścianach — pod meblami.
+        for g in m.walls {
+            for s in g.spans where s.kind == "window" {
+                guard let d = s.sillDepth, d > 0 else { continue }
+                let r = Draft.poly([g.at(s.t0 - 30, 0), g.at(s.t1 + 30, 0), g.at(s.t1 + 30, -d), g.at(s.t0 - 30, -d)].map(L.pt))
+                ctx.fill(r, with: .color(Color(white: 0.93)))
+                ctx.stroke(r, with: .color(PlanStyle.wall), lineWidth: 0.8)
+            }
+        }
+        for f in m.features { FeatureDraw.plan(ctx, m, L, f) }
+
         // Sprzęty / meble jako symbole architektoniczne.
         for o in m.objects {
             var t = ctx

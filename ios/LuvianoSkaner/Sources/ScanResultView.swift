@@ -17,6 +17,9 @@ private enum EditTarget: Identifiable {
     case objectSize(String, String)
     /// Krzywizna ściany: klucz pola WallCurve (lb, lm, lt, hl, hm, hr).
     case curve(Int, String)
+    /// Element na ścianie (grzejnik, skrzynka…) i parapet okna: "d" wysunięcie, "t" grubość.
+    case feature(ScanFeature, isNew: Bool)
+    case sill(String, String)
     case autoLayout
     var id: String {
         switch self {
@@ -27,6 +30,8 @@ private enum EditTarget: Identifiable {
         case .objectGap(let o, let k): return "g\(k)" + o
         case .objectSize(let o, let f): return "o" + f + o
         case .curve(let i, let k): return "c\(i)" + k
+        case .feature(let f, _): return "f" + f.id
+        case .sill(let o, let k): return "p" + k + o
         case .autoLayout: return "auto"
         }
     }
@@ -55,6 +60,9 @@ struct ScanResultView: View {
     @AppStorage("elev.showObjects") private var showObjects = true
     /// Rodzaj punktu wybrany z listy kontrolnej — następne stuknięcie w ścianę go dodaje.
     @State private var pendingKind: MarkerKind?
+    /// Element wybrany z menu — następne stuknięcie w ścianę go wstawia.
+    @State private var pendingFeature: FeatureKind?
+    @State private var selectedFeature: String?
     @State private var confirmSend = false
     @State private var undoStack: [ScanPayload] = []
     @State private var redoStack: [ScanPayload] = []
@@ -161,6 +169,19 @@ struct ScanResultView: View {
                             var c = s.walls[i].curve ?? WallCurve()
                             c[key] = v.rounded()
                             s.walls[i].curve = c
+                        }
+                    }
+                case .feature(let f, let isNew):
+                    let wi = scan.walls.firstIndex { $0.id == f.wallId } ?? 0
+                    FeatureSheet(feature: f, wallName: wallLetter(wi), wallLength: scan.walls[wi].length,
+                                 wallHeight: scan.walls[wi].heightMm, isNew: isNew,
+                                 onSave: { saveFeature($0) }, onDelete: { deleteFeature(f.id) })
+                case .sill(let id, let k):
+                    MeasureSheet(title: k == "d" ? "Parapet — wysunięcie przed ścianę" : "Parapet — grubość deski",
+                                 initial: sillValue(id, k)) { v in
+                        apply { s in
+                            guard let n = s.openings.firstIndex(where: { $0.id == id }), v >= 0 else { return }
+                            if k == "d" { s.openings[n].sillDepthMm = v.rounded() } else { s.openings[n].sillThicknessMm = v.rounded() }
                         }
                     }
                 case .roomHeight:
@@ -307,6 +328,37 @@ struct ScanResultView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func sillValue(_ id: String, _ k: String) -> Double {
+        let o = scan.openings.first { $0.id == id }
+        return (k == "d" ? o?.sillDepthMm : o?.sillThicknessMm) ?? (k == "d" ? 60 : 20)
+    }
+
+    private func saveFeature(_ f: ScanFeature) {
+        snapshot()
+        if let k = scan.features.firstIndex(where: { $0.id == f.id }) { scan.features[k] = f } else { scan.features.append(f) }
+        selectedFeature = f.id
+        changed()
+    }
+
+    private func deleteFeature(_ id: String) {
+        snapshot()
+        scan.features.removeAll { $0.id == id }
+        if selectedFeature == id { selectedFeature = nil }
+        changed()
+    }
+
+    /// Nowy element w miejscu stuknięcia: środek poziomo pod palcem, wysokość typowa dla rodzaju
+    /// (skrzynka / inny element — środek pod palcem).
+    private func newFeature(_ k: FeatureKind, wall i: Int, t: Double, z: Double) -> ScanFeature {
+        let w = scan.walls[i]
+        let d = k.defaults(wallH: w.heightMm)
+        let width = min(d.w, w.length)
+        let elev = (k == .fuseBox || k == .box) ? max(z - d.h / 2, 0) : d.z
+        return ScanFeature(kind: k.rawValue, wallId: w.id, offsetMm: min(max(t - width / 2, 0), max(w.length - width, 0)).rounded(),
+                           elevationMm: elev.rounded(), widthMm: width, heightMm: min(d.h, w.heightMm), depthMm: d.d,
+                           access: d.access ? true : nil, note: nil)
     }
 
     private func saveMarker(_ mk: ScanMarker) {
@@ -482,8 +534,12 @@ struct ScanResultView: View {
             onTap: { t, z, hit in
                 if let hit, let mk = scan.markers.first(where: { $0.id == hit }) {
                     if selectedMarker == hit { edit = .marker(mk, isNew: false) } else { selectedMarker = hit }
+                } else if let k = pendingFeature, scan.walls.indices.contains(i) {
+                    pendingFeature = nil
+                    edit = .feature(newFeature(k, wall: i, t: t, z: z), isNew: true)
                 } else if scan.walls.indices.contains(i) {
                     selectedMarker = nil
+                    selectedFeature = nil
                     let last = pendingKind ?? scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
                     pendingKind = nil
                     edit = .marker(ScanMarker(kind: last.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z), isNew: true)
@@ -500,11 +556,17 @@ struct ScanResultView: View {
                 selectedOpening = seg.opening
                 edit = .segment(i, seg)
             },
-            showObjects: showObjects
+            showObjects: showObjects,
+            selectedFeature: selectedFeature,
+            onTapFeature: { id in
+                guard let f = scan.features.first(where: { $0.id == id }) else { return }
+                if selectedFeature == id { edit = .feature(f, isNew: false) } else { selectedFeature = id; selectedMarker = nil }
+            }
         )
             .overlay(alignment: .bottom) {
-                Text(pendingKind.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
-                     ?? "Stuknij wymiar → pomiar · okno → jego pion · ścianę → punkt instalacji")
+                Text(pendingFeature.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
+                     ?? pendingKind.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
+                     ?? "Stuknij wymiar → pomiar · ścianę → punkt instalacji · element → zaznacz, drugi raz → edycja")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
@@ -518,6 +580,14 @@ struct ScanResultView: View {
                     Spacer()
                     Text("Ściana \(wallLetter(i))").font(.headline)
                     Spacer()
+                    Menu {
+                        ForEach(FeatureKind.allCases) { k in
+                            Button { pendingFeature = k; pendingKind = nil } label: { Label(k.label, systemImage: k.symbol) }
+                        }
+                    } label: {
+                        Label("Element", systemImage: "plus.rectangle.on.rectangle")
+                    }
+                    .tint(pendingFeature == nil ? Brand.ink : PlanStyle.selected)
                     Toggle(isOn: $showObjects) { Label("Meble", systemImage: "cabinet") }
                         .toggleStyle(.button)
                         .tint(Brand.ink)
@@ -612,6 +682,8 @@ struct ScanResultView: View {
             }
 
             markersSection
+
+            featuresSection
 
             Text("Okna: \(windows) · Drzwi: \(doors) · Sprzęty: \(scan.objects.count)")
                 .font(.footnote)
@@ -816,6 +888,22 @@ struct ScanResultView: View {
                     .background(selectedOpening == sp.id ? PlanStyle.selected.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
                     .contentShape(Rectangle())
                     .onTapGesture { selectedOpening = sp.id }
+                    if sp.kind == "window" {
+                        HStack(spacing: 6) {
+                            Text("Parapet").font(.caption).foregroundStyle(.secondary)
+                            Button { edit = .sill(sp.id, "d") } label: {
+                                Text("wysunięcie " + (sp.sillDepth.map { "\(Int($0.rounded()))" } ?? "—")).font(.caption.monospacedDigit())
+                            }
+                            Button { edit = .sill(sp.id, "t") } label: {
+                                Text("grubość " + (sp.sillThickness.map { "\(Int($0.rounded()))" } ?? "—")).font(.caption.monospacedDigit())
+                            }
+                            Spacer()
+                            Text("wys. \(Int(sp.bottom.rounded()))").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .padding(.leading, 8)
+                    }
                 }
                 Text("Przeciągnij kółko = narożnik, niebieski uchwyt = cała ściana, zaznaczony otwór = wzdłuż ściany")
                     .font(.caption)
@@ -882,6 +970,80 @@ struct ScanResultView: View {
                     if mode == .wall { edit = .marker(row.mk, isNew: false) } else { mode = .wall }
                 }
             }
+        }
+    }
+
+    private var featuresSection: some View {
+        let rows = scan.features
+            .compactMap { f in scan.walls.firstIndex { $0.id == f.wallId }.map { (f: f, wall: $0) } }
+            .sorted { ($0.wall, $0.f.offsetMm) < ($1.wall, $1.f.offsetMm) }
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Elementy na ścianach").font(.footnote).foregroundStyle(.secondary)
+                Spacer()
+                Menu {
+                    ForEach(FeatureKind.allCases) { k in
+                        Button {
+                            pendingFeature = k
+                            pendingKind = nil
+                            selected = selected ?? 0
+                            mode = .wall
+                        } label: { Label(k.label, systemImage: k.symbol) }
+                    }
+                } label: {
+                    Label("Dodaj element", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(scan.walls.isEmpty)
+            }
+            if rows.isEmpty {
+                Text("Grzejnik, rury, skrzynka elektryczna, pion, belka — wstaw w widoku ściany.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+            ForEach(rows, id: \.f.id) { row in
+                featureRow(row.f, wall: row.wall)
+            }
+        }
+    }
+
+    private func featureRow(_ f: ScanFeature, wall: Int) -> some View {
+        let k = FeatureKind(key: f.kind)
+        let where_ = "Ściana \(wallLetter(wall)) · \(Int(f.widthMm.rounded()))×\(Int(f.heightMm.rounded())) · \(Int(f.offsetMm.rounded())) od lewej · \(Int(f.elevationMm.rounded())) od podłogi · "
+        let depth = f.flush ? "w licu" : "wystaje \(Int(f.depthMm.rounded()))"
+        return HStack(spacing: 10) {
+            Image(systemName: k.symbol)
+                .font(.caption)
+                .foregroundStyle(.white)
+                .frame(width: 26, height: 26)
+                .background(k.color, in: RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(k.label).font(.subheadline)
+                    if f.access == true {
+                        Text("DOSTĘP").font(.caption2.weight(.bold)).foregroundStyle(FeatureDraw.accessColor)
+                    }
+                }
+                Text(where_ + depth)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                if let note = f.note {
+                    Text(note).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(selectedFeature == f.id ? PlanStyle.selected.opacity(0.1) : Color(.systemBackground),
+                    in: RoundedRectangle(cornerRadius: 10))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selected = wall
+            selectedFeature = f.id
+            if mode == .wall { edit = .feature(f, isNew: false) } else { mode = .wall }
         }
     }
 

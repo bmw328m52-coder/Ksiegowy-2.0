@@ -74,6 +74,9 @@ enum PlanGeom {
         let id: String
         /// Zmierzone odcinki (ScanOpening.measuredParts).
         let parts: [String]
+        /// Parapet wewnętrzny (okno): wysunięcie przed lico ściany i grubość deski (mm).
+        var sillDepth: Double? = nil
+        var sillThickness: Double? = nil
     }
     /// Prostokąt ściany: wzdłuż t0…t1, w pionie z0…z1.
     struct Piece { let t0, t1, z0, z1: Double }
@@ -95,7 +98,8 @@ enum PlanGeom {
             let t0 = max(0, min(p, q)), t1 = min(len, max(p, q))
             let top = min(o.sillMm + o.heightMm, wall.heightMm)
             guard t1 - t0 > 1, top > o.sillMm else { return nil }
-            return Span(t0: t0, t1: t1, bottom: o.sillMm, top: top, kind: o.kind, id: o.id, parts: o.measuredParts ?? [])
+            return Span(t0: t0, t1: t1, bottom: o.sillMm, top: top, kind: o.kind, id: o.id, parts: o.measuredParts ?? [],
+                        sillDepth: o.sillDepthMm, sillThickness: o.sillThicknessMm)
         }
         .sorted { $0.t0 < $1.t0 }
     }
@@ -387,6 +391,9 @@ enum PlanGeom {
         for k in scan.markers.indices where scan.markers[k].wallId == id {
             scan.markers[k].offsetMm = max(0, (scan.markers[k].offsetMm + dt).rounded())
         }
+        for k in scan.features.indices where scan.features[k].wallId == id {
+            scan.features[k].offsetMm = max(0, (scan.features[k].offsetMm + dt).rounded())
+        }
     }
 
     static func setRoomHeight(_ scan: inout ScanPayload, _ h: Double) {
@@ -414,6 +421,7 @@ struct PlanModel {
     let walls: [Wall]
     let objects: [ScanObject]
     let markers: [ScanMarker]
+    let features: [ScanFeature]
     /// Obrys podłogi (zamknięty łańcuch ścian, w innym razie otoczka wypukła).
     let floor: [V2]
     let closed: Bool
@@ -426,6 +434,7 @@ struct PlanModel {
         let ws = scan.walls
         objects = scan.objects
         markers = scan.markers
+        features = scan.features
         // Przy rozgałęzieniu (dorysowana ścianka działowa) obrys idzie po istniejących ścianach.
         func nextOf(_ i: Int) -> Int? {
             let c = ws.indices.filter { $0 != i && PlanGeom.dist(ws[$0].a, ws[i].b) < 1 }

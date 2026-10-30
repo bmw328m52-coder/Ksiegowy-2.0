@@ -121,6 +121,11 @@ enum AutoLayout {
             let bottom = lower && s.kind == "window" && s.bottom >= o.counterMm - 200 ? z1 : s.bottom
             if bottom < z1 && s.top > z0 { blocked.append(Iv(a: s.t0, b: s.t1)) }
         }
+        // Elementy na ścianie: odstające blokują; w licu — tylko gdy trzeba zostawić dostęp.
+        for f in scan.features where f.wallId == g.w.id && (!f.flush || f.access == true)
+            && f.elevationMm < z1 && f.elevationMm + f.heightMm > z0 {
+            blocked.append(Iv(a: max(f.offsetMm, 0), b: min(f.offsetMm + f.widthMm, g.len)))
+        }
         for ob in scan.objects where ob.elevationMm < z1 && ob.elevationMm + ob.heightMm > z0 {
             if let s = span(ob, g, depth: depth) { blocked.append(s) }
         }

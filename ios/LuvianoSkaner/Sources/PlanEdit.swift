@@ -36,6 +36,11 @@ enum PlanEdit {
                 let o = scan.markers[k].offsetMm
                 scan.markers[k].offsetMm = min(max(fromEnd ? len - (old.len - o) : o, 0), len).rounded()
             }
+            for k in scan.features.indices where scan.features[k].wallId == w.id {
+                let f = scan.features[k]
+                let o = fromEnd ? len - (old.len - f.offsetMm) : f.offsetMm
+                scan.features[k].offsetMm = min(max(o, 0), max(len - f.widthMm, 0)).rounded()
+            }
             if abs(len - old.len) > 0.5 { scan.walls[i].measured = nil }
             scan.walls[i].lengthMm = len.rounded()
         }
@@ -165,6 +170,7 @@ enum PlanEdit {
         let ids = Set(PlanGeom.spans(w, scan.openings).map(\.id))
         scan.openings.removeAll { ids.contains($0.id) || $0.wallId == w.id }
         scan.markers.removeAll { $0.wallId == w.id }
+        scan.features.removeAll { $0.wallId == w.id }
         scan.walls.remove(at: i)
         scan.closed = PlanModel(scan).closed
     }
@@ -189,6 +195,10 @@ enum PlanEdit {
         for k in scan.markers.indices where scan.markers[k].wallId == w.id && scan.markers[k].offsetMm > t {
             scan.markers[k].wallId = second.id
             scan.markers[k].offsetMm -= t
+        }
+        for k in scan.features.indices where scan.features[k].wallId == w.id && scan.features[k].offsetMm >= t {
+            scan.features[k].wallId = second.id
+            scan.features[k].offsetMm -= t
         }
     }
 

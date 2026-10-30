@@ -18,17 +18,22 @@ struct ElevationCanvas: View {
     var onTapSegment: (PlanGeom.Segment) -> Void = { _ in }
     /// Meble/sprzęty stojące przy tej ścianie (włączane w widoku).
     var showObjects = true
+    var selectedFeature: String?
+    /// Stuknięcie w element na ścianie (grzejnik, skrzynka…).
+    var onTapFeature: (String) -> Void = { _ in }
 
     var body: some View {
         GeometryReader { geo in
             let m = PlanModel(scan)
             let g = m.walls.indices.contains(wallIndex) ? m.walls[wallIndex] : nil
             let markers = g.map { w in scan.markers.filter { $0.wallId == w.w.id } } ?? []
+            let features = g.map { w in scan.features.filter { $0.wallId == w.w.id } } ?? []
             let active = g.flatMap { ElevationDraw.activeSpan($0, selectedOpening) }
             Canvas { ctx, size in
                 guard let g, let L = ElevLayout(size, g) else { return }
                 ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker, active: active?.id,
-                                   objects: showObjects ? ElevationDraw.objectsOnWall(scan, g) : [])
+                                   objects: showObjects ? ElevationDraw.objectsOnWall(scan, g) : [],
+                                   features: features, selectedFeature: selectedFeature)
             }
             .contentShape(Rectangle())
             .onTapGesture { loc in
@@ -46,6 +51,7 @@ struct ElevationCanvas: View {
                     .filter { $0.1 < 24 }
                     .min { $0.1 < $1.1 }
                 if let hit { onTap(0, 0, hit.0); return }
+                if let fid = FeatureDraw.hit(loc, L, features) { onTapFeature(fid); return }
                 let (t, z) = L.inv(loc)
                 guard t >= 0, t <= L.W, z >= 0, z <= L.H else { return }
                 // W otworze nie ma instalacji — stuknięcie wybiera otwór do wymiarowania w pionie.
@@ -183,7 +189,7 @@ enum ElevationDraw {
     }
 
     static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?, active: String?,
-                     objects: [Front] = []) {
+                     objects: [Front] = [], features: [ScanFeature] = [], selectedFeature: String? = nil) {
         let (H, W, s) = (L.H, L.W, L.s)
         func p(_ t: Double, _ z: Double) -> CGPoint { L.p(t, z) }
         let ink = GraphicsContext.Shading.color(PlanStyle.wall)
@@ -232,7 +238,19 @@ enum ElevationDraw {
             }
         }
 
+        // Parapet wewnętrzny: deska pod oknem (grubość), szersza o 30 mm z każdej strony.
+        for sp in g.spans where sp.kind == "window" && sp.bottom > 1 {
+            let th = sp.sillThickness ?? (sp.sillDepth != nil ? 20 : 0)
+            guard th > 0 else { continue }
+            let a = p(max(sp.t0 - 30, 0), sp.bottom), b = p(min(sp.t1 + 30, W), max(sp.bottom - th, 0))
+            let r = CGRect(x: a.x, y: a.y, width: b.x - a.x, height: max(b.y - a.y, 2))
+            ctx.fill(Path(r), with: .color(Color(white: 0.85)))
+            ctx.stroke(Path(r), with: ink, lineWidth: 1)
+        }
+
+        for f in features where f.flush { FeatureDraw.elevation(ctx, L, f, selected: f.id == selectedFeature) }
         for f in objects { drawFront(ctx, L, f) }
+        for f in features where !f.flush { FeatureDraw.elevation(ctx, L, f, selected: f.id == selectedFeature) }
 
         // Wymiary: odcinki u góry, długość na dole, wysokość z lewej, pion aktywnego otworu z prawej.
         // Niebieskie z kłódką = zmierzone; stuknięcie w liczbę = pomiar dalmierzem.
