@@ -19,6 +19,8 @@ enum AutoLayout {
         var upperDepthMm = 350.0
         /// Najszerszy moduł — wolne miejsce dzielone na równe części nie szersze niż to.
         var maxModuleMm = 600.0
+        /// Omijaj grzejniki, rury, piony (domyślnie szafki je zabudowują / zasłaniają).
+        var avoidFeatures = false
     }
 
     /// Najwęższy moduł; krótszy odcinek zostaje na blendę.
@@ -121,8 +123,8 @@ enum AutoLayout {
             let bottom = lower && s.kind == "window" && s.bottom >= o.counterMm - 200 ? z1 : s.bottom
             if bottom < z1 && s.top > z0 { blocked.append(Iv(a: s.t0, b: s.t1)) }
         }
-        // Elementy na ścianie: odstające blokują; w licu — tylko gdy trzeba zostawić dostęp.
-        for f in scan.features where f.wallId == g.w.id && (!f.flush || f.access == true)
+        // Elementy na ścianie — zwykle zabudowujemy; omijamy tylko na życzenie.
+        for f in scan.features where o.avoidFeatures && f.wallId == g.w.id && (!f.flush || f.access == true)
             && f.elevationMm < z1 && f.elevationMm + f.heightMm > z0 {
             blocked.append(Iv(a: max(f.offsetMm, 0), b: min(f.offsetMm + f.widthMm, g.len)))
         }

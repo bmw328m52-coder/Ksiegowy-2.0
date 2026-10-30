@@ -20,6 +20,8 @@ struct ScanWardrobe: Codable, Identifiable, Equatable {
     var doorCount: Int
     var sections: [WardrobeSection]
     var note: String?
+    /// box_back = skrzynkowa z plecami, box = skrzynkowa bez pleców, frame = sam szkielet (zabudowa wnęki).
+    var construction: String?
 }
 
 struct WardrobeSection: Codable, Equatable {
@@ -127,6 +129,16 @@ extension ScanWardrobe {
                             plinthMm: 100, topMm: 0, doors: "sliding", doorCount: max(2, min(4, n)), sections: secs, note: nil)
     }
 
+    var kind: String { construction ?? "box_back" }
+    var hasBack: Bool { kind == "box_back" }
+    /// Szkielet: bez boków przy ścianach, bez wieńców i pleców — przegrody i półki do ścian.
+    var isFrame: Bool { kind == "frame" }
+
+    static let constructions: [(key: String, label: String)] = [
+        ("box_back", "Skrzynkowa z plecami"), ("box", "Skrzynkowa bez pleców"), ("frame", "Sam szkielet (wnęka)"),
+    ]
+    var constructionLabel: String { Self.constructions.first { $0.key == kind }?.label ?? "" }
+
     var doorsLabel: String {
         switch doors {
         case "sliding": return "Drzwi przesuwne ×\(doorCount)"
@@ -194,16 +206,60 @@ enum WardrobeGeom {
         return s[k].zones[j].z1 - s[k].zones[j].z0
     }
 
-    /// Elementy z wymaganym dostępem schowane za szafą (np. skrzynka z bezpiecznikami).
-    static func accessConflicts(_ w: ScanWardrobe, _ scan: ScanPayload) -> [(feature: ScanFeature, section: Int?)] {
-        let secs = sections(w)
-        return scan.features.compactMap { f in
-            guard f.wallId == w.wallId, f.access == true else { return nil }
-            let a = f.offsetMm - w.offsetMm, b = a + f.widthMm
-            guard b > 0, a < w.widthMm, f.elevationMm < w.heightMm else { return nil }
-            let mid = (max(a, 0) + min(b, w.widthMm)) / 2
-            return (f, secs.first { mid >= $0.t0 - board && mid <= $0.t1 + board }?.index)
+    struct Conflict {
+        let feature: ScanFeature
+        /// Sekcja (za plecami) albo nil przy boku.
+        let section: Int?
+        /// back / left / right
+        let side: String
+
+        /// Co trzeba przewidzieć w zabudowie.
+        func advice(_ w: ScanWardrobe) -> String {
+            let name = FeatureKind(key: feature.kind).label.lowercased()
+            switch side {
+            case "left", "right":
+                let s = side == "left" ? "lewym" : "prawym"
+                if w.isFrame { return "\(name) przy \(s) boku — szkielet bez boku, dostęp od frontu" }
+                return "\(name) przy \(s) boku — otwór rewizyjny / drzwiczki w \(s) boku szafy"
+            default:
+                let sec = section.map { "sekcja \($0 + 1)" } ?? "za szafą"
+                if !w.hasBack { return "\(name) za plecami — \(sec): bez pleców, dostęp przez drzwi i wnętrze" }
+                return "\(name) za plecami — \(sec): wyciąć plecy / rewizja, bez stałych półek przed skrzynką"
+            }
         }
+    }
+
+    /// Elementy z wymaganym dostępem zasłonięte szafą: za plecami (ta sama ściana) albo przy boku
+    /// (ściana sąsiednia w zasięgu głębokości, gdy szafa dochodzi do narożnika).
+    static func accessConflicts(_ w: ScanWardrobe, _ scan: ScanPayload) -> [Conflict] {
+        let secs = sections(w)
+        var out: [Conflict] = []
+        for f in scan.features where f.access == true && f.wallId == w.wallId {
+            let a = f.offsetMm - w.offsetMm, b = a + f.widthMm
+            guard b > 0, a < w.widthMm, f.elevationMm < w.heightMm else { continue }
+            let mid = (max(a, 0) + min(b, w.widthMm)) / 2
+            out.append(Conflict(feature: f, section: secs.first { mid >= $0.t0 - board && mid <= $0.t1 + board }?.index, side: "back"))
+        }
+        let m = PlanModel(scan)
+        guard let i = m.walls.firstIndex(where: { $0.w.id == w.wallId }) else { return out }
+        let g = m.walls[i]
+        let reach = 80.0 // szafa „dochodzi" do narożnika
+        if w.offsetMm < reach, let p = g.prev, m.walls.indices.contains(p) {
+            let pw = m.walls[p]
+            for f in scan.features where f.access == true && f.wallId == pw.w.id
+                && f.offsetMm + f.widthMm > pw.len - w.depthMm - w.offsetMm && f.elevationMm < w.heightMm {
+                out.append(Conflict(feature: f, section: nil, side: "left"))
+            }
+        }
+        if w.offsetMm + w.widthMm > g.len - reach, let n = g.next, m.walls.indices.contains(n) {
+            let nw = m.walls[n]
+            let gap = max(g.len - w.offsetMm - w.widthMm, 0)
+            for f in scan.features where f.access == true && f.wallId == nw.w.id
+                && f.offsetMm < w.depthMm + gap && f.elevationMm < w.heightMm {
+                out.append(Conflict(feature: f, section: nil, side: "right"))
+            }
+        }
+        return out
     }
 }
 
@@ -227,15 +283,36 @@ enum WardrobeDraw {
             ctx.stroke(Path(r), with: .color(woodEdge), lineWidth: 0.6)
         }
         let (zIn0, zIn1) = WardrobeGeom.innerZ(w)
-        ctx.fill(Path(rect(0, w.widthMm, w.plinthMm, w.heightMm - w.topMm)), with: .color(back))
+        if w.hasBack {
+            ctx.fill(Path(rect(0, w.widthMm, w.plinthMm, w.heightMm - w.topMm)), with: .color(back))
+        } else {
+            // Bez pleców — widać ścianę (kreskowanie).
+            let r = rect(0, w.widthMm, w.plinthMm, w.heightMm - w.topMm)
+            ctx.fill(Path(r), with: .color(Color(white: 0.96)))
+            var c = ctx
+            c.clip(to: Path(r))
+            var x = r.minX - r.height
+            while x < r.maxX {
+                c.stroke(Draft.line(CGPoint(x: x, y: r.maxY), CGPoint(x: x + r.height, y: r.minY)), with: .color(Color(white: 0.88)), lineWidth: 0.6)
+                x += 14
+            }
+        }
         // Cokół i blenda.
         if w.plinthMm > 1 { boardRect(rect(B, w.widthMm - B, 0, w.plinthMm)) }
         if w.topMm > 1 { boardRect(rect(0, w.widthMm, w.heightMm - w.topMm, w.heightMm)) }
-        // Boki, wieńce.
-        boardRect(rect(0, B, 0, w.heightMm - w.topMm))
-        boardRect(rect(w.widthMm - B, w.widthMm, 0, w.heightMm - w.topMm))
-        boardRect(rect(B, w.widthMm - B, zIn0 - B, zIn0))
-        boardRect(rect(B, w.widthMm - B, zIn1, zIn1 + B))
+        if w.isFrame {
+            // Szkielet: boki i wieńce zastępuje ściana / sufit — linia przerywana.
+            for t in [0.0, w.widthMm - B] {
+                ctx.stroke(Path(rect(t, t + B, 0, w.heightMm - w.topMm)), with: .color(woodEdge.opacity(0.6)),
+                           style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
+            }
+            boardRect(rect(B, w.widthMm - B, zIn0 - B, zIn0))
+        } else {
+            boardRect(rect(0, B, 0, w.heightMm - w.topMm))
+            boardRect(rect(w.widthMm - B, w.widthMm, 0, w.heightMm - w.topMm))
+            boardRect(rect(B, w.widthMm - B, zIn0 - B, zIn0))
+            boardRect(rect(B, w.widthMm - B, zIn1, zIn1 + B))
+        }
 
         let ink = Color(white: 0.3)
         for sec in WardrobeGeom.sections(w) {

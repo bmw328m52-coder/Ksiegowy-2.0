@@ -317,7 +317,7 @@ private struct MarkersPage: View {
 private struct WardrobePage: View {
     let w: ScanWardrobe
     let wall: Int
-    let conflicts: [(feature: ScanFeature, section: Int?)]
+    let conflicts: [WardrobeGeom.Conflict]
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -349,6 +349,7 @@ private struct WardrobePage: View {
                     KV("Od lewego narożnika", "\(Int(w.offsetMm.rounded())) mm")
                     KV("Cokół", "\(Int(w.plinthMm.rounded())) mm")
                     KV("Blenda górna", "\(Int(w.topMm.rounded())) mm")
+                    KV("Konstrukcja", w.constructionLabel)
                     KV("Fronty", w.doorsLabel)
                 }
                 ForEach(WardrobeGeom.sections(w), id: \.index) { sec in
@@ -362,7 +363,7 @@ private struct WardrobePage: View {
                 if !conflicts.isEmpty {
                     PDFSection(title: "Wymagany dostęp") {
                         ForEach(conflicts, id: \.feature.id) { c in
-                            Text("\(FeatureKind(key: c.feature.kind).label)" + (c.section.map { " — sekcja \($0 + 1)" } ?? ""))
+                            Text(c.advice(w))
                                 .font(.system(size: 9, weight: .semibold))
                                 .foregroundStyle(FeatureDraw.accessColor)
                         }

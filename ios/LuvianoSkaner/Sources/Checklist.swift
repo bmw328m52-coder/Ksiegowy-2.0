@@ -201,6 +201,7 @@ struct AutoLayoutSheet: View {
                     Toggle("Szafki dolne", isOn: $opt.lower)
                     Toggle("Szafki górne", isOn: $opt.upper)
                     Toggle("Zlew + zmywarka przy wodzie, płyta przy gazie / 400 V", isOn: $opt.appliances)
+                    Toggle("Omijaj grzejniki, rury i piony (zamiast zabudować)", isOn: $opt.avoidFeatures)
                 }
                 Section {
                     num("Wysokość blatu", $counter)

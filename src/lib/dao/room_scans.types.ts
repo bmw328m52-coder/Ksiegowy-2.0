@@ -42,6 +42,8 @@ export type ScanWardrobe = {
   doors: "sliding" | "hinged" | "none";
   door_count: number;
   /** Sekcje od lewej; strefy od dołu. Szerokość / wysokość brak = równy podział reszty. */
+  /** box_back = skrzynkowa z plecami (domyślnie), box = bez pleców, frame = sam szkielet (wnęka). */
+  construction?: "box_back" | "box" | "frame";
   sections: { width_mm?: number; zones: { kind: WardrobeZoneKind; height_mm?: number; count?: number }[] }[];
   note?: string;
 };

@@ -5,7 +5,7 @@ import SwiftUI
 struct WardrobeEditor: View {
     let wallName: String
     let wallLength: Double
-    let conflicts: (ScanWardrobe) -> [(feature: ScanFeature, section: Int?)]
+    let conflicts: (ScanWardrobe) -> [WardrobeGeom.Conflict]
     let onSave: (ScanWardrobe) -> Void
     let onDelete: () -> Void
 
@@ -28,7 +28,7 @@ struct WardrobeEditor: View {
     }
 
     init(wardrobe: ScanWardrobe, wallName: String, wallLength: Double,
-         conflicts: @escaping (ScanWardrobe) -> [(feature: ScanFeature, section: Int?)],
+         conflicts: @escaping (ScanWardrobe) -> [WardrobeGeom.Conflict],
          onSave: @escaping (ScanWardrobe) -> Void, onDelete: @escaping () -> Void) {
         _w = State(initialValue: wardrobe)
         self.wallName = wallName
@@ -160,12 +160,11 @@ struct WardrobeEditor: View {
             let cs = conflicts(w)
             if !cs.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Label("Za szafą jest element z wymaganym dostępem", systemImage: "exclamationmark.triangle.fill")
+                    Label("Szafa zasłania element z wymaganym dostępem", systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(FeatureDraw.accessColor)
                     ForEach(cs, id: \.feature.id) { c in
-                        Text("• \(FeatureKind(key: c.feature.kind).label) \(Int(c.feature.widthMm.rounded()))×\(Int(c.feature.heightMm.rounded())), \(Int(c.feature.elevationMm.rounded())) od podłogi"
-                             + (c.section.map { " — sekcja \($0 + 1): bez pleców / drzwiczki rewizyjne" } ?? ""))
+                        Text("• " + c.advice(w) + " (\(Int(c.feature.widthMm.rounded()))×\(Int(c.feature.heightMm.rounded())), \(Int(c.feature.elevationMm.rounded())) od podłogi)")
                             .font(.caption)
                     }
                 }
@@ -188,6 +187,17 @@ struct WardrobeEditor: View {
                 if w.offsetMm + w.widthMm > wallLength + 1 {
                     Text("Szafa wychodzi poza ścianę (\(Int(wallLength.rounded())) mm).").font(.caption).foregroundStyle(.red)
                 }
+            }
+
+            card("Konstrukcja") {
+                Picker("Konstrukcja", selection: Binding(get: { w.kind }, set: { w.construction = $0 })) {
+                    ForEach(ScanWardrobe.constructions, id: \.key) { c in Text(c.label).tag(c.key) }
+                }
+                .pickerStyle(.segmented)
+                Text(w.isFrame ? "Przegrody i półki mocowane do ścian, bez boków przy ścianach, wieńców i pleców."
+                     : w.hasBack ? "Korpusy z bokami, wieńcami i plecami (HDF)." : "Korpusy z bokami i wieńcami, bez pleców — ściana widoczna od środka.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             card("Fronty") {

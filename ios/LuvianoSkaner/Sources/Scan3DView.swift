@@ -409,11 +409,13 @@ enum Scan3D {
             }
             let D = w.depthMm, top = w.heightMm - w.topMm
             let (zIn0, zIn1) = WardrobeGeom.innerZ(w)
-            slab(0, w.widthMm, 0, 8, w.plinthMm, top, backMat)
-            slab(0, B, 0, D, 0, top, board)
-            slab(w.widthMm - B, w.widthMm, 0, D, 0, top, board)
+            if w.hasBack { slab(0, w.widthMm, 0, 8, w.plinthMm, top, backMat) }
             slab(B, w.widthMm - B, 0, D, zIn0 - B, zIn0, board)
-            slab(B, w.widthMm - B, 0, D, zIn1, zIn1 + B, board)
+            if !w.isFrame {
+                slab(0, B, 0, D, 0, top, board)
+                slab(w.widthMm - B, w.widthMm, 0, D, 0, top, board)
+                slab(B, w.widthMm - B, 0, D, zIn1, zIn1 + B, board)
+            }
             if w.plinthMm > 1 { slab(B, w.widthMm - B, D - 60, D - 42, 0, w.plinthMm, board) }
             if w.topMm > 1 { slab(0, w.widthMm, D - 18, D, top, w.heightMm, board) }
             for sec in WardrobeGeom.sections(w) {
