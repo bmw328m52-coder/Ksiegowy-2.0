@@ -326,8 +326,10 @@ private struct WardrobePage: View {
                     .font(.system(size: 14, weight: .semibold))
                 Canvas { ctx, size in
                     let m = 54.0
-                    let s = max(0.01, min((size.width - 2 * m) / w.widthMm, (size.height - 2 * m) / w.heightMm))
-                    let x0 = (size.width - w.widthMm * s) / 2, yb = (size.height + w.heightMm * s) / 2
+                    let SW = Double(size.width), SH = Double(size.height)
+                    let s: Double = max(0.01, min((SW - 2 * m) / max(w.widthMm, 1), (SH - 2 * m) / max(w.heightMm, 1)))
+                    let x0: Double = (SW - w.widthMm * s) / 2
+                    let yb: Double = (SH + w.heightMm * s) / 2
                     let p: (Double, Double) -> CGPoint = { CGPoint(x: x0 + $0 * s, y: yb - $1 * s) }
                     WardrobeDraw.draw(ctx, w, s: s, p: p)
                     Draft.dimension(ctx, p(0, 0), p(w.widthMm, 0), out: CGVector(dx: 0, dy: 1), off: 26,

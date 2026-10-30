@@ -115,8 +115,11 @@ struct WardrobeEditor: View {
 
     private func map(_ size: CGSize) -> Map {
         let m = 80.0
-        let s = max(0.01, min((size.width - 2 * m) / max(w.widthMm, 1), (size.height - 2 * m) / max(w.heightMm, 1)))
-        return Map(s: s, x0: (size.width - w.widthMm * s) / 2, yb: (size.height + w.heightMm * s) / 2)
+        let W = Double(size.width), H = Double(size.height)
+        let s: Double = max(0.01, min((W - 2 * m) / max(w.widthMm, 1), (H - 2 * m) / max(w.heightMm, 1)))
+        let x0: Double = (W - w.widthMm * s) / 2
+        let yb: Double = (H + w.heightMm * s) / 2
+        return Map(s: s, x0: x0, yb: yb)
     }
 
     private var drawing: some View {
