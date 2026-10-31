@@ -26,6 +26,13 @@ struct ScanWardrobe: Codable, Identifiable, Equatable {
     var pawlaczMm: Double?
     /// Liczba drzwiczek pawlacza (uchylne); nil = jak skrzydeł szafy.
     var pawlaczDoors: Int?
+    /// Płyta korpusu i frontów (wzornik Pfleiderer); fronty nil = jak korpus.
+    var bodyDecor: WardrobeDecor?
+    var frontDecor: WardrobeDecor?
+    /// Kolory okuć: uchwyty / profile drzwi, tor górny i dolny (drzwi przesuwne).
+    var handleColor: String?
+    var trackTopColor: String?
+    var trackBottomColor: String?
 }
 
 struct WardrobeSection: Codable, Equatable {
@@ -148,6 +155,19 @@ extension ScanWardrobe {
         ("box_back", "Skrzynkowa z plecami"), ("box", "Skrzynkowa bez pleców"), ("frame", "Sam szkielet (wnęka)"),
     ]
     var constructionLabel: String { Self.constructions.first { $0.key == kind }?.label ?? "" }
+
+    /// Płyta i okucia do opisu (PDF, panel): (nazwa, wartość).
+    var materialsLines: [(String, String)] {
+        var out: [(String, String)] = []
+        if let d = bodyDecor { out.append(("Płyta korpusu", d.label)) }
+        if let d = frontDecor { out.append(("Płyta frontów", d.label)) } else if bodyDecor != nil, doors != "none" { out.append(("Płyta frontów", "jak korpus")) }
+        if doors != "none", let h = handleColor { out.append((doors == "sliding" ? "Profile / uchwyty" : "Uchwyty", h)) }
+        if doors == "sliding" {
+            if let t = trackTopColor { out.append(("Tor górny", t)) }
+            if let t = trackBottomColor { out.append(("Tor dolny", t)) }
+        }
+        return out
+    }
 
     var doorsLabel: String {
         switch doors {

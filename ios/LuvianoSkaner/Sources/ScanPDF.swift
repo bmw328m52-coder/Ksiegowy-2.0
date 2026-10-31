@@ -357,6 +357,12 @@ private struct WardrobePage: View {
                     KV("Konstrukcja", w.constructionLabel)
                     KV("Fronty", w.doorsLabel)
                 }
+                if !w.materialsLines.isEmpty {
+                    PDFSection(title: "Płyta i okucia") {
+                        let ml = w.materialsLines
+                        ForEach(ml.indices, id: \.self) { i in KV(ml[i].0, ml[i].1) }
+                    }
+                }
                 ForEach(WardrobeGeom.sections(w), id: \.index) { sec in
                     PDFSection(title: "Sekcja \(sec.index + 1) · \(Int((sec.t1 - sec.t0).rounded())) mm") {
                         ForEach(sec.zones.reversed(), id: \.index) { zn in

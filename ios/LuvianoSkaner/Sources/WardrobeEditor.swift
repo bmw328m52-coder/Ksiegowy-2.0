@@ -15,6 +15,10 @@ struct WardrobeEditor: View {
     @State private var zone: Int?
     @State private var edit: WEdit?
     @State private var confirmDelete = false
+    /// Wybór płyty z wzornika: "body" / "front".
+    @State private var decorSlot: DecorSlot?
+
+    private struct DecorSlot: Identifiable { let id: String }
 
     private enum WEdit: Identifiable {
         case dim(String), secWidth(Int), zoneHeight(Int, Int)
@@ -139,7 +143,7 @@ struct WardrobeEditor: View {
                                     text: "\(Int((sec.t1 - sec.t0).rounded()))",
                                     color: sec.index == section ? PlanStyle.selected : PlanStyle.dim, bg: bg)
                 }
-                ctx.draw(Text("Głębokość \(Int(w.depthMm.rounded())) · \(w.doorsLabel)")
+                ctx.draw(Text("Głębokość \(Int(w.depthMm.rounded())) · \(w.doorsLabel)" + (w.bodyDecor.map { " · " + $0.label } ?? ""))
                             .font(.footnote).foregroundColor(.secondary),
                          at: CGPoint(x: geo.size.width / 2, y: 24))
             }
@@ -153,6 +157,24 @@ struct WardrobeEditor: View {
             }
         }
         .background(PlanStyle.canvas)
+    }
+
+    /// Menu z kolorem okucia; „Nie wybrano" czyści.
+    private func colorPicker(_ title: String, _ options: [String], _ value: Binding<String?>) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Menu {
+                ForEach(options, id: \.self) { o in Button(o) { value.wrappedValue = o } }
+                if value.wrappedValue != nil {
+                    Divider()
+                    Button("Nie wybrano", role: .destructive) { value.wrappedValue = nil }
+                }
+            } label: {
+                Text(value.wrappedValue ?? "Wybierz").foregroundStyle(value.wrappedValue == nil ? Color.secondary : Brand.ink)
+            }
+        }
+        .font(.subheadline)
     }
 
     // MARK: Panel
@@ -220,6 +242,28 @@ struct WardrobeEditor: View {
                         Stepper("Drzwiczki pawlacza: \(w.pawlaczDoorCount)", value: Binding(
                             get: { w.pawlaczDoorCount }, set: { w.pawlaczDoors = $0 }), in: 1...12)
                     }
+                }
+            }
+
+            card("Płyta i okucia") {
+                Button { decorSlot = DecorSlot(id: "body") } label: { DecorRow(title: "Korpus", decor: w.bodyDecor) }
+                    .buttonStyle(.plain)
+                if w.doors != "none" {
+                    Button { decorSlot = DecorSlot(id: "front") } label: {
+                        DecorRow(title: "Fronty", decor: w.frontDecor, placeholder: w.bodyDecor == nil ? "Wybierz z wzornika Pfleiderer" : "Jak korpus")
+                    }
+                    .buttonStyle(.plain)
+                    colorPicker(w.doors == "sliding" ? "Profile / uchwyty" : "Uchwyty", HardwareColors.handles, $w.handleColor)
+                    if w.doors == "sliding" {
+                        colorPicker("Tor górny", HardwareColors.tracks, $w.trackTopColor)
+                        colorPicker("Tor dolny", HardwareColors.tracks, $w.trackBottomColor)
+                    }
+                }
+            }
+            .sheet(item: $decorSlot) { slot in
+                DecorPicker(title: slot.id == "body" ? "Płyta korpusu" : "Płyta frontów",
+                            current: (slot.id == "body" ? w.bodyDecor : w.frontDecor)?.code) { d in
+                    if slot.id == "body" { w.bodyDecor = d } else { w.frontDecor = d }
                 }
             }
 

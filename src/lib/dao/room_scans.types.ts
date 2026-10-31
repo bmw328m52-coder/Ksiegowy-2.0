@@ -58,6 +58,13 @@ export type ScanWardrobe = {
   /** Pawlacz na całą szerokość nad sekcjami (wysokość w świetle) i liczba jego drzwiczek. */
   pawlacz_mm?: number;
   pawlacz_doors?: number;
+  /** Płyta korpusu / frontów z wzornika Pfleiderer (fronty brak = jak korpus). */
+  body_decor?: { code: string; name: string };
+  front_decor?: { code: string; name: string };
+  /** Kolory okuć: uchwyty / profile drzwi, tor górny i dolny (przesuwne). */
+  handle_color?: string;
+  track_top_color?: string;
+  track_bottom_color?: string;
   sections: { width_mm?: number; zones: { kind: WardrobeZoneKind; height_mm?: number; count?: number }[] }[];
   note?: string;
 };

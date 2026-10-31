@@ -169,6 +169,24 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                       ? ` · pawlacz na całą szerokość ${Math.round(wd.pawlacz_mm)} mm${wd.doors !== "none" ? ` (drzwiczki ×${wd.pawlacz_doors ?? Math.max(wd.door_count, 2)})` : ""}`
                       : ""}
                   </div>
+                  {(wd.body_decor || wd.handle_color || wd.track_top_color || wd.track_bottom_color) && (
+                    <div className="mt-1 text-zinc-600">
+                      {[
+                        wd.body_decor && `korpus: ${wd.body_decor.code} ${wd.body_decor.name}`,
+                        wd.doors !== "none" &&
+                          (wd.front_decor
+                            ? `fronty: ${wd.front_decor.code} ${wd.front_decor.name}`
+                            : wd.body_decor
+                              ? "fronty: jak korpus"
+                              : null),
+                        wd.doors !== "none" && wd.handle_color && `${wd.doors === "sliding" ? "profile/uchwyty" : "uchwyty"}: ${wd.handle_color}`,
+                        wd.doors === "sliding" && wd.track_top_color && `tor górny: ${wd.track_top_color}`,
+                        wd.doors === "sliding" && wd.track_bottom_color && `tor dolny: ${wd.track_bottom_color}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  )}
                   <ol className="mt-1.5 grid gap-1 sm:grid-cols-2">
                     {wd.sections.map((sec, k) => (
                       <li key={k}>
