@@ -40,7 +40,7 @@ struct WardrobeEditor: View {
 
     private static let dims: [(key: String, name: String)] = [
         ("w", "Szerokość"), ("h", "Wysokość"), ("d", "Głębokość"), ("o", "Od lewego narożnika"),
-        ("p", "Cokół"), ("t", "Blenda górna"),
+        ("p", "Cokół"), ("t", "Blenda górna"), ("k", "Pawlacz (w świetle)"),
     ]
 
     private func dimValue(_ k: String) -> Double {
@@ -50,6 +50,7 @@ struct WardrobeEditor: View {
         case "d": return w.depthMm
         case "o": return w.offsetMm
         case "p": return w.plinthMm
+        case "k": return w.pawlaczMm ?? 0
         default: return w.topMm
         }
     }
@@ -62,6 +63,7 @@ struct WardrobeEditor: View {
         case "d": if v >= 100 { w.depthMm = v }
         case "o": w.offsetMm = v
         case "p": w.plinthMm = v
+        case "k": w.pawlaczMm = v > 50 ? v : nil
         default: w.topMm = v
         }
     }
@@ -194,6 +196,11 @@ struct WardrobeEditor: View {
                     ForEach(ScanWardrobe.constructions, id: \.key) { c in Text(c.label).tag(c.key) }
                 }
                 .pickerStyle(.segmented)
+                Toggle("Pawlacz na całą szerokość", isOn: Binding(
+                    get: { w.hasPawlacz },
+                    set: { w.pawlaczMm = $0 ? 450 : nil }
+                ))
+                .font(.subheadline)
                 Text(w.isFrame ? "Przegrody i półki mocowane do ścian, bez boków przy ścianach, wieńców i pleców."
                      : w.hasBack ? "Korpusy z bokami, wieńcami i plecami (HDF)." : "Korpusy z bokami i wieńcami, bez pleców — ściana widoczna od środka.")
                     .font(.caption)
@@ -209,6 +216,10 @@ struct WardrobeEditor: View {
                 .pickerStyle(.segmented)
                 if w.doors != "none" {
                     Stepper("Skrzydła: \(w.doorCount)", value: $w.doorCount, in: 1...10)
+                    if w.hasPawlacz {
+                        Stepper("Drzwiczki pawlacza: \(w.pawlaczDoorCount)", value: Binding(
+                            get: { w.pawlaczDoorCount }, set: { w.pawlaczDoors = $0 }), in: 1...12)
+                    }
                 }
             }
 

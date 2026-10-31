@@ -165,6 +165,9 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                   <div className="text-zinc-500">
                     {wd.construction === "frame" ? "sam szkielet" : wd.construction === "box" ? "skrzynkowa bez pleców" : "skrzynkowa z plecami"}{" "}
                     · od lewego narożnika {mm(wd.offset_mm)} · cokół {mm(wd.plinth_mm)} · {doors}
+                    {wd.pawlacz_mm && wd.pawlacz_mm > 50
+                      ? ` · pawlacz na całą szerokość ${Math.round(wd.pawlacz_mm)} mm${wd.doors !== "none" ? ` (drzwiczki ×${wd.pawlacz_doors ?? Math.max(wd.door_count, 2)})` : ""}`
+                      : ""}
                   </div>
                   <ol className="mt-1.5 grid gap-1 sm:grid-cols-2">
                     {wd.sections.map((sec, k) => (

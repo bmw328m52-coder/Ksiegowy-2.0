@@ -55,6 +55,9 @@ export type ScanWardrobe = {
   /** Sekcje od lewej; strefy od dołu. Szerokość / wysokość brak = równy podział reszty. */
   /** box_back = skrzynkowa z plecami (domyślnie), box = bez pleców, frame = sam szkielet (wnęka). */
   construction?: "box_back" | "box" | "frame";
+  /** Pawlacz na całą szerokość nad sekcjami (wysokość w świetle) i liczba jego drzwiczek. */
+  pawlacz_mm?: number;
+  pawlacz_doors?: number;
   sections: { width_mm?: number; zones: { kind: WardrobeZoneKind; height_mm?: number; count?: number }[] }[];
   note?: string;
 };

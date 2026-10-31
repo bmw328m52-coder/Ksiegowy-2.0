@@ -455,8 +455,10 @@ enum Scan3D {
             }
             if w.plinthMm > 1 { slab(B, w.widthMm - B, D - 60, D - 42, 0, w.plinthMm, board) }
             if w.topMm > 1 { slab(0, w.widthMm, D - 18, D, top, w.heightMm, board) }
+            let secTop = WardrobeGeom.sectionTop(w)
+            if let pz = WardrobeGeom.pawlaczZ(w) { slab(B, w.widthMm - B, 8, D, pz.0 - B, pz.0, board) }
             for sec in WardrobeGeom.sections(w) {
-                if sec.index < w.sections.count - 1 { slab(sec.t1, sec.t1 + B, 8, D, zIn0, zIn1, board) }
+                if sec.index < w.sections.count - 1 { slab(sec.t1, sec.t1 + B, 8, D, zIn0, secTop, board) }
                 for zn in sec.zones {
                     if zn.index > 0 { slab(sec.t0, sec.t1, 8, D - 20, zn.z0 - B, zn.z0, board) }
                     switch zn.kind {

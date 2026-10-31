@@ -22,6 +22,10 @@ struct ScanWardrobe: Codable, Identifiable, Equatable {
     var note: String?
     /// box_back = skrzynkowa z plecami, box = skrzynkowa bez pleców, frame = sam szkielet (zabudowa wnęki).
     var construction: String?
+    /// Pawlacz na całą szerokość nad sekcjami — wysokość w świetle (nil / 0 = brak).
+    var pawlaczMm: Double?
+    /// Liczba drzwiczek pawlacza (uchylne); nil = jak skrzydeł szafy.
+    var pawlaczDoors: Int?
 }
 
 struct WardrobeSection: Codable, Equatable {
@@ -85,12 +89,13 @@ enum ZoneKind: String, CaseIterable, Identifiable {
 
 /// Gotowe układy sekcji (od dołu).
 enum WardrobePreset: String, CaseIterable, Identifiable {
-    case railShelf, longRail, shelves, drawersRail, drawersShelves, shoesShelves
+    case railShelf, doubleRail, longRail, shelves, drawersRail, drawersShelves, shoesShelves
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .railShelf: return "Drążek + półki nad"
+        case .doubleRail: return "Dwa drążki (jeden nad drugim)"
         case .longRail: return "Długie ubrania"
         case .shelves: return "Same półki"
         case .drawersRail: return "Szuflady + drążek"
@@ -104,6 +109,9 @@ enum WardrobePreset: String, CaseIterable, Identifiable {
         case .railShelf:
             return [WardrobeZone(kind: "empty", heightMm: 450), WardrobeZone(kind: "rail", heightMm: 1050),
                     WardrobeZone(kind: "shelves", heightMm: nil, count: 2)]
+        case .doubleRail:
+            // Koszule / marynarki na dwóch poziomach: dolny drążek ~1000 nad podłogą, górny nad nim.
+            return [WardrobeZone(kind: "rail", heightMm: 950), WardrobeZone(kind: "rail", heightMm: nil)]
         case .longRail:
             return [WardrobeZone(kind: "rail", heightMm: 1550), WardrobeZone(kind: "shelves", heightMm: nil, count: 1)]
         case .shelves:
@@ -130,6 +138,8 @@ extension ScanWardrobe {
     }
 
     var kind: String { construction ?? "box_back" }
+    var hasPawlacz: Bool { (pawlaczMm ?? 0) > 50 }
+    var pawlaczDoorCount: Int { pawlaczDoors ?? max(doorCount, 2) }
     var hasBack: Bool { kind == "box_back" }
     /// Szkielet: bez boków przy ścianach, bez wieńców i pleców — przegrody i półki do ścian.
     var isFrame: Bool { kind == "frame" }
@@ -160,13 +170,25 @@ enum WardrobeGeom {
         (w.plinthMm + board, max(w.heightMm - w.topMm - board, w.plinthMm + board + 1))
     }
 
+    /// Góra sekcji (pod pawlaczem, jeśli jest).
+    static func sectionTop(_ w: ScanWardrobe) -> Double {
+        let (z0, z1) = innerZ(w)
+        return w.hasPawlacz ? max(z1 - (w.pawlaczMm ?? 0) - board, z0 + 100) : z1
+    }
+
+    /// Wnętrze pawlacza (od półki nad sekcjami do wieńca górnego).
+    static func pawlaczZ(_ w: ScanWardrobe) -> (Double, Double)? {
+        guard w.hasPawlacz else { return nil }
+        return (sectionTop(w) + board, innerZ(w).1)
+    }
+
     static func sections(_ w: ScanWardrobe) -> [SectionBox] {
         let n = max(w.sections.count, 1)
         let inner = w.widthMm - board * Double(n + 1)
         let fixed = w.sections.compactMap(\.widthMm).reduce(0, +)
         let autoN = w.sections.filter { $0.widthMm == nil }.count
         let auto = autoN > 0 ? max((inner - fixed) / Double(autoN), 50) : 0
-        let (z0, z1) = innerZ(w)
+        let z0 = innerZ(w).0, z1 = sectionTop(w)
         var t = board
         var out: [SectionBox] = []
         for (k, s) in w.sections.enumerated() {
@@ -315,8 +337,26 @@ enum WardrobeDraw {
         }
 
         let ink = Color(white: 0.3)
+        let secTop = WardrobeGeom.sectionTop(w)
+        // Pawlacz: półka na całą szerokość + opis.
+        if let pz = WardrobeGeom.pawlaczZ(w) {
+            let (pz0, pz1) = pz
+            boardRect(rect(B, w.widthMm - B, pz0 - B, pz0))
+            let r = rect(B, w.widthMm - B, pz0, pz1)
+            if labels, r.width > 60, r.height > 16 {
+                ctx.draw(Text("Pawlacz · \(Int((pz1 - pz0).rounded()))").font(.system(size: 10, weight: .medium).monospacedDigit())
+                            .foregroundColor(Color(white: 0.25)), at: CGPoint(x: r.midX, y: r.midY))
+            }
+            if w.doors != "none", w.pawlaczDoorCount > 1 {
+                for k in 1..<w.pawlaczDoorCount {
+                    let t = w.widthMm * Double(k) / Double(w.pawlaczDoorCount)
+                    ctx.stroke(Draft.line(p(t, pz0 - B), p(t, w.heightMm - w.topMm)), with: .color(Brand.gold.opacity(0.7)),
+                               style: StrokeStyle(lineWidth: 1.2, dash: [8, 5]))
+                }
+            }
+        }
         for sec in WardrobeGeom.sections(w) {
-            if sec.index < w.sections.count - 1 { boardRect(rect(sec.t1, sec.t1 + B, zIn0, zIn1)) }
+            if sec.index < w.sections.count - 1 { boardRect(rect(sec.t1, sec.t1 + B, zIn0, secTop)) }
             for zn in sec.zones {
                 if zn.index > 0 { boardRect(rect(sec.t0, sec.t1, zn.z0 - B, zn.z0)) }
                 let r = rect(sec.t0, sec.t1, zn.z0, zn.z1)
@@ -392,7 +432,7 @@ enum WardrobeDraw {
         if w.doors != "none", w.doorCount > 1 {
             for k in 1..<w.doorCount {
                 let t = w.widthMm * Double(k) / Double(w.doorCount)
-                ctx.stroke(Draft.line(p(t, w.plinthMm), p(t, w.heightMm - w.topMm)), with: .color(Brand.gold.opacity(0.7)),
+                ctx.stroke(Draft.line(p(t, w.plinthMm), p(t, w.hasPawlacz ? secTop : w.heightMm - w.topMm)), with: .color(Brand.gold.opacity(0.7)),
                            style: StrokeStyle(lineWidth: 1.2, dash: [8, 5]))
             }
         }
