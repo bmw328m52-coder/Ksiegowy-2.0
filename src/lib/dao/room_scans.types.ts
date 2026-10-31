@@ -16,6 +16,17 @@ export type ScanWall = {
   planned?: boolean;
   /** Krzywizny z dalmierza: długość dół/środek/góra, wysokość lewo/środek/prawo (mm). */
   curve?: ScanWallCurve;
+  /** Skos dachu nad ścianą (poddasze). */
+  slope?: ScanWallSlope;
+};
+
+/** Skos: kolanko przy ścianie, sufit wznosi się do pełnej wysokości (zasięg w poziomie albo kąt). */
+export type ScanWallSlope = {
+  knee_mm: number;
+  depth_mm?: number;
+  angle_deg?: number;
+  /** Wykryty ze skanu RoomPlan. */
+  detected?: boolean;
 };
 
 export type ScanWallCurve = {

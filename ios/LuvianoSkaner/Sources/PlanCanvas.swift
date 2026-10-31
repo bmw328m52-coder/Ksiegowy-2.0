@@ -380,6 +380,8 @@ enum PlanDraw {
             }
         }
 
+        SlopeDraw.plan(ctx, m, L)
+
         // Obrys z RoomPlan tam, gdzie brakuje ścian (pod ścianami — widać tylko w lukach).
         if !m.closed && m.gap == nil && m.floor.count >= 3 {
             ctx.stroke(Draft.poly(m.floor.map(L.pt)), with: .color(Color(white: 0.5)),

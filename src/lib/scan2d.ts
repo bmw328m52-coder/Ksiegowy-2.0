@@ -1,7 +1,7 @@
 // Rzut 2D skanu w stylu MagicPlan — ta sama geometria co aplikacja iPad
 // (ios/LuvianoSkaner/Sources/PlanGeom.swift + PlanCanvas.swift). Wszystko w mm.
 // Moduł bez zależności runtime (tylko typy), żeby dało się go uruchomić poza Next.
-import type { ScanData, ScanFeatureKind, ScanMarkerKind, ScanObject, ScanOpening, ScanWall } from "@/lib/dao/room_scans.types";
+import type { ScanData, ScanFeatureKind, ScanMarkerKind, ScanObject, ScanOpening, ScanWall, ScanWallSlope } from "@/lib/dao/room_scans.types";
 
 /** Punkty instalacji: nazwa, skrót na rzucie, kolor (jak MarkerKind w Markers.swift). */
 export const SCAN_MARKER_KINDS: Record<ScanMarkerKind, { label: string; code: string; color: string }> = {
@@ -138,6 +138,24 @@ function floorMatches(floor: V2[], walls: [V2, V2][], gap: [V2, V2] | null, tol 
   const endsOnFloor = walls.flat().every((p) => edges.some(([a, b]) => segDist(p, a, b) <= tol));
   const floorOnWalls = floor.every((p) => segs.some(([a, b]) => segDist(p, a, b) <= tol));
   return endsOnFloor && floorOnWalls;
+}
+
+/** Zasięg skosu w poziomie (port WallSlope.depth). */
+export function slopeDepth(sl: ScanWallSlope, ceiling: number): number | null {
+  if (sl.depth_mm && sl.depth_mm > 1) return sl.depth_mm;
+  if (sl.angle_deg && sl.angle_deg > 1 && sl.angle_deg < 89 && ceiling > sl.knee_mm)
+    return (ceiling - sl.knee_mm) / Math.tan((sl.angle_deg * Math.PI) / 180);
+  return null;
+}
+
+/** „kolanko 1100 · 38° · 1650 w poziomie". */
+export function slopeSummary(sl: ScanWallSlope, ceiling: number): string {
+  const d = slopeDepth(sl, ceiling);
+  const a = sl.angle_deg ?? (d && ceiling > sl.knee_mm ? (Math.atan((ceiling - sl.knee_mm) / d) * 180) / Math.PI : null);
+  let s = `kolanko ${Math.round(sl.knee_mm)}`;
+  if (a != null) s += ` · ${Math.round(a)}°`;
+  if (d != null) s += ` · ${Math.round(d)} w poziomie`;
+  return s;
 }
 
 function pointInPolygon(p: V2, poly: V2[]): boolean {
@@ -310,6 +328,7 @@ export function planStats(m: PlanModel) {
 
 const INK = "#141414";
 const BAND = "#c4c4c4";
+const SLOPE = "#8c6b4d";
 const DIM = "#4b4b4b";
 const MEASURED = "#1f73d9";
 const GRID_MINOR = "#ececec";
@@ -465,6 +484,18 @@ export function planSvg(data: ScanData, opts: { name?: string; uid?: string; let
     for (let y = Math.floor(minY / 100) * 100; y <= maxY; y += 100)
       s += line([minX, y], [maxX, y], `stroke="${Math.round(y / 100) % 5 === 0 ? GRID_MAJOR : GRID_MINOR}" stroke-width="${0.6 * u}"`);
     s += `</g>`;
+    // Skosy: pas od ściany do linii płaskiego sufitu + opis.
+    m.walls.forEach((g) => {
+      const sl = g.w.slope;
+      const d = sl ? slopeDepth(sl, m.roomHeight) : null;
+      if (!sl || d == null) return;
+      s += `<g clip-path="url(#fl-${uid})">`;
+      s += poly([at(g, 0), at(g, g.len), at(g, g.len, -d), at(g, 0, -d)], `fill="${SLOPE}" fill-opacity="0.1"`);
+      s += line(at(g, 0, -d), at(g, g.len, -d), `stroke="${SLOPE}" stroke-width="${1.2 * u}" stroke-dasharray="${7 * u} ${4 * u}"`);
+      s += `</g>`;
+      const c = at(g, g.len / 2, -d / 2);
+      s += `<text x="${c[0].toFixed(0)}" y="${c[1].toFixed(0)}" font-size="${10 * u}" font-weight="600" fill="${SLOPE}" text-anchor="middle" dominant-baseline="middle" font-family="system-ui,sans-serif">skos · ${slopeSummary(sl, m.roomHeight)}</text>`;
+    });
     if (!m.closed && !m.gap)
       s += `<polygon points="${fp}" fill="none" stroke="#808080" stroke-width="${u}" stroke-dasharray="${5 * u} ${4 * u}"/>`;
   }

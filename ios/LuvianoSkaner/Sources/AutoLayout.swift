@@ -134,6 +134,20 @@ enum AutoLayout {
         for ob in scan.objects where ob.elevationMm < z1 && ob.elevationMm + ob.heightMm > z0 {
             if let s = span(ob, g, depth: depth) { blocked.append(s) }
         }
+        // Pod skosem: tam, gdzie sufit schodzi poniżej góry szafki, nie stawiamy.
+        let m = PlanModel(scan)
+        if let wi = m.walls.firstIndex(where: { $0.w.id == g.w.id }), !m.ceilingProfile(wi).isEmpty {
+            let step = 50.0
+            var t = 0.0
+            var start: Double?
+            while t < g.len {
+                let low = m.minCeiling(wi, t, min(t + step, g.len)) < z1
+                if low, start == nil { start = t }
+                if !low, let s = start { blocked.append(Iv(a: s, b: t)); start = nil }
+                t += step
+            }
+            if let s = start { blocked.append(Iv(a: s, b: g.len)) }
+        }
         blocked.sort { $0.a < $1.a }
         var out: [Iv] = []
         var cursor = 0.0

@@ -203,12 +203,17 @@ private struct WallPage: View {
                     .font(.system(size: 10, weight: .medium).monospacedDigit())
                     .foregroundStyle(c.warn ? Brand.gold : Brand.ink)
             }
+            if let sl = g.w.slope {
+                Text("Skos: " + sl.summary(ceiling: model.roomHeight))
+                    .font(.system(size: 10, weight: .medium).monospacedDigit())
+                    .foregroundStyle(SlopeDraw.ink)
+            }
             Canvas { ctx, size in
                 guard let L = ElevLayout(size, g) else { return }
                 ElevationDraw.draw(ctx, L, g, markers: markers, selected: nil,
                                    active: ElevationDraw.activeSpan(g, nil)?.id,
                                    objects: ElevationDraw.objectsOnWall(scan, g),
-                                   features: features)
+                                   features: features, ceiling: model.ceilingProfile(index))
             }
             .background(PlanStyle.canvas)
             .clipShape(RoundedRectangle(cornerRadius: 6))

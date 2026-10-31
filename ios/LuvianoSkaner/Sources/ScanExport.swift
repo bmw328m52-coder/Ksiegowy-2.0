@@ -16,6 +16,8 @@ struct ScanWall: Codable {
     var planned: Bool?
     /// Krzywizny zmierzone dalmierzem (długość na 3 wysokościach, wysokość w 3 miejscach).
     var curve: WallCurve?
+    /// Skos dachu nad tą ścianą (poddasze).
+    var slope: WallSlope?
 }
 
 struct ScanOpening: Codable {
@@ -126,11 +128,20 @@ extension ScanPayload {
 enum ScanExport {
     private struct Seg { var p1: SIMD2<Double>; var p2: SIMD2<Double> }
 
+    /// Powierzchnia „ściany" pochylona o ponad ~20° od pionu = skos dachu, nie ściana.
+    private static func isSloped(_ s: CapturedRoom.Surface) -> Bool {
+        let up = s.transform.columns.1
+        let len = (up.x * up.x + up.y * up.y + up.z * up.z).squareRoot()
+        return len > 0 && abs(up.y / len) < 0.94
+    }
+
     static func make(from room: CapturedRoom) -> ScanPayload {
         let floorY = room.walls.map { Double($0.transform.columns.3.y - $0.dimensions.y / 2) }.min() ?? 0
+        let slopedSurfaces = room.walls.filter(isSloped)
+        let verticalWalls = room.walls.filter { !isSloped($0) }
 
         // Kąt najdłuższej ściany — wyrównujemy do osi X.
-        let longest = room.walls.max { $0.dimensions.x < $1.dimensions.x }
+        let longest = verticalWalls.max { $0.dimensions.x < $1.dimensions.x }
         let theta = longest.map { yaw($0.transform) } ?? 0
         let (cosT, sinT) = (cos(-theta), sin(-theta))
         func rot(_ p: SIMD2<Double>) -> SIMD2<Double> {
@@ -144,7 +155,7 @@ enum ScanExport {
             return Seg(p1: rot(c - a * half) * 1000, p2: rot(c + a * half) * 1000)
         }
 
-        var wallSegs = room.walls.map { ($0, segment($0)) }
+        var wallSegs = verticalWalls.map { ($0, segment($0)) }
         let openingSurfaces: [(CapturedRoom.Surface, String)] =
             room.doors.map { ($0, "door") } + room.windows.map { ($0, "window") } + room.openings.map { ($0, "opening") }
         var openingSegs = openingSurfaces.map { ($0.0, $0.1, segment($0.0)) }
@@ -212,12 +223,39 @@ enum ScanExport {
         }
 
         let chain = PlanGeom.normalize(walls)
+        var outWalls = chain.walls
+        let roomH = (verticalWalls.isEmpty ? room.walls : verticalWalls).map { Double($0.dimensions.y) * 1000 }.max().map(r)
+
+        // Skosy: dolna krawędź pochylonej powierzchni = kolanko przy najbliższej równoległej ścianie.
+        for sf in slopedSurfaces {
+            var up = SIMD3<Double>(Double(sf.transform.columns.1.x), Double(sf.transform.columns.1.y), Double(sf.transform.columns.1.z))
+            up /= (up * up).sum().squareRoot()
+            if up.y < 0 { up = -up }
+            let h = Double(sf.dimensions.y)
+            let c3 = SIMD3<Double>(Double(sf.transform.columns.3.x), Double(sf.transform.columns.3.y), Double(sf.transform.columns.3.z))
+            let low = c3 - up * (h / 2)
+            let run = h * (up.x * up.x + up.z * up.z).squareRoot()
+            let knee = (low.y - floorY) * 1000
+            guard run > 0.2, knee > 100 else { continue }
+            let p = rot(SIMD2(low.x, low.z)) * 1000 - shift
+            let a = rot(axis(sf.transform))
+            let pv = V2(p.x, p.y)
+            let best = outWalls.indices
+                .filter { k in abs(PlanGeom.dot(outWalls[k].dir, V2(a.x, a.y))) > 0.9 }
+                .map { k in (k, PlanGeom.segDist(pv, outWalls[k].a, outWalls[k].b)) }
+                .filter { $0.1 < 600 }
+                .min { $0.1 < $1.1 }
+            guard let k = best?.0, outWalls[k].slope == nil else { continue }
+            outWalls[k].slope = WallSlope(kneeMm: r(knee), depthMm: r(run * 1000), detected: true)
+            if let roomH { outWalls[k].heightMm = max(outWalls[k].heightMm, roomH) }
+        }
+
         return ScanPayload(
             scannedAt: ISO8601DateFormatter().string(from: Date()),
-            walls: chain.walls,
+            walls: outWalls,
             openings: openings,
             objects: objects,
-            roomHeightMm: room.walls.map { Double($0.dimensions.y) * 1000 }.max().map(r),
+            roomHeightMm: roomH,
             closed: chain.closed,
             floor: floorPts.count >= 3 ? floorPts.map { [r($0.x), r($0.y)] } : nil
         )

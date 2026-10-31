@@ -38,7 +38,8 @@ struct ElevationCanvas: View {
                 guard let g, let L = ElevLayout(size, g) else { return }
                 ElevationDraw.draw(ctx, L, g, markers: markers, selected: selectedMarker, active: active?.id,
                                    objects: showObjects ? ElevationDraw.objectsOnWall(scan, g) : [],
-                                   features: features, selectedFeature: selectedFeature, wardrobes: wardrobes)
+                                   features: features, selectedFeature: selectedFeature, wardrobes: wardrobes,
+                                   ceiling: m.ceilingProfile(wallIndex))
             }
             .contentShape(Rectangle())
             .onTapGesture { loc in
@@ -202,7 +203,7 @@ enum ElevationDraw {
 
     static func draw(_ ctx: GraphicsContext, _ L: ElevLayout, _ g: PlanModel.Wall, markers: [ScanMarker], selected: String?, active: String?,
                      objects: [Front] = [], features: [ScanFeature] = [], selectedFeature: String? = nil,
-                     wardrobes: [ScanWardrobe] = []) {
+                     wardrobes: [ScanWardrobe] = [], ceiling: [(t: Double, z: Double)] = []) {
         let (H, W, s) = (L.H, L.W, L.s)
         func p(_ t: Double, _ z: Double) -> CGPoint { L.p(t, z) }
         let ink = GraphicsContext.Shading.color(PlanStyle.wall)
@@ -260,6 +261,8 @@ enum ElevationDraw {
             ctx.fill(Path(r), with: .color(Color(white: 0.85)))
             ctx.stroke(Path(r), with: ink, lineWidth: 1)
         }
+
+        SlopeDraw.elevation(ctx, L, ceiling)
 
         for f in features where f.flush { FeatureDraw.elevation(ctx, L, f, selected: f.id == selectedFeature) }
         for f in objects { drawFront(ctx, L, f) }
@@ -333,6 +336,8 @@ enum ElevationDraw {
 struct MeasureSheet: View {
     let title: String
     let initial: Double
+    /// „mm" (z dalmierzem) albo „°" (kąt — wpisywany ręcznie).
+    var unit = "mm"
     let onApply: (Double) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -347,7 +352,7 @@ struct MeasureSheet: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.headline)
-                    Text("Wpisz wymiar w mm").font(.footnote).foregroundStyle(.secondary)
+                    Text(unit == "mm" ? "Wpisz wymiar w mm" : "Wpisz wartość (\(unit))").font(.footnote).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button { dismiss() } label: {
@@ -355,13 +360,13 @@ struct MeasureSheet: View {
                 }
             }
 
-            LaserHint(fromLaser: fromLaser)
+            if unit == "mm" { LaserHint(fromLaser: fromLaser) }
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(text.isEmpty ? "\(Int(initial.rounded()))" : text)
                     .font(.system(size: 44, weight: .light).monospacedDigit())
                     .foregroundStyle(text.isEmpty ? .secondary : .primary)
-                Text("mm").font(.title3).foregroundStyle(.secondary)
+                Text(unit).font(.title3).foregroundStyle(.secondary)
             }
 
             let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"]
@@ -393,7 +398,7 @@ struct MeasureSheet: View {
         .padding(24)
         .presentationDetents([.large])
         .onChange(of: laser.reading) { _, r in
-            guard let r else { return }
+            guard let r, unit == "mm" else { return }
             text = "\(Int(r.mm))"
             fromLaser = true
         }

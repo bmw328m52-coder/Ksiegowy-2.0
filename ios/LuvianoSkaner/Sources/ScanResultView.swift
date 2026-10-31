@@ -17,6 +17,8 @@ private enum EditTarget: Identifiable {
     case objectSize(String, String)
     /// Krzywizna ściany: klucz pola WallCurve (lb, lm, lt, hl, hm, hr).
     case curve(Int, String)
+    /// Skos nad ścianą: "k" kolanko, "d" zasięg w poziomie, "a" kąt.
+    case slope(Int, String)
     /// Element na ścianie (grzejnik, skrzynka…) i parapet okna: "d" wysunięcie, "t" grubość.
     case feature(ScanFeature, isNew: Bool)
     case sill(String, String)
@@ -30,6 +32,7 @@ private enum EditTarget: Identifiable {
         case .objectGap(let o, let k): return "g\(k)" + o
         case .objectSize(let o, let f): return "o" + f + o
         case .curve(let i, let k): return "c\(i)" + k
+        case .slope(let i, let k): return "sl\(i)" + k
         case .feature(let f, _): return "f" + f.id
         case .sill(let o, let k): return "p" + k + o
         case .autoLayout: return "auto"
@@ -180,6 +183,11 @@ struct ScanResultView: View {
                             s.walls[i].curve = c
                         }
                     }
+                case .slope(let i, let key):
+                    MeasureSheet(title: "Ściana \(wallLetter(i)) · skos — \(Self.slopeFieldName(key))",
+                                 initial: slopeValue(i, key), unit: key == "a" ? "°" : "mm") { v in
+                        apply { s in setSlope(&s, i, key, v) }
+                    }
                 case .feature(let f, let isNew):
                     let wi = scan.walls.firstIndex { $0.id == f.wallId } ?? 0
                     FeatureSheet(feature: f, wallName: wallLetter(wi), wallLength: scan.walls[wi].length,
@@ -290,6 +298,88 @@ struct ScanResultView: View {
             guard s.walls.indices.contains(i), var c = s.walls[i].curve else { return }
             c[key] = nil
             s.walls[i].curve = c.isEmpty ? nil : c
+        }
+    }
+
+    static func slopeFieldName(_ k: String) -> String {
+        switch k {
+        case "k": return "ścianka kolankowa"
+        case "d": return "zasięg w poziomie"
+        default: return "kąt"
+        }
+    }
+
+    /// Wartość pola skosu albo podpowiedź (kolanko = 1/2 wysokości, kąt 40°).
+    private func slopeValue(_ i: Int, _ k: String) -> Double {
+        let H = PlanModel(scan).roomHeight
+        let sl = scan.walls.indices.contains(i) ? scan.walls[i].slope : nil
+        switch k {
+        case "k": return sl?.kneeMm ?? (H / 2).rounded()
+        case "d": return sl?.depth(ceiling: H)?.rounded() ?? 1500
+        default: return sl?.angle(ceiling: H)?.rounded() ?? 40
+        }
+    }
+
+    /// Zasięg i kąt wykluczają się — wpisanie jednego kasuje drugie (liczy się z kolanka i wysokości).
+    private func setSlope(_ s: inout ScanPayload, _ i: Int, _ k: String, _ v: Double) {
+        guard s.walls.indices.contains(i), v > 0 else { return }
+        let H = PlanModel(s).roomHeight
+        var sl = s.walls[i].slope ?? WallSlope(kneeMm: (H / 2).rounded(), angleDeg: 40)
+        switch k {
+        case "k": sl.kneeMm = min(v, H).rounded()
+        case "d": sl.depthMm = v.rounded(); sl.angleDeg = nil
+        default: sl.angleDeg = min(max(v, 1), 89); sl.depthMm = nil
+        }
+        sl.detected = nil
+        s.walls[i].slope = sl
+        // Ściana ze skosem w widoku ściany pokazuje cały skos aż do sufitu.
+        s.walls[i].heightMm = max(s.walls[i].heightMm, H)
+    }
+
+    private func slopeSection(_ i: Int) -> some View {
+        let H = PlanModel(scan).roomHeight
+        let sl = scan.walls.indices.contains(i) ? scan.walls[i].slope : nil
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Skos nad ścianą").font(.subheadline.weight(.medium))
+                Spacer()
+                if sl != nil {
+                    Button(role: .destructive) {
+                        apply { s in if s.walls.indices.contains(i) { s.walls[i].slope = nil } }
+                    } label: { Text("Usuń skos").font(.caption) }
+                }
+            }
+            if let sl {
+                HStack(spacing: 6) {
+                    ForEach(["k", "d", "a"], id: \.self) { k in
+                        let v: Double? = k == "k" ? sl.kneeMm : k == "d" ? sl.depth(ceiling: H) : sl.angle(ceiling: H)
+                        let typed = k == "k" || (k == "d" ? sl.depthMm != nil : sl.angleDeg != nil)
+                        Button { edit = .slope(i, k) } label: {
+                            VStack(spacing: 0) {
+                                Text(k == "k" ? "kolanko" : k == "d" ? "w poziomie" : "kąt").font(.caption2).foregroundStyle(.secondary)
+                                Text(v.map { "\(Int($0.rounded()))\(k == "a" ? "°" : "")" } ?? "—")
+                                    .font(.caption.monospacedDigit().weight(.medium))
+                                    .foregroundStyle(typed ? SlopeDraw.ink : Color.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                Text(sl.detected == true
+                     ? "Wykryty ze skanu — sprawdź dalmierzem: kolanko od podłogi do skosu, zasięg od ściany do miejsca, gdzie sufit jest płaski (albo kąt)."
+                     : "Kolanko: od podłogi do początku skosu. Zasięg: od ściany do linii, gdzie sufit robi się płaski — albo wpisz kąt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button { edit = .slope(i, "k") } label: {
+                    Label("Dodaj skos (poddasze)", systemImage: "triangle.righthalf.filled")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(SlopeDraw.ink)
+            }
         }
     }
 
@@ -892,6 +982,7 @@ struct ScanResultView: View {
                 ))
                 .font(.subheadline)
                 curveSection(i)
+                slopeSection(i)
                 HStack {
                     Button {
                         var id: String?

@@ -1,5 +1,6 @@
 import SwiftUI
 import SceneKit
+import simd
 import UIKit
 
 /// Ściany w 3D: „Auto" chowa ściany od strony kamery (domek dla lalek), „Pełne" — wszystkie,
@@ -308,7 +309,22 @@ enum Scan3D {
             let skin = planned ? P.planned : P.plaster
 
             prism(wallNode, foot(i, 0, g.len), baseZ, 0, top: P.base, side: P.base)
-            let pieces = PlanGeom.pieces(len: g.len, height: g.w.heightMm, spans: g.spans)
+            // Pod skosem ściana jest niższa: kawałki dzielimy na pasy i przycinamy do linii sufitu.
+            let prof = m.ceilingProfile(i)
+            var pieces = PlanGeom.pieces(len: g.len, height: g.w.heightMm, spans: g.spans)
+            if !prof.isEmpty {
+                let step = g.len / Double(prof.count - 1)
+                pieces = pieces.flatMap { p -> [PlanGeom.Piece] in
+                    let n = max(1, Int(((p.t1 - p.t0) / step).rounded(.up)))
+                    return (0..<n).compactMap { k in
+                        let a = p.t0 + (p.t1 - p.t0) * Double(k) / Double(n)
+                        let b = p.t0 + (p.t1 - p.t0) * Double(k + 1) / Double(n)
+                        let top = prof.filter { $0.t >= a - step && $0.t <= b + step }.map(\.z).max() ?? p.z1
+                        let z1 = min(p.z1, top)
+                        return z1 - p.z0 > 1 ? PlanGeom.Piece(t0: a, t1: b, z0: p.z0, z1: z1) : nil
+                    }
+                }
+            }
             for p in pieces {
                 // Korona (ciemna) tylko na pełnej wysokości ściany — jak przekrój w makiecie.
                 let n = prism(full, foot(i, p.t0, p.t1), p.z0, p.z1, top: p.z1 >= g.w.heightMm - 1 ? P.crown : skin, side: skin)
@@ -367,6 +383,27 @@ enum Scan3D {
                 let col = UIColor(FeatureKind(key: f.kind).color)
                 let mat = material(col.withAlphaComponent(1), rough: 0.6)
                 prism(full, foot(i, t0, t1, -max(f.depthMm, 3), 0), f.elevationMm, f.elevationMm + f.heightMm, top: mat, side: mat)
+            }
+
+            // Płaszczyzna skosu: od ściany na wysokości kolanka do linii płaskiego sufitu.
+            if let sl = g.w.slope, let d = sl.depth(ceiling: m.roomHeight) {
+                let q = [g.at(0, 0), g.at(g.len, 0), g.at(g.len, -d), g.at(0, -d)]
+                let z = [sl.kneeMm, sl.kneeMm, m.roomHeight, m.roomHeight]
+                let verts = zip(q, z).map { SCNVector3(Float($0.x / 1000), Float($1 / 1000), Float($0.y / 1000)) }
+                let e1 = simd_float3(verts[1].x - verts[0].x, verts[1].y - verts[0].y, verts[1].z - verts[0].z)
+                let e2 = simd_float3(verts[3].x - verts[0].x, verts[3].y - verts[0].y, verts[3].z - verts[0].z)
+                var nv = simd_normalize(simd_cross(e1, e2))
+                if nv.y > 0 { nv = -nv } // do wnętrza (w dół)
+                let normals = Array(repeating: SCNVector3(nv.x, nv.y, nv.z), count: 4)
+                let geo = SCNGeometry(sources: [SCNGeometrySource(vertices: verts), SCNGeometrySource(normals: normals)],
+                                      elements: [SCNGeometryElement(indices: [Int32(0), 1, 2, 0, 2, 3], primitiveType: .triangles)])
+                let mat = material(rgb(0.93, 0.90, 0.86), rough: 0.9)
+                mat.isDoubleSided = true
+                mat.transparency = 0.55
+                geo.materials = [mat]
+                let node = SCNNode(geometry: geo)
+                node.castsShadow = false
+                full.addChildNode(node)
             }
 
             let c = g.at(g.len / 2, T / 2)
