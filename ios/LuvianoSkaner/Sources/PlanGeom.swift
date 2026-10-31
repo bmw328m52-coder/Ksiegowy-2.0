@@ -278,6 +278,28 @@ enum PlanGeom {
         return inside
     }
 
+    static func segDist(_ p: V2, _ a: V2, _ b: V2) -> Double {
+        let ab = b - a
+        let l2 = dot(ab, ab)
+        let t = l2 > 0 ? min(max(dot(p - a, ab) / l2, 0), 1) : 0
+        return dist(p, a + ab * t)
+    }
+
+    /// Obrys podłogi z RoomPlan pasuje do ścian: każdy koniec ściany leży na jego krawędzi,
+    /// a każdy jego wierzchołek na ścianie (albo na linii domknięcia). Po przesunięciu
+    /// ścian stary obrys przestaje pasować i podłoga idzie wtedy za ścianami.
+    static func floorMatches(_ floor: [V2], _ walls: [ScanWall], gap: (V2, V2)?, tol: Double = 120) -> Bool {
+        guard floor.count >= 3, !walls.isEmpty else { return false }
+        let edges = floor.indices.map { (floor[$0], floor[($0 + 1) % floor.count]) }
+        var segs = walls.map { ($0.a, $0.b) }
+        if let g = gap { segs.append(g) }
+        let endsOnFloor = walls.flatMap { [$0.a, $0.b] }.allSatisfy { p in
+            edges.contains { segDist(p, $0.0, $0.1) <= tol }
+        }
+        let floorOnWalls = floor.allSatisfy { p in segs.contains { segDist(p, $0.0, $0.1) <= tol } }
+        return endsOnFloor && floorOnWalls
+    }
+
     static func convexHull(_ pts: [V2]) -> [V2] {
         let p = pts.sorted { $0.x == $1.x ? $0.y < $1.y : $0.x < $1.x }
         guard p.count >= 3 else { return p }
@@ -484,7 +506,9 @@ struct PlanModel {
         }
         let corners = ws.flatMap { [$0.a, $0.b] }
         let rpFloor = (scan.floor ?? []).compactMap { $0.count >= 2 ? V2($0[0], $0[1]) : nil }
-        if !isClosed && rpFloor.count >= 3 { loop = rpFloor; openGap = nil }
+        if !isClosed && rpFloor.count >= 3 && (loop.count < 3 || PlanGeom.floorMatches(rpFloor, ws, gap: openGap)) {
+            loop = rpFloor; openGap = nil
+        }
         let floorPoly = loop.count >= 3 ? loop : PlanGeom.convexHull(corners)
         let pts = floorPoly.isEmpty ? corners : floorPoly
         let c = pts.isEmpty ? V2(0, 0) : pts.reduce(V2(0, 0), +) / Double(pts.count)

@@ -123,6 +123,23 @@ export function convexHull(pts: V2[]): V2[] {
   return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
 
+function segDist(p: V2, a: V2, b: V2): number {
+  const ab = sub(b, a);
+  const l2 = dot(ab, ab);
+  const t = l2 > 0 ? Math.min(Math.max(dot(sub(p, a), ab) / l2, 0), 1) : 0;
+  return dist(p, add(a, mul(ab, t)));
+}
+
+/** Obrys podłogi z RoomPlan pasuje do ścian (port PlanGeom.floorMatches) — po przesunięciu ścian podłoga idzie za ścianami. */
+function floorMatches(floor: V2[], walls: [V2, V2][], gap: [V2, V2] | null, tol = 120): boolean {
+  if (floor.length < 3 || !walls.length) return false;
+  const edges = floor.map((p, i): [V2, V2] => [p, floor[(i + 1) % floor.length]]);
+  const segs = gap ? [...walls, gap] : walls;
+  const endsOnFloor = walls.flat().every((p) => edges.some(([a, b]) => segDist(p, a, b) <= tol));
+  const floorOnWalls = floor.every((p) => segs.some(([a, b]) => segDist(p, a, b) <= tol));
+  return endsOnFloor && floorOnWalls;
+}
+
 function pointInPolygon(p: V2, poly: V2[]): boolean {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -210,7 +227,7 @@ export function planModel(data: ScanData): PlanModel {
     }
   }
   const rp = (data.floor ?? []).filter((p) => p.length >= 2).map((p): V2 => [p[0], p[1]]);
-  if (!closed && rp.length >= 3) {
+  if (!closed && rp.length >= 3 && (loop.length < 3 || floorMatches(rp, ws.map((w): [V2, V2] => [A(w), B(w)]), gap))) {
     loop = rp;
     gap = null;
   }
