@@ -143,12 +143,17 @@ private struct ScanFlow: View {
                 .padding(.bottom, 28)
             }
             .overlay(alignment: .top) {
-                Text("\(job.clients?.name ?? "") — \(job.title)")
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(.top, 12)
+                VStack(spacing: 6) {
+                    Text("\(job.clients?.name ?? "") — \(job.title)")
+                        .font(.footnote.weight(.semibold))
+                    Text("Jedno pomieszczenie na skan · drzwi do innych zamknięte · powoli wzdłuż ścian, narożniki z bliska")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                .padding(.top, 12)
             }
         }
     }

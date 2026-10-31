@@ -606,8 +606,18 @@ struct ScanResultView: View {
             } label: {
                 Label("Mebel", systemImage: "plus.square")
             }
-            Button { rotate(clockwise: false) } label: { Image(systemName: "rotate.left") }
-            Button { rotate(clockwise: true) } label: { Image(systemName: "rotate.right") }
+            Menu {
+                Button {
+                    var n = 0
+                    apply { n = PlanEdit.squareUp(&$0) }
+                    if n == 0, !undoStack.isEmpty { undoStack.removeLast() }
+                } label: { Label("Wyprostuj kąty (do 90°)", systemImage: "square.dashed") }
+                Divider()
+                Button { rotate(clockwise: false) } label: { Label("Obróć w lewo", systemImage: "rotate.left") }
+                Button { rotate(clockwise: true) } label: { Label("Obróć w prawo", systemImage: "rotate.right") }
+            } label: {
+                Label("Rzut", systemImage: "square.on.square.dashed")
+            }
         }
         .buttonStyle(.bordered)
         .padding(16)

@@ -41,6 +41,7 @@ struct ElevationCanvas: View {
                                    features: features, selectedFeature: selectedFeature, wardrobes: wardrobes,
                                    ceiling: m.ceilingProfile(wallIndex))
             }
+            .clipped()
             .contentShape(Rectangle())
             .onTapGesture { loc in
                 guard let g, let L = ElevLayout(geo.size, g) else { return }
@@ -208,8 +209,8 @@ enum ElevationDraw {
         func p(_ t: Double, _ z: Double) -> CGPoint { L.p(t, z) }
         let ink = GraphicsContext.Shading.color(PlanStyle.wall)
 
-        // Boczne ściany w perspektywie.
-        let side = 70.0
+        // Boczne ściany w perspektywie — przy wąskiej ścianie proporcjonalnie mniejsze.
+        let side = min(70.0, max(16.0, min(W, H) * s * 0.3))
         for (edge, dirX) in [(0.0, -1.0), (W, 1.0)] {
             let top = p(edge, H), bot = p(edge, 0)
             let shape = Draft.poly([
@@ -344,6 +345,7 @@ struct MeasureSheet: View {
     @EnvironmentObject private var laser: Laser
     @State private var text = ""
     @State private var fromLaser = false
+    @StateObject private var tilt = Tilt()
 
     private var value: Double? { Double(text.replacingOccurrences(of: ",", with: ".")) }
 
@@ -361,6 +363,18 @@ struct MeasureSheet: View {
             }
 
             if unit == "mm" { LaserHint(fromLaser: fromLaser) }
+            if unit == "°" {
+                Button {
+                    if tilt.angle == nil { tilt.start() } else { tilt.stop() }
+                } label: {
+                    Label(tilt.angle.map { "iPad na skosie: \(String(format: "%.1f", $0))° — stuknij, by przerwać" }
+                          ?? "Przyłóż iPada płasko do skosu — zmierz kąt",
+                          systemImage: "level")
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                }
+                .buttonStyle(.bordered)
+                .tint(SlopeDraw.ink)
+            }
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(text.isEmpty ? "\(Int(initial.rounded()))" : text)
@@ -397,6 +411,11 @@ struct MeasureSheet: View {
         }
         .padding(24)
         .presentationDetents([.large])
+        .onChange(of: tilt.angle) { _, a in
+            guard let a else { return }
+            text = String(format: "%.1f", a).replacingOccurrences(of: ".", with: ",")
+        }
+        .onDisappear { tilt.stop() }
         .onChange(of: laser.reading) { _, r in
             guard let r, unit == "mm" else { return }
             text = "\(Int(r.mm))"

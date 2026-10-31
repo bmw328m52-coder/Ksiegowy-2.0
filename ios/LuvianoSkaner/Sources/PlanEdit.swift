@@ -79,6 +79,64 @@ enum PlanEdit {
         return out
     }
 
+    /// „Wyprostuj rzut": ściany odchylone od osi o mniej niż `tolDeg` dociągamy do pełnych 90°
+    /// (względem najdłuższej ściany), narożniki = przecięcia nowych linii ścian. Otwory i punkty
+    /// zostają na swoich ścianach (reshape). Zwraca liczbę wyprostowanych ścian.
+    @discardableResult
+    static func squareUp(_ scan: inout ScanPayload, tolDeg: Double = 6) -> Int {
+        guard let ref = scan.walls.max(by: { $0.length < $1.length }), ref.length > 1 else { return 0 }
+        let a0 = atan2(ref.dir.y, ref.dir.x)
+        let tol = tolDeg * .pi / 180
+        var lines: [(p: V2, d: V2)] = []
+        var count = 0
+        for w in scan.walls {
+            let a = atan2(w.dir.y, w.dir.x)
+            let k = ((a - a0) / (.pi / 2)).rounded()
+            let target = a0 + k * .pi / 2
+            let dev = a - target
+            let d: V2
+            if abs(dev) < tol {
+                d = V2(cos(target), sin(target))
+                if abs(dev) > 0.0005 { count += 1 }
+            } else {
+                d = w.dir
+            }
+            lines.append(((w.a + w.b) / 2, d))
+        }
+        guard count > 0 else { return 0 }
+        func proj(_ q: V2, _ l: (p: V2, d: V2)) -> V2 { l.p + l.d * PlanGeom.dot(q - l.p, l.d) }
+        func cross(_ l1: (p: V2, d: V2), _ l2: (p: V2, d: V2)) -> V2? {
+            let den = PlanGeom.cross(l1.d, l2.d)
+            guard abs(den) > 0.05 else { return nil }
+            return l1.p + l1.d * (PlanGeom.cross(l2.p - l1.p, l2.d) / den)
+        }
+        // Narożniki: punkty wspólne końców ścian.
+        var corners: [V2] = []
+        for w in scan.walls {
+            for q in [w.a, w.b] where !corners.contains(where: { PlanGeom.dist($0, q) < 1 }) { corners.append(q) }
+        }
+        var moved: [([(Int, Bool)], V2)] = []
+        for c in corners {
+            let ends = endpoints(scan, at: c)
+            let ls = ends.map { lines[$0.0] }
+            var q: V2?
+            outer: for x in ls.indices {
+                for y in ls.indices where y > x {
+                    if let r = cross(ls[x], ls[y]), PlanGeom.dist(r, c) < 400 { q = r; break outer }
+                }
+            }
+            // Ściany równoległe (uskok) albo wolny koniec — rzut na linię(e).
+            let np = q ?? ls.map { proj(c, $0) }.reduce(V2(0, 0), +) / Double(max(ls.count, 1))
+            moved.append((ends, V2(np.x.rounded(), np.y.rounded())))
+        }
+        reshape(&scan) { s in
+            for (ends, to) in moved {
+                for (i, isA) in ends { if isA { s.walls[i].setA(to) } else { s.walls[i].setB(to) } }
+            }
+        }
+        return count
+    }
+
     /// Przesuwa narożnik `from` → `to` razem ze wszystkimi ścianami, które się w nim schodzą.
     static func moveCorner(_ scan: inout ScanPayload, from: V2, to: V2) {
         let ends = endpoints(scan, at: from)

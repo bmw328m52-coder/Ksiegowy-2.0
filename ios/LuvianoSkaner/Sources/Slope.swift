@@ -1,4 +1,23 @@
 import SwiftUI
+import CoreMotion
+
+/// Poziomica z iPada: kąt płaszczyzny ekranu do poziomu (przyłożony płasko do skosu).
+final class Tilt: ObservableObject {
+    private let motion = CMMotionManager()
+    @Published var angle: Double?
+
+    func start() {
+        guard motion.isDeviceMotionAvailable, !motion.isDeviceMotionActive else { return }
+        motion.deviceMotionUpdateInterval = 1.0 / 15
+        motion.startDeviceMotionUpdates(to: .main) { [weak self] m, _ in
+            guard let g = m?.gravity else { return }
+            let a = acos(min(abs(g.z) / max((g.x * g.x + g.y * g.y + g.z * g.z).squareRoot(), 0.0001), 1)) * 180 / .pi
+            self?.angle = (a * 10).rounded() / 10
+        }
+    }
+
+    func stop() { motion.stopDeviceMotionUpdates(); angle = nil }
+}
 
 /// Skos dachu nad ścianą: od ściany (na wysokości ścianki kolankowej) sufit wznosi się
 /// do pełnej wysokości pomieszczenia. Zasięg w poziomie albo kąt — drugie się wylicza.
