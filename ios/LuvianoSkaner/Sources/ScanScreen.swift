@@ -1,5 +1,25 @@
 import SwiftUI
 import RoomPlan
+import AVFoundation
+
+/// Latarka iPada w trakcie skanu (ARKit trzyma kamerę, ale lampę da się włączyć osobno).
+enum Torch {
+    private static var device: AVCaptureDevice? {
+        AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+    }
+    static var available: Bool { device?.hasTorch ?? false }
+
+    @discardableResult
+    static func set(_ on: Bool) -> Bool {
+        guard let d = device, d.hasTorch else { return false }
+        do {
+            try d.lockForConfiguration()
+            defer { d.unlockForConfiguration() }
+            if on { try d.setTorchModeOn(level: min(0.8, AVCaptureDevice.maxAvailableTorchLevel)) } else { d.torchMode = .off }
+            return true
+        } catch { return false }
+    }
+}
 
 /// UIKit-owy kontroler RoomPlan (RoomCaptureViewDelegate wymaga NSCoding — daje to UIViewController).
 final class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate {
@@ -21,10 +41,12 @@ final class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        Torch.set(false)
         captureView.captureSession.stop()
     }
 
     func finish() {
+        Torch.set(false)
         captureView.captureSession.stop()
     }
 
@@ -47,6 +69,7 @@ final class ScanModel: ObservableObject {
     let controller = RoomCaptureViewController()
     @Published var result: SavedScan?
     @Published var finishing = false
+    @Published var torch = false
 
     init(jobId: String) {
         controller.onResult = { [weak self] room in
@@ -95,6 +118,17 @@ private struct ScanFlow: View {
                     Button("Anuluj") { dismiss() }
                         .buttonStyle(.bordered)
                         .tint(.white)
+                    if Torch.available {
+                        Button {
+                            if Torch.set(!model.torch) { model.torch.toggle() }
+                        } label: {
+                            Label(model.torch ? "Lampa wł." : "Lampa", systemImage: model.torch ? "flashlight.on.fill" : "flashlight.off.fill")
+                                .frame(minHeight: 36)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(model.torch ? .yellow : .white)
+                        .disabled(model.finishing)
+                    }
                     Button {
                         model.finishing = true
                         model.controller.finish()
