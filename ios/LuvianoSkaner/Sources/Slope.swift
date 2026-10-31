@@ -1,17 +1,25 @@
 import SwiftUI
 import CoreMotion
 
-/// Poziomica z iPada: kąt płaszczyzny ekranu do poziomu (przyłożony płasko do skosu).
+/// Poziomica z iPada. Dwa sposoby, rozpoznawane same:
+/// • płasko (plecami albo ekranem do skosu) — kąt płaszczyzny iPada do poziomu,
+/// • bokiem (iPad pionowo, dłuższa krawędź oparta o skos) — kąt tej krawędzi do poziomu.
 final class Tilt: ObservableObject {
     private let motion = CMMotionManager()
     @Published var angle: Double?
+    /// true = pomiar krawędzią (iPad stoi pionowo).
+    @Published var edge = false
 
     func start() {
         guard motion.isDeviceMotionAvailable, !motion.isDeviceMotionActive else { return }
         motion.deviceMotionUpdateInterval = 1.0 / 15
         motion.startDeviceMotionUpdates(to: .main) { [weak self] m, _ in
             guard let g = m?.gravity else { return }
-            let a = acos(min(abs(g.z) / max((g.x * g.x + g.y * g.y + g.z * g.z).squareRoot(), 0.0001), 1)) * 180 / .pi
+            let n = max((g.x * g.x + g.y * g.y + g.z * g.z).squareRoot(), 0.0001)
+            let flat = abs(g.z) / n > 0.6
+            // Oś y = dłuższy bok iPada; jej nachylenie = asin(składowa grawitacji wzdłuż osi).
+            let a = (flat ? acos(min(abs(g.z) / n, 1)) : asin(min(abs(g.y) / n, 1))) * 180 / .pi
+            self?.edge = !flat
             self?.angle = (a * 10).rounded() / 10
         }
     }

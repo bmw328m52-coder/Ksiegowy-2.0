@@ -367,8 +367,8 @@ struct MeasureSheet: View {
                 Button {
                     if tilt.angle == nil { tilt.start() } else { tilt.stop() }
                 } label: {
-                    Label(tilt.angle.map { "iPad na skosie: \(String(format: "%.1f", $0))° — stuknij, by przerwać" }
-                          ?? "Przyłóż iPada płasko do skosu — zmierz kąt",
+                    Label(tilt.angle.map { "\(tilt.edge ? "Bokiem" : "Płasko"): \(String(format: "%.1f", $0))° — stuknij, by przerwać" }
+                          ?? "Zmierz kąt iPadem — płasko na skosie albo dłuższym bokiem",
                           systemImage: "level")
                         .frame(maxWidth: .infinity, minHeight: 36)
                 }
