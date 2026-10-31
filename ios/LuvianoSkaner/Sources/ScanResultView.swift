@@ -69,6 +69,8 @@ struct ScanResultView: View {
     /// Szafa otwarta w edytorze.
     @State private var wardrobeEdit: ScanWardrobe?
     @State private var confirmSend = false
+    /// Trwa przeciąganie punktu / elementu w widoku ściany (jeden zapis do „Cofnij").
+    @State private var dragging = false
     @State private var undoStack: [ScanPayload] = []
     @State private var redoStack: [ScanPayload] = []
     @State private var version = 0
@@ -689,12 +691,28 @@ struct ScanResultView: View {
             onTapFeature: { id in
                 guard let f = scan.features.first(where: { $0.id == id }) else { return }
                 if selectedFeature == id { edit = .feature(f, isNew: false) } else { selectedFeature = id; selectedMarker = nil }
+            },
+            onDragMarker: { id, t, z, done in
+                guard scan.walls.indices.contains(i), let k = scan.markers.firstIndex(where: { $0.id == id }) else { return }
+                if !dragging { snapshot(); dragging = true; selectedMarker = id; selectedFeature = nil }
+                let w = scan.walls[i]
+                scan.markers[k].offsetMm = min(max(t, 0), w.length).rounded()
+                scan.markers[k].heightMm = min(max(z, 0), w.heightMm).rounded()
+                if done { dragging = false; changed() }
+            },
+            onDragFeature: { id, t, z, done in
+                guard scan.walls.indices.contains(i), let k = scan.features.firstIndex(where: { $0.id == id }) else { return }
+                if !dragging { snapshot(); dragging = true; selectedFeature = id; selectedMarker = nil }
+                let w = scan.walls[i], f = scan.features[k]
+                scan.features[k].offsetMm = min(max(t, 0), max(w.length - f.widthMm, 0)).rounded()
+                scan.features[k].elevationMm = min(max(z, 0), max(w.heightMm - f.heightMm, 0)).rounded()
+                if done { dragging = false; changed() }
             }
         )
             .overlay(alignment: .bottom) {
                 Text(pendingFeature.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
                      ?? pendingKind.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
-                     ?? "Stuknij wymiar → pomiar · ścianę → punkt instalacji · element → zaznacz, drugi raz → edycja")
+                     ?? "Stuknij wymiar → pomiar · ścianę → punkt · punkt/element przeciągnij palcem albo stuknij 2× → edycja")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)

@@ -25,6 +25,12 @@ struct ElevationCanvas: View {
     var wardrobeHits = true
     /// Stuknięcie w element na ścianie (grzejnik, skrzynka…).
     var onTapFeature: (String) -> Void = { _ in }
+    /// Przeciąganie punktu instalacji / elementu palcem: nowe położenie (mm), `done` = puszczony.
+    var onDragMarker: (_ id: String, _ t: Double, _ z: Double, _ done: Bool) -> Void = { _, _, _, _ in }
+    var onDragFeature: (_ id: String, _ t: Double, _ z: Double, _ done: Bool) -> Void = { _, _, _, _ in }
+
+    /// Co jest ciągnięte: punkt czy element, id i przesunięcie palca względem punktu zaczepienia (mm).
+    @State private var drag: (feature: Bool, id: String, dt: Double, dz: Double)?
 
     var body: some View {
         GeometryReader { geo in
@@ -43,6 +49,36 @@ struct ElevationCanvas: View {
             }
             .clipped()
             .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 6)
+                    .onChanged { v in
+                        guard let g, let L = ElevLayout(geo.size, g) else { return }
+                        if drag == nil {
+                            let start = v.startLocation
+                            let (t0, z0) = L.inv(start)
+                            if let mk = markers
+                                .map({ ($0, hypot(L.p($0.offsetMm, $0.heightMm).x - start.x, L.p($0.offsetMm, $0.heightMm).y - start.y)) })
+                                .filter({ $0.1 < 28 }).min(by: { $0.1 < $1.1 })?.0 {
+                                drag = (false, mk.id, mk.offsetMm - t0, mk.heightMm - z0)
+                            } else if let fid = FeatureDraw.hit(start, L, features), let f = features.first(where: { $0.id == fid }) {
+                                drag = (true, fid, f.offsetMm - t0, f.elevationMm - z0)
+                            } else {
+                                return
+                            }
+                        }
+                        guard let d = drag else { return }
+                        let (t, z) = L.inv(v.location)
+                        let nt = ((t + d.dt) / 5).rounded() * 5, nz = ((z + d.dz) / 5).rounded() * 5
+                        if d.feature { onDragFeature(d.id, nt, nz, false) } else { onDragMarker(d.id, nt, nz, false) }
+                    }
+                    .onEnded { v in
+                        guard let d = drag, let g, let L = ElevLayout(geo.size, g) else { drag = nil; return }
+                        let (t, z) = L.inv(v.location)
+                        let nt = ((t + d.dt) / 5).rounded() * 5, nz = ((z + d.dz) / 5).rounded() * 5
+                        if d.feature { onDragFeature(d.id, nt, nz, true) } else { onDragMarker(d.id, nt, nz, true) }
+                        drag = nil
+                    }
+            )
             .onTapGesture { loc in
                 guard let g, let L = ElevLayout(geo.size, g) else { return }
                 if let d = ElevationDraw.hitDimension(loc, L, g, active: active) {
