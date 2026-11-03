@@ -65,6 +65,11 @@ jobs:
         working-directory: ios/LuvianoSkaner
         run: |
           set -o pipefail
+          # Własny designated requirement: domyślny porównuje nazwę certyfikatu
+          # („Apple Distribution: ARTUR GUŻESKI”), a „Ż” rozjeżdża się w normalizacji
+          # Unicode → „does not satisfy its designated Requirement”. Sprawdzamy tylko
+          # identyfikator + Team ID.
+          printf 'designated => anchor apple generic and identifier "pl.luviano.skaner" and certificate leaf[subject.OU] = "%s"\n' "$APPLE_TEAM_ID" > "$PWD/dr.txt"
           # Numer builda rośnie z każdym uruchomieniem (TestFlight wymaga unikalnego).
           xcodebuild archive \
             -project LuvianoSkaner.xcodeproj \
@@ -78,6 +83,7 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            OTHER_CODE_SIGN_FLAGS="--requirements $PWD/dr.txt" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             2>&1 | tee build.log | grep -E "error:|ARCHIVE" || true
           test -d build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app
@@ -116,6 +122,7 @@ jobs:
           rm -rf build/ipa && mkdir -p build/ipa && unzip -q build/export/*.ipa -d build/ipa
           IAPP=build/ipa/Payload/LuvianoSkaner.app
           codesign -dvv "$IAPP" 2>&1 | grep -E "Authority|TeamIdentifier" | sed 's/^/::notice::ipa /' || true
+          codesign -d -r- "$IAPP" 2>&1 | grep designated | sed 's/^/::notice::ipa-dr /' || true
           codesign --verify --deep --strict --verbose=2 "$IAPP" 2>&1 | sed 's/^/::notice::verify /' || true
           xcrun altool --upload-app -f build/export/*.ipa -t ios             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee -a build.log
           grep -q "UPLOAD SUCCEEDED\|No errors uploading" build.log
