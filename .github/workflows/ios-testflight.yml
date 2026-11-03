@@ -17,7 +17,7 @@ on:
 
 jobs:
   testflight:
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -33,8 +33,16 @@ jobs:
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.gate.outputs.ok == 'true'
+
+      # App Store Connect przyjmuje tylko buildy z iOS 26 SDK (Xcode 26+).
+      - name: Xcode 26
+        if: steps.gate.outputs.ok == 'true'
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
 
       - name: Klucz API
         if: steps.gate.outputs.ok == 'true'
@@ -73,6 +81,7 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             2>&1 | tee build.log | grep -E "error:|ARCHIVE" || true
           test -d build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app
+          codesign -dvv build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app 2>&1 | grep -E "Authority|TeamIdentifier" || true
 
       - name: Eksport i wysyłka do TestFlight
         if: steps.gate.outputs.ok == 'true'
