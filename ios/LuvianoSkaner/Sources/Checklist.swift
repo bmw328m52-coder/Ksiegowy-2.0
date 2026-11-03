@@ -1,5 +1,43 @@
 import SwiftUI
 
+/// Rodzaj pomiaru — decyduje, o co pyta lista kontrolna (przy szafie nie ma
+/// sensu pytać o wodę i odpływ). Zapisywany w skanie (`room_type`).
+enum RoomType: String, CaseIterable, Identifiable {
+    case kitchen, wardrobe, bathroom, other
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .kitchen: return "Kuchnia"
+        case .wardrobe: return "Szafa"
+        case .bathroom: return "Łazienka"
+        case .other: return "Inne"
+        }
+    }
+
+    /// Instalacje, o które pytamy przy tym rodzaju pomiaru.
+    var installations: [MarkerKind] {
+        switch self {
+        case .kitchen: return [.waterCold, .waterHot, .drain, .socket, .power400, .gas, .vent]
+        case .wardrobe: return [.socket]
+        case .bathroom: return [.waterCold, .waterHot, .drain, .socket, .vent]
+        case .other: return [.socket]
+        }
+    }
+
+    init(scan: ScanPayload) { self = scan.roomType.flatMap(RoomType.init(rawValue:)) ?? .kitchen }
+
+    /// Zgadywanie z tytułu zlecenia / nazwy pomieszczenia (dla skanów bez `room_type`).
+    static func guess(_ texts: String...) -> RoomType {
+        let t = texts.joined(separator: " ").lowercased()
+        if t.contains("szaf") || t.contains("garderob") || t.contains("przedpok") || t.contains("sypial") { return .wardrobe }
+        if t.contains("łazien") || t.contains("lazien") { return .bathroom }
+        if t.contains("kuch") || t.contains("aneks") || t.contains("spiżar") || t.contains("jadal") { return .kitchen }
+        return .kitchen
+    }
+}
+
 /// Lista kontrolna pomiaru: czego brakuje, zanim wyjdziemy od klienta.
 /// Wymiary potwierdzone dalmierzem/ręcznie, odcinki przy otworach, wysokość,
 /// instalacje (albo potwierdzone „nie ma"), zdjęcia punktów.
@@ -23,12 +61,10 @@ enum MeasureCheck {
         let noneKey: String?
     }
 
-    /// Instalacje, o które trzeba zapytać przy każdej kuchni.
-    static let installations: [MarkerKind] = [.waterCold, .waterHot, .drain, .socket, .power400, .gas, .vent]
-
     static func items(_ scan: ScanPayload) -> [Item] {
         var out: [Item] = []
         let checks = Set(scan.checks ?? [])
+        let type = RoomType(scan: scan)
 
         // Wymiary ścian.
         for (i, w) in scan.walls.enumerated() where w.planned != true {
@@ -57,8 +93,16 @@ enum MeasureCheck {
             }
         }
 
+        // Szafa: przynajmniej jeden szkic przy ścianie.
+        if type == .wardrobe {
+            let n = scan.wardrobes.count
+            out.append(Item(id: "wardrobe", group: "Szafa", title: "Szkic szafy",
+                            detail: n > 0 ? (n == 1 ? "1 szafa" : "\(n) \(n < 5 ? "szafy" : "szaf")") : "dodaj szafę na ścianie (zaznacz ścianę → Szafa)",
+                            ok: n > 0, action: nil, noneKey: nil))
+        }
+
         // Instalacje.
-        for k in installations {
+        for k in type.installations {
             let n = scan.markers.filter { $0.kind == k.rawValue }.count
             let none = checks.contains("none:\(k.rawValue)")
             out.append(Item(id: "inst\(k.rawValue)", group: "Instalacje", title: k.label,

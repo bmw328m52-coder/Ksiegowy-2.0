@@ -5,13 +5,30 @@ import { SCAN_MARKER_KINDS, wallLetter } from "@/lib/scan2d";
 
 export type CheckItem = { id: string; group: string; title: string; detail: string; ok: boolean };
 
-/** Instalacje, o które trzeba zapytać przy każdej kuchni (MeasureCheck.installations). */
-const INSTALLATIONS = ["water_cold", "water_hot", "drain", "socket", "power_400", "gas", "vent"] as const;
+type RoomType = NonNullable<ScanData["room_type"]>;
+
+/** Instalacje, o które pytamy przy danym rodzaju pomiaru (RoomType.installations). */
+const INSTALLATIONS: Record<RoomType, (keyof typeof SCAN_MARKER_KINDS)[]> = {
+  kitchen: ["water_cold", "water_hot", "drain", "socket", "power_400", "gas", "vent"],
+  wardrobe: ["socket"],
+  bathroom: ["water_cold", "water_hot", "drain", "socket", "vent"],
+  other: ["socket"],
+};
+
+/** Rodzaj pomiaru: zapisany w skanie, a dla starszych skanów zgadywany z nazwy (RoomType.guess). */
+export function scanRoomType(scan: ScanData, ...texts: string[]): RoomType {
+  if (scan.room_type) return scan.room_type;
+  const t = texts.join(" ").toLowerCase();
+  if (/szaf|garderob|przedpok|sypial/.test(t)) return "wardrobe";
+  if (/łazien|lazien/.test(t)) return "bathroom";
+  return "kitchen";
+}
 
 const OPENING_NAMES: Record<string, string> = { door: "Drzwi", window: "Okno", opening: "Przejście" };
 
-export function scanChecklist(scan: ScanData): CheckItem[] {
+export function scanChecklist(scan: ScanData, name = ""): CheckItem[] {
   const out: CheckItem[] = [];
+  const type = scanRoomType(scan, name);
   const checks = new Set(scan.checks ?? []);
   const walls = scan.walls.filter((w) => !w.planned);
   const letter = (id: string) => wallLetter(scan.walls.findIndex((w) => w.id === id));
@@ -58,8 +75,19 @@ export function scanChecklist(scan: ScanData): CheckItem[] {
     }
   }
 
+  if (type === "wardrobe") {
+    const n = (scan.wardrobes ?? []).length;
+    out.push({
+      id: "wardrobe",
+      group: "Szafa",
+      title: "Szkic szafy",
+      detail: n > 0 ? (n === 1 ? "1 szafa" : `${n} ${n < 5 ? "szafy" : "szaf"}`) : "brak szkicu szafy",
+      ok: n > 0,
+    });
+  }
+
   const markers = scan.markers ?? [];
-  for (const k of INSTALLATIONS) {
+  for (const k of INSTALLATIONS[type]) {
     const n = markers.filter((m) => m.kind === k).length;
     const none = checks.has(`none:${k}`);
     out.push({

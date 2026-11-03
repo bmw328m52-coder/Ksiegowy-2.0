@@ -175,6 +175,8 @@ export type ScanData = {
   checks?: string[];
   /** Notatki z pomiaru (całe pomieszczenie) wpisane na iPadzie. */
   notes?: string;
+  /** Rodzaj pomiaru (RoomType w Checklist.swift) — decyduje o liście kontrolnej. */
+  room_type?: "kitchen" | "wardrobe" | "bathroom" | "other";
 };
 
 export type RoomScan = {

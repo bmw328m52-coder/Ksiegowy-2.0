@@ -9,7 +9,7 @@ export const skanerUrl = (jobId: string) => `luvianoskaner://job/${jobId}`;
 // (to samo, co pokazuje iPad przed wysłaniem).
 export default function ScanStatusCard({ jobId, scans }: { jobId: string; scans: RoomScan[] }) {
   const latest = scans[0];
-  const items = latest ? scanChecklist(latest.data) : [];
+  const items = latest ? scanChecklist(latest.data, latest.name) : [];
   const done = items.filter((i) => i.ok).length;
   const missing = items.filter((i) => !i.ok);
   const complete = latest && missing.length === 0;

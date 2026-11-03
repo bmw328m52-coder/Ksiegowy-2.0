@@ -87,7 +87,9 @@ struct ScanResultView: View {
         self.onRescan = onRescan
         self.onDone = onDone
         _saved = State(initialValue: saved)
-        _scan = State(initialValue: saved.scan)
+        var initial = saved.scan
+        if initial.roomType == nil { initial.roomType = RoomType.guess(job.title, saved.name).rawValue }
+        _scan = State(initialValue: initial)
         _name = State(initialValue: saved.name)
         _notes = State(initialValue: saved.scan.notes ?? "")
     }
@@ -600,8 +602,10 @@ struct ScanResultView: View {
             }
             .tint(tool == .drawWall ? PlanStyle.selected : Brand.ink)
             Menu {
-                Button { edit = .autoLayout } label: { Label("Rozstaw szafki automatycznie…", systemImage: "wand.and.stars") }
-                Divider()
+                if RoomType(scan: scan) == .kitchen {
+                    Button { edit = .autoLayout } label: { Label("Rozstaw szafki automatycznie…", systemImage: "wand.and.stars") }
+                    Divider()
+                }
                 ForEach(PlanEdit.objectKinds, id: \.category) { k in
                     Button(k.label) { addObject(k) }
                 }
@@ -811,6 +815,15 @@ struct ScanResultView: View {
                     .lineLimit(3...10)
                     .padding(12)
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Rodzaj pomiaru").font(.footnote).foregroundStyle(.secondary)
+                Picker("Rodzaj pomiaru", selection: Binding(get: { RoomType(scan: scan) },
+                                                            set: { t in apply { $0.roomType = t.rawValue } })) {
+                    ForEach(RoomType.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
             }
 
             ChecklistCard(items: checkItems, onAction: checkAction, onToggleNone: toggleNone)
