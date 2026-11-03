@@ -1,7 +1,7 @@
 name: iOS Skaner → TestFlight
 
-# Buduje, podpisuje (podpis zarządzany przez Apple w chmurze, klucz API App Store
-# Connect) i wysyła LUVIANO Skaner do TestFlight. Na iPadzie: apka TestFlight →
+# Buduje, podpisuje (certyfikat i profil zakładane przez klucz API App Store
+# Connect, .github/scripts/asc_signing.py) i wysyła LUVIANO Skaner do TestFlight. Na iPadzie: apka TestFlight →
 # Aktualizuj. Bez Sideloadly, bez 7-dniowego wygasania.
 #
 # Sekrety repo (Settings → Secrets and variables → Actions):
@@ -12,7 +12,7 @@ name: iOS Skaner → TestFlight
 on:
   push:
     branches: [main]
-    paths: ["ios/**", ".github/workflows/ios-testflight.yml"]
+    paths: ["ios/**", ".github/workflows/ios-testflight.yml", ".github/scripts/asc_signing.py"]
   workflow_dispatch:
 
 jobs:
@@ -60,16 +60,12 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      - name: Archive (podpis)
+
+      - name: Archive
         if: steps.gate.outputs.ok == 'true'
         working-directory: ios/LuvianoSkaner
         run: |
           set -o pipefail
-          # Własny designated requirement: domyślny porównuje nazwę certyfikatu
-          # („Apple Distribution: ARTUR GUŻESKI”), a „Ż” rozjeżdża się w normalizacji
-          # Unicode → „does not satisfy its designated Requirement”. Sprawdzamy tylko
-          # identyfikator + Team ID.
-          printf 'designated => anchor apple generic and identifier "pl.luviano.skaner" and certificate leaf[subject.OU] = "%s"\n' "$APPLE_TEAM_ID" > "$PWD/dr.txt"
           # Numer builda rośnie z każdym uruchomieniem (TestFlight wymaga unikalnego).
           xcodebuild archive \
             -project LuvianoSkaner.xcodeproj \
@@ -83,48 +79,73 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
-            OTHER_CODE_SIGN_FLAGS="--requirements $PWD/dr.txt" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             2>&1 | tee build.log | grep -E "error:|ARCHIVE" || true
           test -d build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app
-          # Diagnostyka podpisu jako adnotacje (czytelne bez logowania do GitHuba).
-          APP=build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app
-          codesign -dvv "$APP" 2>&1 | grep -E "Authority|TeamIdentifier|Signature=" | sed 's/^/::notice::archive /' || true
-          codesign -d --entitlements - --xml "$APP" 2>/dev/null | plutil -convert json -o - - | sed 's/^/::notice::archive-ent /' || true
 
-      - name: Eksport i wysyłka do TestFlight
+      # Podpis dystrybucyjny robimy sami, nie przez -exportArchive: Xcode wpisuje
+      # nazwę certyfikatu („…GUŻESKI”) do designated requirement w NFD, certyfikat
+      # ma NFC → App Store Connect: „Invalid Signature”. Szczegóły w asc_signing.py.
+      - name: Certyfikat i profil (API)
+        if: steps.gate.outputs.ok == 'true'
+        env:
+          BUNDLE_ID: pl.luviano.skaner
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          python3 -m venv /tmp/asc && /tmp/asc/bin/pip install -q pyjwt cryptography
+          /tmp/asc/bin/python .github/scripts/asc_signing.py "$RUNNER_TEMP/sign"
+
+      - name: Podpis i .ipa
+        if: steps.gate.outputs.ok == 'true'
+        working-directory: ios/LuvianoSkaner
+        run: |
+          set -eo pipefail
+          S="$RUNNER_TEMP/sign"
+          KC="$RUNNER_TEMP/ci.keychain-db"; PW=ci
+          security create-keychain -p $PW "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p $PW "$KC"
+          curl -fsSL -o "$S/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security import "$S/wwdr.cer" -k "$KC" -T /usr/bin/codesign
+          security import "$S/cert.p12" -k "$KC" -P ci -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $PW "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          SHA=$(cat "$S/cert_sha1")
+
+          rm -rf build/ipa && mkdir -p build/ipa/Payload
+          cp -R build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app build/ipa/Payload/
+          APP=build/ipa/Payload/LuvianoSkaner.app
+          cp "$S/profile.mobileprovision" "$APP/embedded.mobileprovision"
+          cat > "$S/ent.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>application-identifier</key><string>${APPLE_TEAM_ID}.pl.luviano.skaner</string>
+            <key>com.apple.developer.team-identifier</key><string>${APPLE_TEAM_ID}</string>
+            <key>get-task-allow</key><false/>
+            <key>beta-reports-active</key><true/>
+          </dict></plist>
+          EOF
+          if [ -d "$APP/Frameworks" ]; then
+            find "$APP/Frameworks" -maxdepth 1 \( -name "*.framework" -o -name "*.dylib" \) -print0 |
+              xargs -0 -I{} codesign -f -s "$SHA" --keychain "$KC" {}
+          fi
+          codesign -f -s "$SHA" --keychain "$KC" \
+            --entitlements "$S/ent.plist" --generate-entitlement-der \
+            --requirements "$S/dr.txt" "$APP"
+
+          codesign -dvv "$APP" 2>&1 | grep -E "Authority=Apple Distribution" | sed 's/^/::notice::podpis /' || true
+          codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 | sed 's/^/::notice::verify /'
+          codesign --verify --deep --strict "$APP"
+          (cd build/ipa && zip -qry ../LuvianoSkaner.ipa Payload)
+
+      - name: Wysyłka do TestFlight
         if: steps.gate.outputs.ok == 'true'
         working-directory: ios/LuvianoSkaner
         run: |
           set -o pipefail
-          cat > ExportOptions.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>export</string>
-            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>manageAppVersionAndBuildNumber</key><false/>
-          </dict></plist>
-          EOF
-          xcodebuild -exportArchive \
-            -archivePath build/LuvianoSkaner.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/export \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            2>&1 | tee -a build.log | grep -E "error:|EXPORT|Upload" || true
-          grep -q "EXPORT SUCCEEDED" build.log
-          # Weryfikacja podpisu po eksporcie (przed wysyłką).
-          rm -rf build/ipa && mkdir -p build/ipa && unzip -q build/export/*.ipa -d build/ipa
-          IAPP=build/ipa/Payload/LuvianoSkaner.app
-          codesign -dvv "$IAPP" 2>&1 | grep -E "Authority|TeamIdentifier" | sed 's/^/::notice::ipa /' || true
-          codesign -d -r- "$IAPP" 2>&1 | grep designated | sed 's/^/::notice::ipa-dr /' || true
-          codesign --verify --deep --strict --verbose=2 "$IAPP" 2>&1 | sed 's/^/::notice::verify /' || true
-          xcrun altool --upload-app -f build/export/*.ipa -t ios             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee -a build.log
+          xcrun altool --upload-app -f build/LuvianoSkaner.ipa -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee -a build.log
           grep -q "UPLOAD SUCCEEDED\|No errors uploading" build.log
           echo "Build ${{ github.run_number }} (${GITHUB_SHA::7}) wysłany — za ~10–20 min w TestFlight." >> "$GITHUB_STEP_SUMMARY"
 
@@ -133,4 +154,5 @@ jobs:
         working-directory: ios/LuvianoSkaner
         run: |
           { echo '```'; grep -E "error:|Error" build.log | head -40; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true
-          grep -E "error:" build.log | head -40 | while read -r line; do echo "::error::$line"; done || true
+          grep -E "error:|ERROR" build.log | head -40 | while read -r line; do echo "::error::$line"; done || true
+          security delete-keychain "$RUNNER_TEMP/ci.keychain-db" 2>/dev/null || true
