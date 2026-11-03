@@ -81,7 +81,10 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             2>&1 | tee build.log | grep -E "error:|ARCHIVE" || true
           test -d build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app
-          codesign -dvv build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app 2>&1 | grep -E "Authority|TeamIdentifier" || true
+          # Diagnostyka podpisu jako adnotacje (czytelne bez logowania do GitHuba).
+          APP=build/LuvianoSkaner.xcarchive/Products/Applications/LuvianoSkaner.app
+          codesign -dvv "$APP" 2>&1 | grep -E "Authority|TeamIdentifier|Signature=" | sed 's/^/::notice::archive /' || true
+          codesign -d --entitlements - --xml "$APP" 2>/dev/null | plutil -convert json -o - - | sed 's/^/::notice::archive-ent /' || true
 
       - name: Eksport i wysyłka do TestFlight
         if: steps.gate.outputs.ok == 'true'
@@ -93,7 +96,7 @@ jobs:
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>destination</key><string>export</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
             <key>signingStyle</key><string>automatic</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
@@ -108,7 +111,14 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee -a build.log | grep -E "error:|EXPORT|Upload" || true
-          grep -q "EXPORT SUCCEEDED\|Upload succeeded\|Uploaded" build.log
+          grep -q "EXPORT SUCCEEDED" build.log
+          # Weryfikacja podpisu po eksporcie (przed wysyłką).
+          rm -rf build/ipa && mkdir -p build/ipa && unzip -q build/export/*.ipa -d build/ipa
+          IAPP=build/ipa/Payload/LuvianoSkaner.app
+          codesign -dvv "$IAPP" 2>&1 | grep -E "Authority|TeamIdentifier" | sed 's/^/::notice::ipa /' || true
+          codesign --verify --deep --strict --verbose=2 "$IAPP" 2>&1 | sed 's/^/::notice::verify /' || true
+          xcrun altool --upload-app -f build/export/*.ipa -t ios             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | tee -a build.log
+          grep -q "UPLOAD SUCCEEDED\|No errors uploading" build.log
           echo "Build ${{ github.run_number }} (${GITHUB_SHA::7}) wysłany — za ~10–20 min w TestFlight." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Error summary
