@@ -17,7 +17,7 @@ on:
 
 jobs:
   testflight:
-    runs-on: macos-26
+    runs-on: macos-15
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
