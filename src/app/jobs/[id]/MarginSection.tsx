@@ -50,6 +50,9 @@ export default async function MarginSection({
   // „Bez faktury" ustawia stawkę 0 → kwoty są brutto (netto = brutto).
   const vatApplies = isVat && Number(job.vat_rate) > 0;
   const basis = vatApplies ? "netto" : "brutto";
+  // Koszty z faktur: VAT-owiec odlicza VAT naliczony (faktura idzie do JPK), więc realny
+  // koszt = netto — także przy zleceniu „bez faktury”, gdzie przychód jest brutto.
+  const costBasis = isVat ? "netto, VAT odliczony" : "brutto";
   const hasInvoices = m.invoiceCount > 0;
 
   // Pozycje pogrupowane po fakturze (faktura z KSeF potrafi mieć kilkadziesiąt linii).
@@ -152,11 +155,11 @@ export default async function MarginSection({
       {hasInvoices && (
         <div className="mt-3 pt-3 border-t border-[#f0efec] space-y-1.5 text-sm">
           <div className="flex justify-between">
-            <span className="text-[#8d8a85]">Wartość zlecenia ({basis})</span>
+            <span className="text-[#8d8a85]">Wartość zlecenia ({vatApplies ? "netto" : "bez VAT"})</span>
             <span className="tabular-nums text-[#1f1d1b]">{fmtPLN(m.revenueNet)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#8d8a85]">− Koszty z faktur ({basis})</span>
+            <span className="text-[#8d8a85]">− Koszty z faktur ({costBasis})</span>
             <span className="tabular-nums text-[#1f1d1b]">− {fmtPLN(m.invoiceCostsNet)}</span>
           </div>
           {m.revenueGross > 0 ? (
@@ -222,10 +225,10 @@ export default async function MarginSection({
             <div className="flex justify-between">
               <span className="text-[#8d8a85]">Faktury vs wycena</span>
               <span
-                className={`tabular-nums ${m.invoiceCostsNet > m.materialCostNet ? "text-red-700" : "text-[#3a6b4d]"}`}
+                className={`tabular-nums ${m.invoiceCostsGross > m.materialCostGross ? "text-red-700" : "text-[#3a6b4d]"}`}
               >
-                {m.invoiceCostsNet > m.materialCostNet ? "+" : "−"}
-                {fmtPLN(Math.abs(m.invoiceCostsNet - m.materialCostNet))}
+                {m.invoiceCostsGross > m.materialCostGross ? "+" : "−"}
+                {fmtPLN(Math.abs(m.invoiceCostsGross - m.materialCostGross))} brutto
               </span>
             </div>
           )}
