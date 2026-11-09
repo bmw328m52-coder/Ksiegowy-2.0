@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { calcDeal, type TaxForm } from "@/lib/tax";
 import { fmtPLN, parseAmount } from "@/lib/format";
 import type { QuoteTemplate } from "@/lib/dao/quote_templates.types";
@@ -27,6 +27,11 @@ function jobCostGross(job: JobOption): number {
 }
 
 type BomLine = { id: string; category: string; amountStr: string };
+
+// Czynsz warsztatu (z prądem) — koszt stały co miesiąc, jak ZUS. Kwota pamiętana lokalnie.
+const RENT_STORAGE_KEY = "calc.workshopRentMonthly";
+const DEFAULT_WORKSHOP_RENT = 300;
+const HOURS_PER_DAY = 8;
 
 function makeBomLine(category = ""): BomLine {
   return {
@@ -85,6 +90,8 @@ export default function CalculatorForm({
   const [showSave, setShowSave] = useState(false);
   const [pitFlat, setPitFlat] = useState(false);
   const [hoursStr, setHoursStr] = useState("");
+  const [timeUnit, setTimeUnit] = useState<"h" | "dni">("h");
+  const [rentStr, setRentStr] = useState(DEFAULT_WORKSHOP_RENT.toFixed(2));
   const [zusStr, setZusStr] = useState(defaultZusPelny.toFixed(2));
   const [hoursPerMonthStr, setHoursPerMonthStr] = useState("160");
   const [withInvoice, setWithInvoice] = useState(true);
@@ -98,6 +105,20 @@ export default function CalculatorForm({
   const router = useRouter();
   const [applyPending, setApplyPending] = useState(false);
   const [applyError, setApplyError] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(RENT_STORAGE_KEY);
+      if (saved !== null && saved !== "") setRentStr(saved);
+    } catch {}
+  }, []);
+
+  function onRentChange(v: string) {
+    setRentStr(v);
+    try {
+      localStorage.setItem(RENT_STORAGE_KEY, v);
+    } catch {}
+  }
 
   function loadTemplate(id: string) {
     setTemplateId(id);
@@ -144,6 +165,7 @@ export default function CalculatorForm({
         withInvoice,
         costsGross,
         zus: zusForJob,
+        rent: rentForJob,
         reserve: reserveAmount,
         hours,
         profit: netCashAfterReserves,
@@ -186,17 +208,21 @@ export default function CalculatorForm({
     [amount, vatRate, extraCosts, extraCostsVat, taxForm, isVatPayer, yearIncome, pitFlat]
   );
 
-  const hours = Math.max(0, parseAmount(hoursStr) ?? 0);
+  const timeValue = Math.max(0, parseAmount(hoursStr) ?? 0);
+  const hours = timeUnit === "dni" ? timeValue * HOURS_PER_DAY : timeValue;
   const zusMonthly = Math.max(0, parseAmount(zusStr) ?? 0);
   const hoursPerMonth = Math.max(1, parseAmount(hoursPerMonthStr) ?? 160);
   // Składka ZUS + zdrowotna to koszt stały co miesiąc, niezależnie od tego, czy zlecenie
   // idzie na fakturę. Przypisujemy zleceniu jego proporcjonalną część także bez faktury.
   const zusForJob = (zusMonthly / hoursPerMonth) * hours;
+  // Warsztat (czynsz + prąd) — ta sama logika: miesięczna kwota rozbita na godziny pracy.
+  const rentMonthly = Math.max(0, parseAmount(rentStr) ?? 0);
+  const rentForJob = (rentMonthly / hoursPerMonth) * hours;
   // Bez faktury: koszt = brutto. Jeśli VATowiec może odliczyć VAT od kosztów, efektywny koszt = netto.
   const canDeductVat = !withInvoice && isVatPayer && deductCostsVat;
   const recoveredVat = canDeductVat ? extraCostsVat : 0;
   const profitNoInvoice = amount - costsGross + recoveredVat;
-  const netCashAfterZus = (withInvoice ? result.netCash : profitNoInvoice) - zusForJob;
+  const netCashAfterZus = (withInvoice ? result.netCash : profitNoInvoice) - zusForJob - rentForJob;
   // Rezerwa: 26 dni urlopu × 8 h = 208 h, 10 dni L4 × 8 h = 80 h, na rok 1728 h produktywnych
   const reserveRatio = ((reserveVacation ? 208 : 0) + (reserveSick ? 80 : 0)) / 1728;
   const reserveAmount = netCashAfterZus * reserveRatio;
@@ -563,14 +589,35 @@ export default function CalculatorForm({
       </Section>
 
       <Section title="Stawka godzinowa (opcjonalnie)">
-        <Field label="Liczba godzin na zlecenie">
-          <input
-            inputMode="decimal"
-            value={hoursStr}
-            onChange={(e) => setHoursStr(e.target.value)}
-            placeholder="np. 40"
-            className="input"
-          />
+        <Field label="Czas pracy nad zleceniem">
+          <div className="flex gap-2">
+            <input
+              inputMode="decimal"
+              value={hoursStr}
+              onChange={(e) => setHoursStr(e.target.value)}
+              placeholder={timeUnit === "dni" ? "np. 5" : "np. 40"}
+              className="input flex-1"
+            />
+            <div className="flex shrink-0 rounded-lg border border-zinc-200 bg-white p-0.5">
+              {(["h", "dni"] as const).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setTimeUnit(u)}
+                  className={`px-3 rounded-md text-sm ${
+                    timeUnit === u ? "bg-[#a06f3f] text-white font-medium" : "text-zinc-600"
+                  }`}
+                >
+                  {u === "h" ? "godz." : "dni"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {timeUnit === "dni" && timeValue > 0 && (
+            <span className="text-[11px] text-zinc-500">
+              = {hours} h ({HOURS_PER_DAY} h / dzień)
+            </span>
+          )}
         </Field>
 
         <div className="flex flex-col gap-1.5">
@@ -613,6 +660,21 @@ export default function CalculatorForm({
             />
           </Field>
         </div>
+        <Field label="Warsztat — czynsz z prądem / mies. (PLN)">
+          <input
+            inputMode="decimal"
+            value={rentStr}
+            onChange={(e) => onRentChange(e.target.value)}
+            placeholder="np. 300"
+            className="input"
+          />
+          {rentMonthly > 0 && (
+            <span className="text-[11px] text-zinc-500">
+              ≈ {fmtPLN(rentMonthly / hoursPerMonth)} / h · {fmtPLN((rentMonthly / hoursPerMonth) * HOURS_PER_DAY)} / dzień
+              {hours > 0 && <> · na to zlecenie: <span className="font-medium tabular-nums">{fmtPLN(rentForJob)}</span></>}
+            </span>
+          )}
+        </Field>
         <div className="flex flex-wrap gap-1.5">
           <ZusPreset label="Ulga" amount={defaultZusUlga} onPick={setZusStr} />
           <ZusPreset label="Mały" amount={defaultZusMaly} onPick={setZusStr} />
@@ -631,6 +693,8 @@ export default function CalculatorForm({
             hours={hours}
             zusForJob={zusForJob}
             zusMonthly={zusMonthly}
+            rentForJob={rentForJob}
+            rentMonthly={rentMonthly}
             hoursPerMonth={hoursPerMonth}
             netCash={result.netCash}
             netCashAfterZus={netCashAfterZus}
@@ -658,6 +722,7 @@ export default function CalculatorForm({
         profitNoInvoice={profitNoInvoice}
         recoveredVat={recoveredVat}
         zusForJob={zusForJob}
+        rentForJob={rentForJob}
         reserveAmount={reserveAmount}
         netCashFinal={netCashAfterReserves}
         hours={hours}
@@ -684,11 +749,12 @@ export default function CalculatorForm({
             <div className="flex justify-between"><span>Kwota zlecenia</span><span className="tabular-nums text-[#3a3633] font-medium">{fmtPLN(amount)}</span></div>
             <div className="flex justify-between"><span>Koszty</span><span className="tabular-nums">{fmtPLN(costsGross)}</span></div>
             {zusForJob > 0 && <div className="flex justify-between"><span>ZUS (część zlecenia)</span><span className="tabular-nums">{fmtPLN(zusForJob)}</span></div>}
+            {rentForJob > 0 && <div className="flex justify-between"><span>Warsztat (czynsz + prąd)</span><span className="tabular-nums">{fmtPLN(rentForJob)}</span></div>}
             {reserveAmount > 0 && <div className="flex justify-between"><span>Rezerwa urlop/L4</span><span className="tabular-nums">{fmtPLN(reserveAmount)}</span></div>}
             <div className="flex justify-between pt-0.5 border-t border-[#f0efec]"><span>Zysk na czysto</span><span className="tabular-nums text-[#3a6b4d] font-semibold">{fmtPLN(netCashAfterReserves)}</span></div>
           </div>
           <p className="text-[10px] text-[#b3b0aa]">
-            Ta wycena (kwota, koszty, ZUS, urlop, zysk) pojawi się na karcie zlecenia 1:1.
+            Ta wycena (kwota, koszty, ZUS, warsztat, urlop, zysk) pojawi się na karcie zlecenia 1:1.
           </p>
         </div>
       )}
@@ -759,6 +825,8 @@ function HourlyRatePanel({
   hours,
   zusForJob,
   zusMonthly,
+  rentForJob,
+  rentMonthly,
   hoursPerMonth,
   netCash,
   netCashAfterZus,
@@ -776,6 +844,8 @@ function HourlyRatePanel({
   hours: number;
   zusForJob: number;
   zusMonthly: number;
+  rentForJob: number;
+  rentMonthly: number;
   hoursPerMonth: number;
   netCash: number;
   netCashAfterZus: number;
@@ -794,7 +864,16 @@ function HourlyRatePanel({
   const reserveLabel = [reserveVacation ? "urlop" : null, reserveSick ? "L4" : null]
     .filter(Boolean)
     .join(" + ");
-  const tagBase = withInvoice ? "po VAT, PIT i ZUS" : "kwota − koszty − ZUS (gotówka)";
+  const tagBase = withInvoice
+    ? `po VAT, PIT, ZUS${rentForJob > 0 ? " i warsztacie" : ""}`
+    : `kwota − koszty − ZUS${rentForJob > 0 ? " − warsztat" : ""} (gotówka)`;
+  const rentRow = rentForJob > 0 && (
+    <Row
+      label={`− Warsztat (${fmtPLN(rentMonthly)}/${hoursPerMonth}h × ${hours}h)`}
+      value={`− ${fmtPLN(rentForJob)}`}
+      sub
+    />
+  );
   return (
     <div className="space-y-2">
       <div
@@ -839,7 +918,8 @@ function HourlyRatePanel({
                 value={`− ${fmtPLN(zusForJob)}`}
                 sub
               />
-              <Row label="= Na rękę po ZUS" value={fmtPLN(netCashAfterZus)} bold />
+              {rentRow}
+              <Row label={rentForJob > 0 ? "= Na rękę po ZUS i warsztacie" : "= Na rękę po ZUS"} value={fmtPLN(netCashAfterZus)} bold />
               {reserveActive && (
                 <Row
                   label={`− Rezerwa ${reserveLabel}`}
@@ -869,7 +949,8 @@ function HourlyRatePanel({
                 value={`− ${fmtPLN(zusForJob)}`}
                 sub
               />
-              <Row label="= Do kieszeni po ZUS" value={fmtPLN(netCashAfterZus)} bold />
+              {rentRow}
+              <Row label={rentForJob > 0 ? "= Do kieszeni po ZUS i warsztacie" : "= Do kieszeni po ZUS"} value={fmtPLN(netCashAfterZus)} bold />
               {reserveActive && (
                 <Row
                   label={`− Rezerwa ${reserveLabel}`}
@@ -925,6 +1006,7 @@ function ResultPanel({
   profitNoInvoice,
   recoveredVat,
   zusForJob,
+  rentForJob,
   reserveAmount,
   netCashFinal,
   hours,
@@ -940,6 +1022,7 @@ function ResultPanel({
   profitNoInvoice: number;
   recoveredVat: number;
   zusForJob: number;
+  rentForJob: number;
   reserveAmount: number;
   netCashFinal: number;
   hours: number;
@@ -953,7 +1036,7 @@ function ResultPanel({
   // Finalna „na czysto" = po ZUS i rezerwach (spójnie z panelem stawki /h).
   const displayCash = netCashFinal;
   const recovered = recoveredVat > 0;
-  const hasDeductions = zusForJob > 0 || reserveAmount > 0;
+  const hasDeductions = zusForJob > 0 || rentForJob > 0 || reserveAmount > 0;
   const zusNeedsHours = zusMonthly > 0 && hours === 0;
 
   return (
@@ -984,6 +1067,12 @@ function ResultPanel({
                 <span className="tabular-nums">− {fmtPLN(zusForJob)}</span>
               </div>
             )}
+            {rentForJob > 0 && (
+              <div className="flex items-baseline justify-between">
+                <span>− Warsztat (czynsz + prąd)</span>
+                <span className="tabular-nums">− {fmtPLN(rentForJob)}</span>
+              </div>
+            )}
             {reserveAmount > 0 && (
               <div className="flex items-baseline justify-between">
                 <span>− Rezerwa wolnego</span>
@@ -994,7 +1083,7 @@ function ResultPanel({
         )}
         {zusNeedsHours && (
           <p className="text-[11px] text-amber-700 mt-1.5">
-            Podaj „Liczbę godzin na zlecenie”, aby doliczyć ZUS ({fmtPLN(zusMonthly)}/mies.) do wyniku.
+            Podaj „Czas pracy nad zleceniem”, aby doliczyć ZUS ({fmtPLN(zusMonthly)}/mies.) i warsztat do wyniku.
           </p>
         )}
       </div>
@@ -1055,6 +1144,9 @@ function ResultPanel({
                 {zusForJob > 0 && (
                   <Row label="− ZUS (część zlecenia)" value={`− ${fmtPLN(zusForJob)}`} sub />
                 )}
+                {rentForJob > 0 && (
+                  <Row label="− Warsztat (czynsz + prąd)" value={`− ${fmtPLN(rentForJob)}`} sub />
+                )}
                 {reserveAmount > 0 && (
                   <Row label="− Rezerwa wolnego" value={`− ${fmtPLN(reserveAmount)}`} sub />
                 )}
@@ -1079,6 +1171,9 @@ function ResultPanel({
                 />
                 {zusForJob > 0 && (
                   <Row label="− ZUS (część zlecenia)" value={`− ${fmtPLN(zusForJob)}`} sub />
+                )}
+                {rentForJob > 0 && (
+                  <Row label="− Warsztat (czynsz + prąd)" value={`− ${fmtPLN(rentForJob)}`} sub />
                 )}
                 {reserveAmount > 0 && (
                   <Row label="− Rezerwa wolnego" value={`− ${fmtPLN(reserveAmount)}`} sub />

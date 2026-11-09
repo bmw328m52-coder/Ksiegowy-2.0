@@ -543,12 +543,18 @@ function CalcQuoteCard({ q }: { q: CalcQuote }) {
           <p className="font-semibold text-sm tabular-nums text-[#3a6b4d]">{fmtPLN(q.profit)}</p>
         </div>
       </div>
-      {(q.zus > 0 || q.reserve > 0) && (
+      {(q.zus > 0 || (q.rent ?? 0) > 0 || q.reserve > 0) && (
         <div className="mt-2.5 pt-2.5 border-t border-[#e7d3b3] text-[11px] text-[#7d5530] space-y-0.5">
           {q.zus > 0 && (
             <div className="flex justify-between">
               <span>ZUS (część zlecenia{q.hours > 0 ? `, ${q.hours} h` : ""})</span>
               <span className="tabular-nums">− {fmtPLN(q.zus)}</span>
+            </div>
+          )}
+          {(q.rent ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <span>Warsztat (czynsz + prąd)</span>
+              <span className="tabular-nums">− {fmtPLN(q.rent ?? 0)}</span>
             </div>
           )}
           {q.reserve > 0 && (

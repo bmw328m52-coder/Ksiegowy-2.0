@@ -75,6 +75,8 @@ export type CalcQuote = {
   withInvoice: boolean;
   costsGross: number;
   zus: number;
+  /** Część czynszu warsztatu (z prądem) przypadająca na zlecenie. Brak w starszych migawkach. */
+  rent?: number;
   reserve: number;
   hours: number;
   profit: number;
