@@ -13,6 +13,7 @@ type InvoiceLite = {
   amount_gross: string | null;
   ocr_status: keyof typeof OCR_STATUS_LABELS;
   file_mime: string | null;
+  funded_by_grant?: boolean;
 };
 
 export default function InvoicesListClient({
@@ -30,18 +31,28 @@ export default function InvoicesListClient({
   const [q, setQ] = useState("");
   const [showAssigned, setShowAssigned] = useState(false);
   const assigned = useMemo(() => new Set(assignedIds), [assignedIds]);
-  const hiddenCount = invoices.filter((inv) => assigned.has(inv.id)).length;
+  // Schowane: przypięte w całości do zleceń + zakupy z dotacji PUP (mają swój ekran).
+  const isHidden = useMemo(
+    () => (inv: InvoiceLite) => assigned.has(inv.id) || inv.funded_by_grant === true,
+    [assigned],
+  );
+  const jobCount = invoices.filter((inv) => assigned.has(inv.id)).length;
+  const grantCount = invoices.filter((inv) => inv.funded_by_grant === true && !assigned.has(inv.id)).length;
+  const hiddenCount = jobCount + grantCount;
+  const hiddenLabel = [jobCount > 0 ? `${jobCount} w zleceniach` : null, grantCount > 0 ? `${grantCount} z dotacji` : null]
+    .filter(Boolean)
+    .join(", ");
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     // Szukanie przeszukuje wszystko, także przypisane.
-    if (!needle) return showAssigned ? invoices : invoices.filter((inv) => !assigned.has(inv.id));
+    if (!needle) return showAssigned ? invoices : invoices.filter((inv) => !isHidden(inv));
     return invoices.filter((inv) => {
       const s = (inv.supplier_name ?? "").toLowerCase();
       const n = (inv.invoice_number ?? "").toLowerCase();
       return s.includes(needle) || n.includes(needle);
     });
-  }, [invoices, q, showAssigned, assigned]);
+  }, [invoices, q, showAssigned, isHidden]);
 
   if (invoices.length === 0) return null;
 
@@ -76,8 +87,8 @@ export default function InvoicesListClient({
           className="w-full rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 active:bg-zinc-50"
         >
           {showAssigned
-            ? `Schowaj przypisane do zleceń (${hiddenCount})`
-            : `Pokaż przypisane do zleceń (${hiddenCount})`}
+            ? `Schowaj ogarnięte (${hiddenLabel})`
+            : `Pokaż schowane (${hiddenLabel})`}
         </button>
       )}
 
@@ -89,7 +100,7 @@ export default function InvoicesListClient({
 
       {filtered.length === 0 ? (
         <p className="text-sm text-zinc-500 text-center py-8">
-          {q ? <>Brak wyników dla &quot;{q}&quot;.</> : "Wszystkie faktury są przypisane do zleceń 👍"}
+          {q ? <>Brak wyników dla &quot;{q}&quot;.</> : "Wszystko ogarnięte — faktury są w zleceniach albo w dotacji 👍"}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
