@@ -49,11 +49,12 @@ export default async function MarginSection({
   // VAT liczony tylko, gdy jesteś VAT-owcem I zlecenie ma niezerową stawkę.
   // „Bez faktury" ustawia stawkę 0 → kwoty są brutto (netto = brutto).
   const vatApplies = isVat && Number(job.vat_rate) > 0;
-  const basis = vatApplies ? "netto" : "brutto";
-  // Koszty z faktur: VAT-owiec odlicza VAT naliczony (faktura idzie do JPK), więc realny
-  // koszt = netto — także przy zleceniu „bez faktury”, gdzie przychód jest brutto.
-  const costBasis = isVat ? "netto, VAT odliczony" : "brutto";
   const hasInvoices = m.invoiceCount > 0;
+  // Na razie Artur porównuje wszystko w brutto (wycena też jest brutto). VAT rozliczamy
+  // osobnymi wierszami: należny ze sprzedaży (gdy zlecenie z fakturą) i naliczony z faktur.
+  const grossDiff = m.revenueGross - m.invoiceCostsGross;
+  const salesVat = vatApplies ? m.revenueGross - m.revenueNet : 0;
+  const inputVat = isVat ? m.invoiceCostsGross - m.invoiceCostsNet : 0;
 
   // Pozycje pogrupowane po fakturze (faktura z KSeF potrafi mieć kilkadziesiąt linii).
   const groups = new Map<string, typeof lines>();
@@ -155,16 +156,32 @@ export default async function MarginSection({
       {hasInvoices && (
         <div className="mt-3 pt-3 border-t border-[#f0efec] space-y-1.5 text-sm">
           <div className="flex justify-between">
-            <span className="text-[#8d8a85]">Wartość zlecenia ({vatApplies ? "netto" : "bez VAT"})</span>
-            <span className="tabular-nums text-[#1f1d1b]">{fmtPLN(m.revenueNet)}</span>
+            <span className="text-[#8d8a85]">Wartość zlecenia (brutto)</span>
+            <span className="tabular-nums text-[#1f1d1b]">{fmtPLN(m.revenueGross)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#8d8a85]">− Koszty z faktur ({costBasis})</span>
-            <span className="tabular-nums text-[#1f1d1b]">− {fmtPLN(m.invoiceCostsNet)}</span>
+            <span className="text-[#8d8a85]">− Koszty z faktur (brutto)</span>
+            <span className="tabular-nums text-[#1f1d1b]">− {fmtPLN(m.invoiceCostsGross)}</span>
           </div>
+          <div className="flex justify-between pt-1.5 border-t border-[#f0efec]">
+            <span className="text-[#3a3633]">= Różnica brutto</span>
+            <span className="tabular-nums font-medium text-[#1f1d1b]">{fmtPLN(grossDiff)}</span>
+          </div>
+          {salesVat > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-[#8d8a85]">− VAT należny ze sprzedaży (do US)</span>
+              <span className="tabular-nums text-[#3a3633]">− {fmtPLN(salesVat)}</span>
+            </div>
+          )}
+          {inputVat > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-[#8d8a85]">+ VAT z faktur kosztowych (odliczasz w JPK)</span>
+              <span className="tabular-nums text-[#3a3633]">+ {fmtPLN(inputVat)}</span>
+            </div>
+          )}
           {m.revenueGross > 0 ? (
             <div className="flex items-center justify-between pt-1.5 border-t border-[#f0efec]">
-              <span className="font-semibold text-[#1f1d1b]">Zysk</span>
+              <span className="font-semibold text-[#1f1d1b]">{salesVat > 0 || inputVat > 0 ? "= Zysk po rozliczeniu VAT" : "Zysk"}</span>
               <span className="flex items-center gap-2">
                 {m.realMarginPct !== null && <MarginBadge pct={m.realMarginPct} />}
                 <span
@@ -202,15 +219,15 @@ export default async function MarginSection({
           <span>
             Szacunek z wyceny
             {m.materialCount > 0 && (
-              <span className="ml-1 tabular-nums">· materiały {fmtPLN(m.materialCostNet)}</span>
+              <span className="ml-1 tabular-nums">· materiały {fmtPLN(m.materialCostGross)} brutto</span>
             )}
           </span>
           <span className="text-[#b3b0aa] group-open:rotate-180 transition-transform">▾</span>
         </summary>
         <div className="px-3 pb-3 space-y-1.5 text-xs">
           <div className="flex justify-between">
-            <span className="text-[#8d8a85]">Materiały z wyceny ({m.materialCount} poz., {basis})</span>
-            <span className="tabular-nums text-[#3a3633]">{m.materialCount > 0 ? fmtPLN(m.materialCostNet) : "—"}</span>
+            <span className="text-[#8d8a85]">Materiały z wyceny ({m.materialCount} poz., brutto)</span>
+            <span className="tabular-nums text-[#3a3633]">{m.materialCount > 0 ? fmtPLN(m.materialCostGross) : "—"}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#8d8a85]">Zysk szacunkowy</span>
