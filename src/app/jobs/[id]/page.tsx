@@ -82,7 +82,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
 
 
-        <StageActions jobId={id} status={job.status} />
+        <StageActions
+          jobId={id}
+          status={job.status}
+          completedDate={job.completed_date}
+          paidDate={job.paid_date}
+        />
 
         <StageTimeline stages={stages} />
 
@@ -379,7 +384,17 @@ function StageConnector({ state, tone }: { state: StageState; tone: string }) {
   return <span aria-hidden className="mt-0.5 w-0.5 flex-1 min-h-[14px]" style={style} />;
 }
 
-function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
+function StageActions({
+  jobId,
+  status,
+  completedDate,
+  paidDate,
+}: {
+  jobId: string;
+  status: JobStatus;
+  completedDate: string | null;
+  paidDate: string | null;
+}) {
   if (status === "cancelled") return null;
 
   const idx = JOB_STATUS_WORKFLOW.indexOf(status);
@@ -463,11 +478,34 @@ function StageActions({ jobId, status }: { jobId: string; status: JobStatus }) {
   if (!canAdvance && !canRevert) return null;
   const nextLabel = canAdvance ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx + 1]] : null;
   const advance = advanceJobStatusAction.bind(null, jobId);
+  // Zamykanie (montaż / rozliczenie) pyta o datę — przy nadrabianiu zaległości
+  // „dziś” wrzucało przychód do złego miesiąca.
+  const nextStatus = canAdvance ? JOB_STATUS_WORKFLOW[idx + 1] : null;
+  const today = new Date().toISOString().slice(0, 10);
+  const askDate =
+    nextStatus === "installed"
+      ? { label: "Kiedy zamontowane / zakończone?", value: completedDate ?? today }
+      : nextStatus === "settled"
+        ? { label: "Kiedy klient zapłacił?", value: paidDate ?? today }
+        : null;
 
   return (
     <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
       {canAdvance && (
-        <form action={advance} className="flex-1">
+        <form action={advance} className="flex-1 flex flex-col gap-2">
+          {askDate && (
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-[#e2c79c] bg-[#fbf6ee] px-3 py-2">
+              <span className="text-xs font-medium text-[#7d5530]">{askDate.label}</span>
+              <input
+                type="date"
+                name="date"
+                required
+                defaultValue={askDate.value}
+                max={today}
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900"
+              />
+            </label>
+          )}
           <button
             type="submit"
             className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"

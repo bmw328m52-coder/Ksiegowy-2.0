@@ -177,11 +177,21 @@ export async function updateJobAction(
   return {};
 }
 
-export async function markJobPaidAction(id: string) {
+// Data wybrana przy zamykaniu etapu (formularz „Kiedy?”). Pusta → null (fallback: dziś).
+function pickedDate(formData: FormData | undefined, today: string): string | null {
+  const raw = formData instanceof FormData ? String(formData.get("date") ?? "").trim() : "";
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("Nieprawidłowa data.");
+  if (raw > today) throw new Error("Data w przyszłości — wybierz dzisiejszą lub wcześniejszą.");
+  return raw;
+}
+
+export async function markJobPaidAction(id: string, formData?: FormData) {
   const job = await getJob(id);
   if (!job) throw new Error("Zlecenie nie istnieje.");
 
   const today = new Date().toISOString().slice(0, 10);
+  const picked = pickedDate(formData, today);
   if (job.due_date && job.due_date > today) {
     throw new Error(
       "Termin realizacji w przyszłości — nie można oznaczyć jako opłacone. Zmień datę realizacji w edycji zlecenia."
@@ -192,8 +202,9 @@ export async function markJobPaidAction(id: string) {
     .from("jobs")
     .update({
       status: "settled",
-      paid_date: job.paid_date ?? today,
-      completed_date: job.completed_date ?? today,
+      paid_date: picked ?? job.paid_date ?? today,
+      // Zapłata nie może być przed zakończeniem — bez daty zakończenia przyjmij datę zapłaty.
+      completed_date: job.completed_date ?? picked ?? today,
     })
     .eq("id", id);
   if (error) throw error;
@@ -225,7 +236,7 @@ export async function unmarkJobPaidAction(id: string) {
   revalidatePath("/dashboard");
 }
 
-export async function advanceJobStatusAction(id: string) {
+export async function advanceJobStatusAction(id: string, formData?: FormData) {
   const job = await getJob(id);
   if (!job) throw new Error("Zlecenie nie istnieje.");
   if (job.status === "cancelled") throw new Error("Zlecenie anulowane — nie można posuwać etapu.");
@@ -243,12 +254,13 @@ export async function advanceJobStatusAction(id: string) {
     }
   }
   if (next === "settled") {
-    return markJobPaidAction(id);
+    return markJobPaidAction(id, formData);
   }
+  const picked = pickedDate(formData, today);
 
   const update: Record<string, unknown> = { status: next };
   if (next === "installed") {
-    update.completed_date = job.completed_date ?? today;
+    update.completed_date = picked ?? job.completed_date ?? today;
   }
   if (next === "accepted" && !job.deposit_date && Number(job.deposit_amount) > 0) {
     update.deposit_date = today;
