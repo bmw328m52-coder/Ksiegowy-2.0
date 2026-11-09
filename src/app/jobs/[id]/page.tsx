@@ -77,25 +77,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </section>
 
+        {!isCancelled && <MarginSection job={job} />}
+
         {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
 
-        <Link
-          href={`/jobs/${id}/wycena`}
-          className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[#a06f3f] px-4 py-3.5 text-white shadow-[0_2px_8px_rgba(160,111,63,0.18)] hover:bg-[#7d5530] active:opacity-90 transition-colors"
-        >
-          <span className="flex items-center gap-2.5 min-w-0">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <rect x="4" y="2" width="16" height="20" rx="2" />
-              <path d="M8 6h8" />
-              <path d="M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />
-            </svg>
-            <span className="flex flex-col leading-tight min-w-0">
-              <span className="text-sm font-semibold">Wycena pozycji</span>
-              <span className="text-[11px] text-white/80 truncate">Pozycje, materiały i ceny</span>
-            </span>
-          </span>
-          <span aria-hidden className="text-white/90">→</span>
-        </Link>
 
         <StageActions jobId={id} status={job.status} />
 
@@ -108,6 +93,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <RoomScanSection jobId={id} scans={scans} />
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <Link
+            href={`/jobs/${id}/wycena`}
+            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[#f6f6f5] hover:border-[#d8d7d3] transition-colors sm:col-span-2"
+          >
+            <div className="flex items-center justify-between">
+              <span>Wycena pozycji</span>
+              <span className="text-[#8d8a85]">→</span>
+            </div>
+            <p className="text-xs text-[#8d8a85] mt-1">
+              Pozycje, materiały i ceny
+            </p>
+          </Link>
           <Link
             href={`/jobs/${id}/zakupy`}
             className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[#f6f6f5] hover:border-[#d8d7d3] transition-colors"
@@ -146,8 +143,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {!isCancelled && (
           <LaborSection jobId={id} defaultDate={job.completed_date ?? new Date().toISOString().slice(0, 10)} />
         )}
-
-        {!isCancelled && <MarginSection job={job} />}
 
         {job.notes && (
           <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
