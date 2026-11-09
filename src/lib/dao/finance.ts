@@ -3,7 +3,7 @@ import { listJobs } from "./jobs";
 import { getJobMarginsMap, computeJobMarginFull, type JobMarginFull } from "@/lib/jobMargin";
 import { getUserSettingsOrDefault } from "./user_settings";
 import { listDeadlines } from "./deadlines";
-import { JOB_STATUS_DONE, type Job, type JobStatus } from "./jobs.types";
+import { isJobMissingSalesInvoice, type Job } from "./jobs.types";
 import { isOverdueUnpaid } from "@/lib/dao/invoices.types";
 
 function toNum(v: string | number | null | undefined): number {
@@ -252,11 +252,7 @@ export async function getFinanceAttention(now: Date = new Date()): Promise<Atten
       receivables += toNum(job.amount_gross);
       receivablesCount += 1;
     }
-    if (
-      (JOB_STATUS_DONE as JobStatus[]).includes(job.status) &&
-      !job.invoiced &&
-      toNum(job.amount_gross) > 0
-    ) {
+    if (isJobMissingSalesInvoice(job)) {
       uninvoiced += toNum(job.amount_gross);
       uninvoicedCount += 1;
     }
@@ -281,7 +277,7 @@ export async function getFinanceAttention(now: Date = new Date()): Promise<Atten
       severity: "low",
       title: `Bez faktury sprzedaży (${uninvoicedCount})`,
       hint: "Zlecenia zakończone bez wystawionej faktury dla klienta.",
-      href: "/jobs",
+      href: "/jobs?f=uninvoiced",
       amount: uninvoiced,
       count: uninvoicedCount,
     });

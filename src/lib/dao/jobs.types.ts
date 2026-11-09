@@ -53,6 +53,24 @@ export const JOB_STATUS_WORKFLOW: JobStatus[] = [
 // Statusy zlecenia traktowane jako "wykonane" (przychód księgowany)
 export const JOB_STATUS_DONE: JobStatus[] = ["installed", "settled", "archived"];
 
+/**
+ * Zlecenie zakończone, które POWINNO mieć fakturę sprzedaży, a jej nie ma.
+ * Zlecenia „bez faktury” (vat_rate = 0, świadomy wybór) się nie liczą.
+ */
+export function isJobMissingSalesInvoice(j: {
+  status: JobStatus;
+  invoiced?: boolean | null;
+  amount_gross: string | number | null;
+  vat_rate: string | number | null;
+}): boolean {
+  return (
+    JOB_STATUS_DONE.includes(j.status) &&
+    !j.invoiced &&
+    Number(j.amount_gross ?? 0) > 0 &&
+    Number(j.vat_rate ?? 0) > 0
+  );
+}
+
 // Od tego etapu zlecenie liczy się do RENTOWNOŚCI. Wcześniejsze etapy (zapytanie,
 // pomiar, wycena, akceptacja) to jeszcze oferta — bez realnego zaangażowania kosztów,
 // więc nie zaniżają/zawyżają wyniku firmy. Realne koszty ruszają od zamówienia materiałów.

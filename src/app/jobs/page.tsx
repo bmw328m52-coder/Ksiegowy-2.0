@@ -3,6 +3,7 @@ import { listJobs } from "@/lib/dao/jobs";
 import {
   JOB_STATUS_WORKFLOW,
   JOB_STATUS_CLOSED,
+  isJobMissingSalesInvoice,
   type JobStatus,
 } from "@/lib/dao/jobs.types";
 import {
@@ -28,11 +29,12 @@ import {
 export const metadata = { title: "Zlecenia" };
 export const dynamic = "force-dynamic";
 
-type FilterKey = "active" | "overdue" | PipelineGroup | "all";
+type FilterKey = "active" | "overdue" | "uninvoiced" | PipelineGroup | "all";
 
 const FILTER_LABELS: Record<FilterKey, string> = {
   active: "Aktywne",
   overdue: "Zaległe",
+  uninvoiced: "Bez faktury sprzedaży",
   lead: PIPELINE_GROUP_LABELS.lead,
   pomiar: PIPELINE_GROUP_LABELS.pomiar,
   wycena: PIPELINE_GROUP_LABELS.wycena,
@@ -83,6 +85,8 @@ export default async function JobsPage({
         return !CLOSED_SET.has(j.status);
       case "overdue":
         return isJobOverdue(j, todayIso);
+      case "uninvoiced":
+        return isJobMissingSalesInvoice(j);
       default:
         return jobPipelineGroup(j.status) === key;
     }
@@ -105,10 +109,22 @@ export default async function JobsPage({
   const withQ = (key: FilterKey) =>
     `/jobs?f=${key}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
   const overdueCount = count("overdue");
+  const uninvoicedCount = count("uninvoiced");
   const segments: SegmentItem[] = [
     { key: "active", label: "Aktywne", href: withQ("active"), count: count("active") },
     ...(overdueCount > 0
       ? [{ key: "overdue", label: "Zaległe", href: withQ("overdue"), count: overdueCount, tone: "warn" as const }]
+      : []),
+    ...(uninvoicedCount > 0 || filter === "uninvoiced"
+      ? [
+          {
+            key: "uninvoiced",
+            label: "Bez faktury sprz.",
+            href: withQ("uninvoiced"),
+            count: uninvoicedCount,
+            tone: "warn" as const,
+          },
+        ]
       : []),
     ...PIPELINE_GROUP_ORDER.map((g) => ({
       key: g,
