@@ -207,6 +207,27 @@ export async function assignCostLineAction(lineId: string, formData: FormData) {
   revalidatePath("/invoices");
 }
 
+/** Przypina wszystkie pozycje faktury do jednego zlecenia (lub zdejmuje → koszt ogólny). */
+export async function assignInvoiceToJobAction(formData: FormData) {
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+  const raw = String(formData.get("job_id") ?? "");
+  if (!invoiceId || raw === "__mixed__") return;
+  const job_id = raw === "" || raw === "__none__" ? null : raw;
+  const supabase = await createClient();
+  const { data: prev } = await supabase
+    .from("cost_lines")
+    .select("job_id")
+    .eq("invoice_id", invoiceId);
+  const { error } = await supabase.from("cost_lines").update({ job_id }).eq("invoice_id", invoiceId);
+  if (error) throw error;
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/invoices");
+  const touched = new Set<string>([...(prev ?? []).map((r) => r.job_id as string | null), job_id].filter(
+    (x): x is string => !!x,
+  ));
+  for (const id of touched) revalidatePath(`/jobs/${id}`);
+}
+
 /**
  * Spina linię kosztu z pozycją katalogu i — jeśli qty>0 oraz brutto>0 —
  * nadpisuje material_catalog.default_price_gross ceną jednostkową z faktury.

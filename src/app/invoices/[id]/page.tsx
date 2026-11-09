@@ -21,6 +21,7 @@ import InvoiceEditForm from "../InvoiceEditForm";
 import CostLineCard from "../CostLineCard";
 import { deleteInvoiceAction, setInvoiceVatDeductionAction, toggleInvoiceGrantAction } from "../actions";
 import InvoicePhotoViewer from "./InvoicePhotoViewer";
+import AssignInvoiceJob from "./AssignInvoiceJob";
 
 export const dynamic = "force-dynamic";
 
@@ -258,6 +259,17 @@ export default async function InvoiceDetailPage({
             </p>
           ) : (
             <div className="flex flex-col gap-2">
+              {jobOptions.length > 0 && (
+                <AssignInvoiceJob
+                  invoiceId={invoice.id}
+                  jobs={jobOptions}
+                  currentJobId={
+                    new Set(costLines.map((l) => l.job_id ?? "")).size === 1
+                      ? (costLines[0].job_id ?? "")
+                      : null
+                  }
+                />
+              )}
               {costLines.map((l) => (
                 <CostLineCard
                   key={l.id}
