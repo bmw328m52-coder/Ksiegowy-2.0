@@ -4,7 +4,7 @@
 // Utwardzenie: timeout na nawigacjach (nigdy nie wisi w nieskończoność),
 // twarde czyszczenie starych cache po zmianie wersji, natychmiastowe przejęcie.
 
-const SW_VERSION = "v8";
+const SW_VERSION = "v9";
 const PREFIX = "mf-";
 const PRECACHE = `${PREFIX}precache-${SW_VERSION}`;
 const RUNTIME_PAGES = `${PREFIX}pages-${SW_VERSION}`;
