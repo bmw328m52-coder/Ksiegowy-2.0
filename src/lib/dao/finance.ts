@@ -4,6 +4,7 @@ import { getJobMarginsMap, computeJobMarginFull, type JobMarginFull } from "@/li
 import { getUserSettingsOrDefault } from "./user_settings";
 import { listDeadlines } from "./deadlines";
 import { JOB_STATUS_DONE, type Job, type JobStatus } from "./jobs.types";
+import { isOverdueUnpaid } from "@/lib/dao/invoices.types";
 
 function toNum(v: string | number | null | undefined): number {
   if (v === null || v === undefined) return 0;
@@ -205,12 +206,7 @@ export async function getFinanceAttention(now: Date = new Date()): Promise<Atten
   }
 
   // 2) Faktury niezapłacone po terminie płatności.
-  const overdue = invoices.filter(
-    (i) =>
-      (i.payment_status ?? "unpaid") !== "paid" &&
-      i.payment_due &&
-      i.payment_due < today
-  );
+  const overdue = invoices.filter((i) => isOverdueUnpaid(i, today));
   if (overdue.length > 0) {
     const sum = overdue.reduce((a, i) => a + toNum(i.amount_gross), 0);
     items.push({
@@ -218,7 +214,7 @@ export async function getFinanceAttention(now: Date = new Date()): Promise<Atten
       severity: "high",
       title: `Niezapłacone po terminie (${overdue.length})`,
       hint: "Faktury kosztowe z minionym terminem płatności.",
-      href: "/invoices",
+      href: "/invoices?filter=overdue",
       amount: sum,
       count: overdue.length,
     });

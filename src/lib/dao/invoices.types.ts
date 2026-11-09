@@ -82,3 +82,19 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   unpaid: "Niezapłacone",
   paid: "Zapłacone",
 };
+
+/**
+ * Faktura niezapłacona po terminie. Korekty (kwota ≤ 0) to nie dług — pomijamy,
+ * inaczej korekta na −37 zł zaniżała sumę „po terminie” na pulpicie.
+ */
+export function isOverdueUnpaid(
+  inv: { payment_status?: string | null; payment_due: string | null; amount_gross: string | number | null },
+  todayIso: string,
+): boolean {
+  return (
+    (inv.payment_status ?? "unpaid") !== "paid" &&
+    !!inv.payment_due &&
+    inv.payment_due < todayIso &&
+    Number(inv.amount_gross ?? 0) > 0
+  );
+}

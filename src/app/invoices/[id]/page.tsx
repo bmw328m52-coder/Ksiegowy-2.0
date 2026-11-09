@@ -22,6 +22,8 @@ import CostLineCard from "../CostLineCard";
 import { deleteInvoiceAction, setInvoiceVatDeductionAction, toggleInvoiceGrantAction } from "../actions";
 import InvoicePhotoViewer from "./InvoicePhotoViewer";
 import AssignInvoiceJob from "./AssignInvoiceJob";
+import { setPaymentStatusAction } from "@/app/finanse/actions";
+import { isOverdueUnpaid } from "@/lib/dao/invoices.types";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +52,7 @@ export default async function InvoiceDetailPage({
   ]);
 
   if (!invoice) notFound();
+  const overdue = isOverdueUnpaid(invoice, new Date().toISOString().slice(0, 10));
 
   const [fileUrl, duplicates] = await Promise.all([
     getSignedFileUrl(invoice.file_path),
@@ -206,6 +209,39 @@ export default async function InvoiceDetailPage({
             )}
           </div>
         )}
+
+        <form action={setPaymentStatusAction} className="mb-3">
+          <input type="hidden" name="id" value={invoice.id} />
+          <input type="hidden" name="status" value={invoice.payment_status === "paid" ? "unpaid" : "paid"} />
+          <button
+            type="submit"
+            className={`w-full flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition-colors active:opacity-90 ${
+              invoice.payment_status === "paid"
+                ? "border-[#cfe3d4] bg-[#eef6f0]"
+                : overdue
+                  ? "border-[#e6c4b9] bg-[#f4e0d9]"
+                  : "border-zinc-200 bg-white"
+            }`}
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">
+                {invoice.payment_status === "paid" ? "✓ Zapłacona" : overdue ? "Niezapłacona — po terminie" : "Niezapłacona"}
+              </span>
+              <span className="block text-[11px] text-zinc-500">
+                {invoice.payment_status === "paid"
+                  ? invoice.paid_date
+                    ? `zapłacono ${fmtDate(invoice.paid_date)} · kliknij, żeby cofnąć`
+                    : "kliknij, żeby cofnąć"
+                  : invoice.payment_due
+                    ? `termin ${fmtDate(invoice.payment_due)} · kliknij, gdy zapłacisz`
+                    : "kliknij, gdy zapłacisz"}
+              </span>
+            </span>
+            <span className="shrink-0 text-xs font-semibold text-[#a06f3f]">
+              {invoice.payment_status === "paid" ? "Cofnij" : "Oznacz zapłaconą"}
+            </span>
+          </button>
+        </form>
 
         <form action={toggleInvoiceGrantAction} className="mb-4">
           <input type="hidden" name="invoice_id" value={invoice.id} />

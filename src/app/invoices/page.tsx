@@ -1,12 +1,18 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { listInvoices, getSignedThumbnailUrl } from "@/lib/dao/invoices";
-import { listInvoiceCategoriesMap, listAssignedInvoiceIds, COST_CATEGORIES } from "@/lib/dao/cost_lines";
+import {
+  listInvoiceCategoriesMap,
+  listAssignedInvoiceIds,
+  listInvoicePreviewLines,
+  COST_CATEGORIES,
+} from "@/lib/dao/cost_lines";
 import ExportMonthCard from "./ExportMonthCard";
 import KsefSyncCard from "./KsefSyncCard";
 import { getKsefStatus } from "@/lib/dao/ksef";
 import { createClient } from "@/lib/supabase/server";
 import InvoicesListClient from "./InvoicesListClient";
+import { isOverdueUnpaid } from "@/lib/dao/invoices.types";
 import {
   PageContainer,
   SegmentedNav,
@@ -20,7 +26,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 export const metadata = { title: "Faktury" };
 
-type Filter = "all" | "todo" | "done";
+type Filter = "all" | "todo" | "done" | "overdue";
 
 function needsReview(inv: { ocr_status: string; supplier_name: string | null; amount_gross: string | null }): boolean {
   if (inv.ocr_status === "failed") return true;
@@ -35,20 +41,23 @@ export default async function InvoicesPage({
 }) {
   const { filter: rawFilter, cat: rawCat } = await searchParams;
   const filter: Filter =
-    rawFilter === "todo" || rawFilter === "done" ? rawFilter : "all";
+    rawFilter === "todo" || rawFilter === "done" || rawFilter === "overdue" ? rawFilter : "all";
+  const today = new Date().toISOString().slice(0, 10);
   const cat =
     rawCat && (COST_CATEGORIES as readonly string[]).includes(rawCat) ? rawCat : null;
 
-  const [all, categoriesMap, assignedIds, ksef, sales] = await Promise.all([
+  const [all, categoriesMap, assignedIds, previewLines, ksef, sales] = await Promise.all([
     listInvoices(),
     listInvoiceCategoriesMap(),
     listAssignedInvoiceIds(),
+    listInvoicePreviewLines(),
     getKsefStatus(),
     salesSummary(),
   ]);
 
   const byStatus = all.filter((inv) => {
     if (filter === "todo") return needsReview(inv);
+    if (filter === "overdue") return isOverdueUnpaid(inv, today);
     if (filter === "done")
       return !needsReview(inv) && inv.ocr_status !== "pending" && inv.ocr_status !== "processing";
     return true;
@@ -70,6 +79,7 @@ export default async function InvoicesPage({
   const counts = {
     all: all.length,
     todo: all.filter(needsReview).length,
+    overdue: all.filter((inv) => isOverdueUnpaid(inv, today)).length,
     done: all.filter((inv) => !needsReview(inv) && inv.ocr_status !== "pending" && inv.ocr_status !== "processing").length,
   };
 
@@ -97,6 +107,17 @@ export default async function InvoicesPage({
       tone: counts.todo > 0 ? "warn" : undefined,
     },
     { key: "done", label: "Gotowe", href: buildHref({ filter: "done" }), count: counts.done },
+    ...(counts.overdue > 0 || filter === "overdue"
+      ? [
+          {
+            key: "overdue",
+            label: "Po terminie",
+            href: buildHref({ filter: "overdue" }),
+            count: counts.overdue,
+            tone: "warn" as const,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -143,7 +164,9 @@ export default async function InvoicesPage({
               ? `Brak faktur w kategorii „${cat}”`
               : filter === "todo"
                 ? "Brak faktur do uzupełnienia"
-                : "Brak gotowych faktur"
+                : filter === "overdue"
+                  ? "Nic nie jest po terminie 👍"
+                  : "Brak gotowych faktur"
           }
           cta={{ href: "/invoices", label: "Pokaż wszystkie" }}
           tone="neutral"
@@ -154,6 +177,9 @@ export default async function InvoicesPage({
           categoriesMap={categoriesMap}
           thumbsMap={thumbsMap}
           assignedIds={assignedIds}
+          showAll={filter === "overdue"}
+          previewLines={previewLines}
+          today={today}
         />
       )}
     </PageContainer>

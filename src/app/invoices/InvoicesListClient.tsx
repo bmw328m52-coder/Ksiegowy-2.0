@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { fmtDate, fmtPLN } from "@/lib/format";
-import { OCR_STATUS_LABELS } from "@/lib/dao/invoices.types";
+import { OCR_STATUS_LABELS, isOverdueUnpaid } from "@/lib/dao/invoices.types";
+import type { InvoicePreviewLine } from "@/lib/dao/cost_lines";
 
 type InvoiceLite = {
   id: string;
@@ -14,6 +15,10 @@ type InvoiceLite = {
   ocr_status: keyof typeof OCR_STATUS_LABELS;
   file_mime: string | null;
   funded_by_grant?: boolean;
+  amount_net?: string | null;
+  amount_vat?: string | null;
+  payment_due: string | null;
+  payment_status?: string | null;
 };
 
 export default function InvoicesListClient({
@@ -21,13 +26,21 @@ export default function InvoicesListClient({
   categoriesMap,
   thumbsMap,
   assignedIds,
+  showAll = false,
+  previewLines,
+  today,
 }: {
   invoices: InvoiceLite[];
   categoriesMap: Record<string, string[]>;
   thumbsMap: Record<string, string | null>;
   /** Faktury w całości przypięte do zleceń — domyślnie schowane, żeby lista była „do ogarnięcia”. */
   assignedIds: string[];
+  /** Widok „Po terminie” — pokazuj wszystko, nic nie chowaj. */
+  showAll?: boolean;
+  previewLines: Record<string, InvoicePreviewLine[]>;
+  today: string;
 }) {
+  const [openId, setOpenId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [showAssigned, setShowAssigned] = useState(false);
   const assigned = useMemo(() => new Set(assignedIds), [assignedIds]);
@@ -46,13 +59,13 @@ export default function InvoicesListClient({
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     // Szukanie przeszukuje wszystko, także przypisane.
-    if (!needle) return showAssigned ? invoices : invoices.filter((inv) => !isHidden(inv));
+    if (!needle) return showAssigned || showAll ? invoices : invoices.filter((inv) => !isHidden(inv));
     return invoices.filter((inv) => {
       const s = (inv.supplier_name ?? "").toLowerCase();
       const n = (inv.invoice_number ?? "").toLowerCase();
       return s.includes(needle) || n.includes(needle);
     });
-  }, [invoices, q, showAssigned, isHidden]);
+  }, [invoices, q, showAssigned, showAll, isHidden]);
 
   if (invoices.length === 0) return null;
 
@@ -80,7 +93,7 @@ export default function InvoicesListClient({
         )}
       </div>
 
-      {!q && hiddenCount > 0 && (
+      {!q && !showAll && hiddenCount > 0 && (
         <button
           type="button"
           onClick={() => setShowAssigned((v) => !v)}
@@ -106,43 +119,61 @@ export default function InvoicesListClient({
         <ul className="flex flex-col gap-2">
           {filtered.map((inv) => (
             <li key={inv.id}>
-              <Link
-                href={`/invoices/${inv.id}`}
-                className="block rounded-xl border border-zinc-200 bg-white p-3 active:bg-zinc-50"
-              >
-                <div className="flex items-start gap-3">
-                  <Thumbnail
-                    src={thumbsMap[inv.id] ?? null}
-                    mime={inv.file_mime}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{inv.supplier_name ?? "—"}</p>
-                        <p className="text-xs text-zinc-500 truncate">
-                          {inv.invoice_number ?? "bez numeru"} • {fmtDate(inv.issue_date)}
-                        </p>
+              <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenId((cur) => (cur === inv.id ? null : inv.id))}
+                  aria-expanded={openId === inv.id}
+                  className="block w-full text-left p-3 active:bg-zinc-50"
+                >
+                  <div className="flex items-start gap-3">
+                    <Thumbnail
+                      src={thumbsMap[inv.id] ?? null}
+                      mime={inv.file_mime}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{inv.supplier_name ?? "—"}</p>
+                          <p className="text-xs text-zinc-500 truncate">
+                            {inv.invoice_number ?? "bez numeru"} • {fmtDate(inv.issue_date)}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="font-medium text-sm">{fmtPLN(inv.amount_gross)}</span>
+                          <StatusBadge status={inv.ocr_status} />
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="font-medium text-sm">{fmtPLN(inv.amount_gross)}</span>
-                        <StatusBadge status={inv.ocr_status} />
+                      <div className="flex items-center justify-between gap-2 mt-1.5">
+                        <div className="flex flex-wrap gap-1 min-w-0">
+                          {isOverdueUnpaid(inv, today) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f4e0d9] text-[#7a2f1e] font-medium">
+                              po terminie
+                            </span>
+                          )}
+                          {(categoriesMap[inv.id] ?? []).map((c) => (
+                            <span
+                              key={c}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                        <span
+                          className={`shrink-0 text-xs text-zinc-400 transition-transform ${openId === inv.id ? "rotate-180" : ""}`}
+                          aria-hidden
+                        >
+                          ▾
+                        </span>
                       </div>
                     </div>
-                    {categoriesMap[inv.id]?.length ? (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {categoriesMap[inv.id].map((c) => (
-                          <span
-                            key={c}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700"
-                          >
-                            {c}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
-                </div>
-              </Link>
+                </button>
+                {openId === inv.id && (
+                  <InvoicePreview inv={inv} lines={previewLines[inv.id] ?? []} today={today} />
+                )}
+              </div>
             </li>
           ))}
         </ul>
@@ -239,5 +270,60 @@ function ClearIcon() {
       <path d="m15 9-6 6" />
       <path d="m9 9 6 6" />
     </svg>
+  );
+}
+
+function InvoicePreview({
+  inv,
+  lines,
+  today,
+}: {
+  inv: InvoiceLite;
+  lines: InvoicePreviewLine[];
+  today: string;
+}) {
+  const paid = inv.payment_status === "paid";
+  const overdue = isOverdueUnpaid(inv, today);
+  const jobs = [...new Set(lines.map((l) => l.job_title ?? "koszt ogólny"))];
+  return (
+    <div className="border-t border-zinc-100 bg-zinc-50/60 px-3 py-2.5 text-xs space-y-2">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-zinc-600">
+        {inv.amount_net != null && (
+          <span>
+            netto <span className="tabular-nums text-zinc-900">{fmtPLN(inv.amount_net)}</span>
+            {inv.amount_vat != null && (
+              <> · VAT <span className="tabular-nums text-zinc-900">{fmtPLN(inv.amount_vat)}</span></>
+            )}
+          </span>
+        )}
+        <span className={paid ? "text-[#3a6b4d]" : overdue ? "text-[#b8523a] font-medium" : ""}>
+          {paid ? "✓ zapłacona" : inv.payment_due ? `termin ${fmtDate(inv.payment_due)}` : "niezapłacona"}
+        </span>
+        {inv.funded_by_grant && <span className="text-[#a06f3f]">z dotacji</span>}
+      </div>
+      {lines.length > 0 && (
+        <p className="text-zinc-600">
+          Zlecenie: <span className="text-zinc-900">{jobs.join(", ")}</span>
+        </p>
+      )}
+      {lines.length === 0 ? (
+        <p className="text-zinc-500">Brak pozycji.</p>
+      ) : (
+        <ul className="max-h-64 overflow-y-auto divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white">
+          {lines.map((l, i) => (
+            <li key={i} className="flex items-start justify-between gap-3 px-2.5 py-1.5">
+              <span className="min-w-0 break-words text-zinc-800">{l.description}</span>
+              <span className="shrink-0 tabular-nums text-zinc-900">{fmtPLN(l.amount_gross)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link
+        href={`/invoices/${inv.id}`}
+        className="flex items-center justify-center rounded-lg bg-[#a06f3f] py-2 text-xs font-semibold text-white active:opacity-90"
+      >
+        Otwórz fakturę →
+      </Link>
+    </div>
   );
 }

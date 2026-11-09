@@ -26,6 +26,38 @@ export async function listInvoiceCategoriesMap(): Promise<Record<string, string[
   return out;
 }
 
+export type InvoicePreviewLine = {
+  description: string;
+  amount_gross: number;
+  job_title: string | null;
+};
+
+/** Pozycje wszystkich faktur do podglądu na liście (bez wchodzenia w fakturę). */
+export async function listInvoicePreviewLines(): Promise<Record<string, InvoicePreviewLine[]>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cost_lines")
+    .select("invoice_id, description, amount_gross, created_at, jobs(title)")
+    .not("invoice_id", "is", null)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  const out: Record<string, InvoicePreviewLine[]> = {};
+  for (const row of (data ?? []) as unknown as {
+    invoice_id: string;
+    description: string | null;
+    amount_gross: string | number | null;
+    jobs: { title: string } | { title: string }[] | null;
+  }[]) {
+    const job = Array.isArray(row.jobs) ? row.jobs[0] : row.jobs;
+    (out[row.invoice_id] ??= []).push({
+      description: row.description ?? "—",
+      amount_gross: Number(row.amount_gross) || 0,
+      job_title: job?.title ?? null,
+    });
+  }
+  return out;
+}
+
 /** Faktury, których WSZYSTKIE pozycje są przypięte do jakiegoś zlecenia (lista faktur je chowa). */
 export async function listAssignedInvoiceIds(): Promise<string[]> {
   const supabase = await createClient();
