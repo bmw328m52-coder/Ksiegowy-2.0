@@ -26,6 +26,19 @@ export async function listInvoiceCategoriesMap(): Promise<Record<string, string[
   return out;
 }
 
+/** Faktury, których WSZYSTKIE pozycje są przypięte do jakiegoś zlecenia (lista faktur je chowa). */
+export async function listAssignedInvoiceIds(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("cost_lines").select("invoice_id, job_id");
+  if (error) throw error;
+  const state = new Map<string, boolean>();
+  for (const row of (data ?? []) as { invoice_id: string | null; job_id: string | null }[]) {
+    if (!row.invoice_id) continue;
+    state.set(row.invoice_id, (state.get(row.invoice_id) ?? true) && !!row.job_id);
+  }
+  return [...state].filter(([, all]) => all).map(([id]) => id);
+}
+
 export async function listCostLinesByInvoice(invoiceId: string): Promise<CostLine[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

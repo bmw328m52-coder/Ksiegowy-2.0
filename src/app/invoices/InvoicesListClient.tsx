@@ -19,22 +19,29 @@ export default function InvoicesListClient({
   invoices,
   categoriesMap,
   thumbsMap,
+  assignedIds,
 }: {
   invoices: InvoiceLite[];
   categoriesMap: Record<string, string[]>;
   thumbsMap: Record<string, string | null>;
+  /** Faktury w całości przypięte do zleceń — domyślnie schowane, żeby lista była „do ogarnięcia”. */
+  assignedIds: string[];
 }) {
   const [q, setQ] = useState("");
+  const [showAssigned, setShowAssigned] = useState(false);
+  const assigned = useMemo(() => new Set(assignedIds), [assignedIds]);
+  const hiddenCount = invoices.filter((inv) => assigned.has(inv.id)).length;
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return invoices;
+    // Szukanie przeszukuje wszystko, także przypisane.
+    if (!needle) return showAssigned ? invoices : invoices.filter((inv) => !assigned.has(inv.id));
     return invoices.filter((inv) => {
       const s = (inv.supplier_name ?? "").toLowerCase();
       const n = (inv.invoice_number ?? "").toLowerCase();
       return s.includes(needle) || n.includes(needle);
     });
-  }, [invoices, q]);
+  }, [invoices, q, showAssigned, assigned]);
 
   if (invoices.length === 0) return null;
 
@@ -62,6 +69,18 @@ export default function InvoicesListClient({
         )}
       </div>
 
+      {!q && hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAssigned((v) => !v)}
+          className="w-full rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 active:bg-zinc-50"
+        >
+          {showAssigned
+            ? `Schowaj przypisane do zleceń (${hiddenCount})`
+            : `Pokaż przypisane do zleceń (${hiddenCount})`}
+        </button>
+      )}
+
       {q && (
         <p className="text-xs text-zinc-500">
           Pasuje {filtered.length} z {invoices.length}
@@ -70,7 +89,7 @@ export default function InvoicesListClient({
 
       {filtered.length === 0 ? (
         <p className="text-sm text-zinc-500 text-center py-8">
-          Brak wyników dla &quot;{q}&quot;.
+          {q ? <>Brak wyników dla &quot;{q}&quot;.</> : "Wszystkie faktury są przypisane do zleceń 👍"}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

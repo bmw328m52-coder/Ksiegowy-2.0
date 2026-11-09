@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { listInvoices, getSignedThumbnailUrl } from "@/lib/dao/invoices";
-import { listInvoiceCategoriesMap, COST_CATEGORIES } from "@/lib/dao/cost_lines";
+import { listInvoiceCategoriesMap, listAssignedInvoiceIds, COST_CATEGORIES } from "@/lib/dao/cost_lines";
 import ExportMonthCard from "./ExportMonthCard";
 import KsefSyncCard from "./KsefSyncCard";
 import { getKsefStatus } from "@/lib/dao/ksef";
@@ -39,9 +39,10 @@ export default async function InvoicesPage({
   const cat =
     rawCat && (COST_CATEGORIES as readonly string[]).includes(rawCat) ? rawCat : null;
 
-  const [all, categoriesMap, ksef, sales] = await Promise.all([
+  const [all, categoriesMap, assignedIds, ksef, sales] = await Promise.all([
     listInvoices(),
     listInvoiceCategoriesMap(),
+    listAssignedInvoiceIds(),
     getKsefStatus(),
     salesSummary(),
   ]);
@@ -148,7 +149,12 @@ export default async function InvoicesPage({
           tone="neutral"
         />
       ) : (
-        <InvoicesListClient invoices={invoices} categoriesMap={categoriesMap} thumbsMap={thumbsMap} />
+        <InvoicesListClient
+          invoices={invoices}
+          categoriesMap={categoriesMap}
+          thumbsMap={thumbsMap}
+          assignedIds={assignedIds}
+        />
       )}
     </PageContainer>
   );
