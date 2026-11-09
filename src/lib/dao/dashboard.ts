@@ -107,8 +107,9 @@ type CostRow = {
   invoice?: { funded_by_grant?: boolean | null } | null;
 };
 
-// Zakup z dotacji (np. PUP) — wydatek sfinansowany zwolnioną z podatku dotacją
-// nie jest kosztem uzyskania przychodu, więc nie liczy się do kosztów ani PIT.
+// Zakup z dotacji (np. PUP) — dotacja zwolniona z PIT (art. 21 ust. 1 pkt 121), ale pkt 121
+// nie jest w art. 23 ust. 1 pkt 56, więc wydatek JEST kosztem (obniża PIT). Flaga służy
+// tylko do wydzielenia VAT do zwrotu do PUP.
 const isGrantCost = (c: CostRow) => c.invoice?.funded_by_grant === true;
 
 export type CategoryBreakdownRow = {
@@ -357,7 +358,6 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
 
   const categoryAgg = new Map<string, { net: number; gross: number }>();
   for (const c of costs) {
-    if (isGrantCost(c)) continue;
     addCost(ytd, c, settings.is_vat_payer);
     addCost(ytdTaxable, c, settings.is_vat_payer);
     const m = Number(c.cost_date.slice(5, 7)) - 1;

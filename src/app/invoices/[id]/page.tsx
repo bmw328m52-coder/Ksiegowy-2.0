@@ -219,7 +219,7 @@ export default async function InvoiceDetailPage({
               <span className="block text-sm font-medium">Zakup z dotacji (PUP)</span>
               <span className="block text-[11px] text-zinc-500">
                 {invoice.funded_by_grant
-                  ? "Poza kosztami i PIT · VAT do zwrotu do PUP"
+                  ? "Wchodzi w koszty (obniża PIT) · VAT do zwrotu do PUP"
                   : "Zaznacz, jeśli opłacone z dotacji"}
               </span>
             </span>
