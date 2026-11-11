@@ -138,7 +138,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight text-[#1f1d1b]">Marża</div>
           <div className="text-[12px] text-[#6f6c66]">
-            Narzut na koszt materiału — Twoja robocizna i zysk. Cena = koszt × (1 + marża). Kuchnia Denis wyszła na 62%, Ani Turek na 106% — domyślnie środek.
+            Narzut na koszt materiału — Twoja robocizna i zysk. Cena = koszt × (1 + marża). Kuchnia Denis wyszła na 70%, Ani Turek na 106% — domyślnie środek.
           </div>
         </div>
         <div className="flex items-center gap-2">

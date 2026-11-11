@@ -47,11 +47,12 @@ console.log(`fronty m²  model ${f(bom.front_m2)}  faktury ${f(actual.front_m2)}
 console.log(`blat mb    model ${f(bom.worktop_mb)}  faktury ${f(actual.worktop)} zł → ${(actual.worktop / bom.worktop_mb).toFixed(0)} zł/mb szafek dolnych`);
 console.log(`okucia szt: zawiasy ${bom.hinges} szuflady ${bom.drawers} klapy ${bom.flaps} nogi ${bom.legs} wiszące ${bom.hung} uchwyty ${bom.handles}`);
 console.log("\n— model ze stawkami domyślnymi —");
-// Dodatki tej kuchni: Magic Corner, Magic Cook (szafka 300), 5 szuflad wewnętrznych, panel nad blatem 4,1 mb,
+// Dodatki tej kuchni: Magic Corner, Magic Cook (szafka 300), panel nad blatem 4,1 mb,
 // LED 4 mb + zasilacz, blat 2 m pogłębiany do ~930 (wchodzi w okno). Cargo nie było.
-const e = estimate(cabs, { magic_corner: 1, magic_cook: 1, inner_drawer: 5, wall_panel_mb: 4.1, led_mb: 4, led_psu: 1, worktop_deep_mb: 2 }, DEFAULT_RATES);
+// 11 szuflad z projektu = 7 zwykłych + 4 wewnętrzne; 9 kpl z faktury poszło na zapas (ok. 1500 zł).
+const e = estimate(cabs, { magic_corner: 1, magic_cook: 1, wall_panel_mb: 4.1, led_mb: 4, led_psu: 1, worktop_deep_mb: 2 }, DEFAULT_RATES);
 for (const [k, v] of Object.entries(e.parts)) console.log(k.padEnd(10), f(v));
 console.log("dodatki   ", f(e.extrasCost));
-console.log("koszt     ", f(e.cost), "  faktury 23511.9 (w tym ~600 zł szuflad na zapas: 20 kpl kupione, 11 + 5 wewn. użyte)");
-console.log("cena      ", f(e.price), `  sprzedane 35500.0 → narzut na fakturach ${((35500 / 22900 - 1) * 100).toFixed(0)}%, na modelu ${((35500 / e.cost - 1) * 100).toFixed(0)}%`);
+console.log("koszt     ", f(e.cost), "  faktury 23511.9 (w tym ~1500 zł szuflad na zapas: 20 kpl kupione, 7 + 4 wewn. użyte)");
+console.log("cena      ", f(e.price), `  sprzedane 35500.0 → narzut na fakturach ${((35500 / 22000 - 1) * 100).toFixed(0)}%, na modelu ${((35500 / e.cost - 1) * 100).toFixed(0)}%`);
 void r; void costOfBom; void sumParts;

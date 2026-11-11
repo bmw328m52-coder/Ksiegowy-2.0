@@ -42,7 +42,7 @@ export type Extra = { key: string; name: string; unit: string; price: number };
 
 export type Rates = {
   /** Narzut na koszt w % — robocizna + zysk. Cena = koszt × (1 + marża).
-   *  Denis wyszedł na 62% (koszt 21,9 tys. → 35,5 tys.), Turek na 106% (11,7 tys. → 24 tys.); domyślnie środek. */
+   *  Denis wyszedł na 70% (koszt 20,8 tys. → 35,5 tys.), Turek na 106% (11,7 tys. → 24 tys.); domyślnie środek. */
   margin_pct: number;
   /** Płyta korpusu, sam materiał, zł/m². */
   board_m2: number;
@@ -74,7 +74,7 @@ export type Rates = {
 };
 
 export const DEFAULT_RATES: Rates = {
-  margin_pct: 85,
+  margin_pct: 88,
   board_m2: 48,
   board_extra_pct: 60,
   cut_mb: 1.8,
