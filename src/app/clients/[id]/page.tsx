@@ -65,11 +65,14 @@ export default async function ClientDetailPage({
     getJobMaterialGrossMap(jobIds),
   ]);
 
+  // Kwoty pokazujemy w brutto (jak wycena i „Suma zleceń" wyżej); netto drobnym pod spodem.
+  let revenueGrossSum = 0;
+  let costsGrossSum = 0;
   let revenueNetSum = 0;
   let costsNetSum = 0;
   const marginByJob = new Map<
     string,
-    { profit: number; marginPct: number | null; costsNet: number; fromInvoices: boolean }
+    { profit: number; marginPct: number | null; costsGross: number; fromInvoices: boolean }
   >();
   for (const j of billableJobs) {
     const rate = Number(j.vat_rate);
@@ -86,15 +89,22 @@ export default async function ClientDetailPage({
         : inv!.costsGross
       : toNet(materialGrossByJob.get(j.id) ?? 0);
 
-    const profit = revenueNet - costsNet;
-    const marginPct = revenueNet > 0 ? (profit / revenueNet) * 100 : null;
+    const revenueGross = Number(j.amount_gross);
+    const costsGross = fromInvoices ? inv!.costsGross : materialGrossByJob.get(j.id) ?? 0;
+    const profit = revenueGross - costsGross;
+    const marginPct = revenueGross > 0 ? (profit / revenueGross) * 100 : null;
 
+    revenueGrossSum += revenueGross;
+    costsGrossSum += costsGross;
     revenueNetSum += revenueNet;
     costsNetSum += costsNet;
-    marginByJob.set(j.id, { profit, marginPct, costsNet, fromInvoices });
+    marginByJob.set(j.id, { profit, marginPct, costsGross, fromInvoices });
   }
-  const profitSum = revenueNetSum - costsNetSum;
-  const marginPctSum = revenueNetSum > 0 ? (profitSum / revenueNetSum) * 100 : null;
+  const profitSum = revenueGrossSum - costsGrossSum;
+  const profitNetSum = revenueNetSum - costsNetSum;
+  const marginPctSum = revenueGrossSum > 0 ? (profitSum / revenueGrossSum) * 100 : null;
+  // Netto / VAT pokazujemy tylko, gdy faktycznie różni się od brutto (VAT-owiec, zlecenie z fakturą).
+  const showNet = Math.abs(profitSum - profitNetSum) >= 0.01 || Math.abs(revenueGrossSum - revenueNetSum) >= 0.01;
   const marginTone =
     marginPctSum === null ? "neutral" : marginPctSum >= 20 ? "ok" : marginPctSum >= 0 ? "accent" : "warn";
 
@@ -163,17 +173,23 @@ export default async function ClientDetailPage({
         {billableJobs.length > 0 && (
           <Card className="mb-2.5">
             <p className="text-[11px] uppercase tracking-[0.06em] font-semibold text-[#9ea29c] mb-2">
-              Marża {settings.is_vat_payer ? "(netto)" : "(brutto, bez VAT)"}
+              Marża (brutto)
               {jobs.length !== billableJobs.length && " · od zamówienia materiałów"}
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <p className="text-[#8d8a85]">Przychód</p>
-                <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(revenueNetSum)}</p>
+                <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(revenueGrossSum)}</p>
+                {showNet && (
+                  <p className="text-[11px] text-[#8d8a85] tabular-nums">netto {fmtPLN(revenueNetSum)}</p>
+                )}
               </div>
               <div>
                 <p className="text-[#8d8a85]">Koszty zleceń</p>
-                <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(costsNetSum)}</p>
+                <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(costsGrossSum)}</p>
+                {showNet && (
+                  <p className="text-[11px] text-[#8d8a85] tabular-nums">netto {fmtPLN(costsNetSum)}</p>
+                )}
               </div>
             </div>
             <div className="mt-2 pt-2 border-t border-[#f0efec] flex items-baseline justify-between">
@@ -186,6 +202,11 @@ export default async function ClientDetailPage({
                 >
                   {fmtPLN(profitSum)}
                 </p>
+                {showNet && (
+                  <p className="text-[11px] text-[#8d8a85] tabular-nums">
+                    netto {fmtPLN(profitNetSum)} · VAT {fmtPLN(profitSum - profitNetSum)}
+                  </p>
+                )}
               </div>
               {marginPctSum !== null && (
                 <Badge tone={marginTone}>{marginPctSum.toFixed(1)}%</Badge>
@@ -227,7 +248,7 @@ export default async function ClientDetailPage({
                     </div>
                     {m && (
                       <div className="mt-2 flex items-center gap-2 text-[11px] flex-wrap">
-                        <span className="text-[#8d8a85] tabular-nums">koszt {fmtPLN(m.costsNet)}</span>
+                        <span className="text-[#8d8a85] tabular-nums">koszt {fmtPLN(m.costsGross)}</span>
                         <span
                           className={`tabular-nums font-semibold ${
                             m.profit >= 0 ? "text-[#4f8a64]" : "text-[#b8523a]"
