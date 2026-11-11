@@ -147,7 +147,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
   return (
     <div className="flex flex-col gap-5">
       <Card tone="accent" className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-64">
           <div className="text-[15px] font-semibold tracking-tight text-[#1f1d1b]">Marża</div>
           <div className="text-[12px] text-[#6f6c66]">
             Narzut na koszt materiału — Twoja robocizna i zysk. Cena = koszt × (1 + marża). Domyślnie 100% (cena = 2 × materiał); przy każdej cenie ze skanu możesz ją przesunąć w dół lub w górę. Dla porównania: kuchnia Denis wyszła na 70%, Ani Turek na 106%.
@@ -165,7 +165,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
         </div>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 2xl:grid-cols-2">
         <div className="flex flex-col gap-5">
           {GROUPS.map((g) => (
             <Card key={g.title}>

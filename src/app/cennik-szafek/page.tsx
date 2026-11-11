@@ -13,7 +13,7 @@ export default async function CennikSzafekPage() {
     <PageContainer width="app">
       <PageHeader title="Cennik szafek" back={{ href: "/materials" }} />
       <p className="-mt-2 text-sm text-[#6f6c66]">
-        Koszt szafki liczy się z jej wymiarów według stawek z Twoich faktur (kuchnia Denis, 10.2026), a cena dla klienta
+        Koszt szafki liczy się z jej wymiarów według stawek z Twoich faktur (kuchnie Denis i Ani Turek, 2026), a cena dla klienta
         to koszt plus marża. Z tego cennika powstaje przybliżona cena przy skanie w zleceniu. Wszystkie kwoty brutto.
       </p>
       {missing && (
