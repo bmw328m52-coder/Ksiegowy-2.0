@@ -104,6 +104,7 @@ struct JobsView: View {
             .task {
                 await load()
                 await openDeepLink()
+                await session.refreshCabinetRates()
             }
             .onChange(of: session.deepLinkJobId) { Task { await openDeepLink() } }
         }

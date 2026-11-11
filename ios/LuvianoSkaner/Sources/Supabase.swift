@@ -113,6 +113,13 @@ final class Session: ObservableObject {
         return try JSONDecoder().decode([JobRow].self, from: data)
     }
 
+    /// Pobiera stawki cennika szafek zapisane w meble-app (do ceny szafy offline). Bez sieci zostają ostatnie.
+    func refreshCabinetRates() async {
+        guard let data = try? await rest("cabinet_pricing", query: [URLQueryItem(name: "select", value: "rates")]),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
+        CabinetRates.store(rows.first?["rates"] as? [String: Any])
+    }
+
     struct ClientRow: Codable, Identifiable, Hashable { let id: String; let name: String }
 
     func clients() async throws -> [ClientRow] {

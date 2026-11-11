@@ -196,6 +196,8 @@ struct WardrobeEditor: View {
                 .background(FeatureDraw.accessColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
             }
 
+            WardrobePriceCard(wardrobe: w)
+
             card("Wymiary") {
                 ForEach(Self.dims, id: \.key) { d in
                     Button { edit = .dim(d.key) } label: {
