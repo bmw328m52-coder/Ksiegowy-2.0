@@ -31,6 +31,7 @@ export default function StatCard({
   tone = "neutral",
   href,
   money = false,
+  hintMoney = false,
   emphasis = false,
 }: {
   label: string;
@@ -39,6 +40,8 @@ export default function StatCard({
   tone?: Tone;
   href?: string;
   money?: boolean;
+  /** Podpowiedź zawiera kwotę — też ukrywana w trybie prywatnym. */
+  hintMoney?: boolean;
   /** Większy, wyróżniony kafel (np. kluczowa metryka) */
   emphasis?: boolean;
 }) {
@@ -63,7 +66,14 @@ export default function StatCard({
           </span>
         )}
       </div>
-      {hint && <p className="text-[10px] text-[#9ea29c] mt-1 truncate">{hint}</p>}
+      {hint &&
+        (hintMoney ? (
+          <Money as="p" className="text-[10px] text-[#9ea29c] mt-1 truncate">
+            {hint}
+          </Money>
+        ) : (
+          <p className="text-[10px] text-[#9ea29c] mt-1 truncate">{hint}</p>
+        ))}
     </>
   );
 
