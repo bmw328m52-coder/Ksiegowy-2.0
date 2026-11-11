@@ -24,6 +24,8 @@ struct JobsView: View {
     @State private var loading = false
     @State private var error: String?
     @State private var path: [JobRow] = []
+    /// Zlecenia założone na iPadzie, których nie ma jeszcze w meble-app.
+    @State private var pendingIds = Set(PendingJobs.load().map(\.id))
 
     private var filtered: [JobRow] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
@@ -53,6 +55,11 @@ struct JobsView: View {
                                 Text(job.title)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                if pendingIds.contains(job.id) {
+                                    Label("Na iPadzie — czeka na wysłanie", systemImage: "ipad")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
                             }
                             .padding(.vertical, 4)
                         }
@@ -85,7 +92,12 @@ struct JobsView: View {
                 NewJobSheet { job in
                     jobs.insert(job, at: 0)
                     JobsCache.save(jobs)
+                    pendingIds.insert(job.id)
                     path = [job]
+                    // Z zasięgiem trafia do meble-app od razu; bez — przy następnym odświeżeniu / wysłaniu skanu.
+                    Task {
+                        if (try? await session.syncPending()) != nil { pendingIds = Set(PendingJobs.load().map(\.id)) }
+                    }
                 }
             }
             .refreshable { await load() }
@@ -110,13 +122,21 @@ struct JobsView: View {
         loading = true
         defer { loading = false }
         do {
-            jobs = try await session.openJobs()
+            // Najpierw zlecenia założone bez zasięgu — błąd wysyłki nie blokuje listy.
+            var syncError: String?
+            do { try await session.syncPending() } catch { syncError = error.localizedDescription }
+            let remote = try await session.openJobs()
+            let waiting = PendingJobs.load().map(\.row).filter { p in !remote.contains { $0.id == p.id } }
+            jobs = waiting + remote
+            pendingIds = Set(waiting.map(\.id))
             JobsCache.save(jobs)
-            error = nil
+            error = waiting.isEmpty ? nil
+                : "Nie udało się wysłać zleceń założonych na iPadzie (\(waiting.count)): \(syncError ?? "spróbuj ponownie")."
         } catch {
+            pendingIds = Set(PendingJobs.load().map(\.id))
             if let c = JobsCache.load(), !c.jobs.isEmpty {
                 jobs = c.jobs
-                self.error = "Brak połączenia — lista z \(c.at.formatted(date: .abbreviated, time: .shortened)). Skanuj normalnie, wyślesz po powrocie."
+                self.error = "Brak połączenia — lista z \(c.at.formatted(date: .abbreviated, time: .shortened)). Skanuj i zakładaj zlecenia normalnie, wyślą się po powrocie zasięgu."
             } else {
                 self.error = error.localizedDescription
             }
@@ -125,18 +145,18 @@ struct JobsView: View {
 }
 
 /// Nowe zlecenie z iPada: istniejący klient albo nowy (osoba prywatna) + tytuł.
+/// Działa bez zasięgu — zlecenie trafia do kolejki `PendingJobs`.
 struct NewJobSheet: View {
     let onCreated: (JobRow) -> Void
 
     @EnvironmentObject private var session: Session
     @Environment(\.dismiss) private var dismiss
-    @State private var clients: [Session.ClientRow] = []
+    @State private var clients: [Session.ClientRow] = PendingJobs.newClients + ClientsCache.load()
     @State private var clientId: String?
     @State private var newName = ""
     @State private var query = ""
     @State private var title = "Kuchnia"
-    @State private var saving = false
-    @State private var error: String?
+    @State private var offline = false
 
     private static let titles = ["Kuchnia", "Szafa", "Garderoba", "Łazienka", "Zabudowa", "Meble"]
 
@@ -184,8 +204,10 @@ struct NewJobSheet: View {
                         }
                     }
                 }
-                if let error {
-                    Text(error).foregroundStyle(.red).font(.footnote)
+                if offline {
+                    Text("Brak połączenia — zlecenie zapisze się na iPadzie i samo wyśle do meble-app po powrocie zasięgu.")
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
                 }
             }
             .navigationTitle("Nowe zlecenie")
@@ -193,30 +215,31 @@ struct NewJobSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Anuluj") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button { Task { await create() } } label: {
-                        if saving { ProgressView() } else { Text("Utwórz").bold() }
-                    }
-                    .disabled(saving || title.trimmingCharacters(in: .whitespaces).isEmpty || (clientId == nil && newClient == nil))
+                    Button { create() } label: { Text("Utwórz").bold() }
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || (clientId == nil && newClient == nil))
                 }
             }
             .task {
-                do { clients = try await session.clients() } catch {
-                    self.error = "Brak połączenia — nowe zlecenie wymaga internetu (np. hotspot z telefonu)."
+                do {
+                    let fresh = try await session.clients()
+                    ClientsCache.save(fresh)
+                    clients = PendingJobs.newClients.filter { p in !fresh.contains { $0.id == p.id } } + fresh
+                } catch {
+                    offline = true
                 }
             }
         }
     }
 
-    private func create() async {
-        saving = true
-        defer { saving = false }
-        do {
-            let job = try await session.createJob(clientId: clientId, newClient: newClient,
-                                                  title: title.trimmingCharacters(in: .whitespaces))
-            dismiss()
-            onCreated(job)
-        } catch {
-            self.error = error.localizedDescription
-        }
+    private func create() {
+        let existing = clients.first { $0.id == clientId }
+        guard let name = newClient ?? existing?.name else { return }
+        let stillLocal = PendingJobs.newClients.contains { $0.id == existing?.id }
+        let job = PendingJob(id: PendingJob.newId(), title: title.trimmingCharacters(in: .whitespaces),
+                             clientId: existing?.id ?? PendingJob.newId(), clientName: name,
+                             newClient: existing == nil || stillLocal)
+        PendingJobs.add(job)
+        dismiss()
+        onCreated(job.row)
     }
 }

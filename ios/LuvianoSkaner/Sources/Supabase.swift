@@ -86,7 +86,7 @@ final class Session: ObservableObject {
     // MARK: REST
 
     private func rest(_ path: String, query: [URLQueryItem] = [], method: String = "GET", body: Data? = nil,
-                      returning: Bool = false) async throws -> Data {
+                      returning: Bool = false, prefer: String? = nil) async throws -> Data {
         var req = URLRequest(url: Config.supabaseURL.appending(path: "rest/v1/\(path)").appending(queryItems: query))
         req.httpMethod = method
         req.setValue(Config.anonKey, forHTTPHeaderField: "apikey")
@@ -94,7 +94,7 @@ final class Session: ObservableObject {
         if let body {
             req.httpBody = body
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.setValue(returning ? "return=representation" : "return=minimal", forHTTPHeaderField: "Prefer")
+            req.setValue(prefer ?? (returning ? "return=representation" : "return=minimal"), forHTTPHeaderField: "Prefer")
         }
         let (data, resp) = try await URLSession.shared.data(for: req)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
@@ -113,7 +113,7 @@ final class Session: ObservableObject {
         return try JSONDecoder().decode([JobRow].self, from: data)
     }
 
-    struct ClientRow: Decodable, Identifiable, Hashable { let id: String; let name: String }
+    struct ClientRow: Codable, Identifiable, Hashable { let id: String; let name: String }
 
     func clients() async throws -> [ClientRow] {
         let data = try await rest("clients", query: [
@@ -123,26 +123,27 @@ final class Session: ObservableObject {
         return try JSONDecoder().decode([ClientRow].self, from: data)
     }
 
-    /// Nowe zlecenie prosto z pomiaru (etap „Pomiar"); z `newClient` zakłada też klienta (osoba prywatna).
-    func createJob(clientId: String?, newClient: String?, title: String) async throws -> JobRow {
+    /// Wysyła zlecenia założone na iPadzie (etap „Pomiar"; nowy klient = osoba prywatna).
+    /// Id nadane na iPadzie + ignore-duplicates: przerwane wysyłanie można bezpiecznie powtórzyć.
+    func syncPending() async throws {
+        let pending = PendingJobs.load()
+        guard !pending.isEmpty else { return }
         let uid = try await userId()
-        var cid = clientId
-        if cid == nil, let name = newClient {
-            struct C: Encodable { let user_id: String; let type: String; let name: String }
-            struct R: Decodable { let id: String }
-            let out = try await rest("clients", query: [URLQueryItem(name: "select", value: "id")], method: "POST",
-                                     body: try JSONEncoder().encode(C(user_id: uid, type: "individual", name: name)), returning: true)
-            cid = try JSONDecoder().decode([R].self, from: out).first?.id
+        let onConflict = [URLQueryItem(name: "on_conflict", value: "id")]
+        let prefer = "resolution=ignore-duplicates,return=minimal"
+        for p in pending {
+            if p.newClient {
+                struct C: Encodable { let id: String; let user_id: String; let type: String; let name: String }
+                _ = try await rest("clients", query: onConflict, method: "POST",
+                                   body: try JSONEncoder().encode(C(id: p.clientId, user_id: uid, type: "individual", name: p.clientName)),
+                                   prefer: prefer)
+            }
+            struct J: Encodable { let id: String; let user_id: String; let client_id: String; let title: String; let status: String }
+            _ = try await rest("jobs", query: onConflict, method: "POST",
+                               body: try JSONEncoder().encode(J(id: p.id, user_id: uid, client_id: p.clientId, title: p.title, status: "to_measure")),
+                               prefer: prefer)
+            PendingJobs.remove(p.id)
         }
-        guard let cid else { throw ApiError(message: "Wybierz albo wpisz klienta.") }
-        struct J: Encodable { let user_id: String; let client_id: String; let title: String; let status: String }
-        let out = try await rest("jobs", query: [URLQueryItem(name: "select", value: "id,title,status,clients(name)")], method: "POST",
-                                 body: try JSONEncoder().encode(J(user_id: uid, client_id: cid, title: title, status: "to_measure")),
-                                 returning: true)
-        guard let job = try JSONDecoder().decode([JobRow].self, from: out).first else {
-            throw ApiError(message: "Serwer nie zwrócił zlecenia.")
-        }
-        return job
     }
 
     func job(id: String) async throws -> JobRow? {
@@ -191,6 +192,8 @@ final class Session: ObservableObject {
     /// usunięto go w meble-app — wstawia nowy). Zwraca id wiersza.
     func uploadScan(jobId: String, name: String, scan: ScanPayload, remoteId: String?) async throws -> String {
         struct Row: Decodable { let id: String }
+        // Zlecenie założone bez zasięgu musi najpierw trafić do meble-app.
+        try await syncPending()
         if let remoteId {
             struct Patch: Encodable { let name: String; let data: ScanPayload }
             let out = try await rest("room_scans", query: [
