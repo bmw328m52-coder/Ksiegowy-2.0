@@ -7,6 +7,9 @@ import RoomScanViews from "./RoomScanViews";
 import { featureKind, markerKind, planModel, planStats } from "@/lib/scan2d";
 import { deleteScanAction } from "./scanActions";
 import { scanPhotoUrls } from "@/lib/dao/room_scans";
+import { getCabinetRates } from "@/lib/dao/cabinet_pricing";
+import { parseChoice } from "@/lib/cabinetPricing";
+import ScanEstimate from "./ScanEstimate";
 
 const mm = (v: number) => `${Math.round(v)} mm`;
 /** „dół/środek/góra 2302/2305/2310 · 8 mm" — krzywizny z dalmierza (ScanWall.curve). */
@@ -39,7 +42,7 @@ const wallIndex0 = (walls: { id: string }[], id: string) => walls.findIndex((w) 
 
 export default async function RoomScanSection({ jobId, scans }: { jobId: string; scans: RoomScan[] }) {
   if (scans.length === 0) return null;
-  const photoUrls = await scanPhotoUrls(scans);
+  const [photoUrls, { rates }] = await Promise.all([scanPhotoUrls(scans), getCabinetRates()]);
 
   return (
     <>
@@ -59,6 +62,8 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
             </div>
 
             <RoomScanViews id={scan.id} data={scan.data} name={scan.name} />
+
+            <ScanEstimate scanId={scan.id} jobId={jobId} objects={objects} rates={rates} initial={parseChoice(scan.estimate)} />
 
             <div className="grid grid-cols-4 gap-2 rounded-lg bg-[#f6f5f2] p-2 text-center">
               {[

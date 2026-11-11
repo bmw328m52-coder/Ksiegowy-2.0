@@ -185,6 +185,8 @@ export type RoomScan = {
   job_id: string;
   name: string;
   data: ScanData;
+  /** Wybory do przybliżonej ceny (ScanEstimateChoice w lib/cabinetPricing) — kolumna z migracji 0052. */
+  estimate?: unknown;
   created_at: string;
 };
 

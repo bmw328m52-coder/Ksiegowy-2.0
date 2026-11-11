@@ -35,6 +35,22 @@ export default async function MaterialsPage() {
         <span className="ml-auto text-[#c9c7c2]">→</span>
       </Card>
 
+      <Card href="/cennik-szafek" className="flex items-center gap-3">
+        <span className="inline-flex w-10 h-10 rounded-xl items-center justify-center shrink-0 bg-[#f1e5d2] text-[#a06f3f]">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M12 3v18M3 12h9M8 7.5v0M16 12v0" />
+          </svg>
+        </span>
+        <span className="min-w-0 flex flex-col">
+          <span className="text-[15px] font-semibold tracking-tight text-[#1f1d1b]">
+            Cennik szafek i marża
+          </span>
+          <span className="text-[12px] text-[#6f6c66]">Przybliżona cena ze skanu</span>
+        </span>
+        <span className="ml-auto text-[#c9c7c2]">→</span>
+      </Card>
+
       <MaterialsBrowser items={items} />
     </PageContainer>
   );

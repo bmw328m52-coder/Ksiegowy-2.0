@@ -82,6 +82,7 @@ const MORE_PATHS = [
   "/timer",
   "/settings",
   "/auto-wycena",
+  "/cennik-szafek",
 ];
 
 const startsAny = (p: string, prefixes: string[]) =>
