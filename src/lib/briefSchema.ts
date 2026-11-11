@@ -30,14 +30,46 @@ export type BriefSchema = {
   groups: BriefGroup[];
 };
 
-// Pola, które dostarcza skan z iPada (LUVIANO Skaner): układ i wymiary ścian,
-// okna, położenie przyłączy. Gdy zlecenie ma skan, formularz ich nie pokazuje
-// (wartości wpisane wcześniej zostają zachowane jako ukryte).
+// Geometria pomieszczenia: układ i wymiary ścian, okna, skosy, położenie przyłączy.
+// Zbiera ją LUVIANO Skaner na iPadzie, więc formularz pomiaru tych pól już nie
+// pokazuje (wartości wpisane dawniej zostają zachowane jako ukryte i widać je
+// w zleceniach bez skanu).
 export const SCAN_FIELDS: Partial<Record<ProjectType, ReadonlySet<string>>> = {
+  wardrobe: new Set([
+    "room_shape",
+    "knee_wall_height_mm",
+    "ceiling_flat_mm",
+    "slope_top_height_mm",
+    "slope_floor_run_mm",
+  ]),
+  bathroom: new Set([
+    "room_layout",
+    "wall_a_mm",
+    "wall_b_mm",
+    "wall_c_mm",
+    "ceiling_mm",
+    "plumbing_wall",
+    "plumbing_offset_mm",
+    "plumbing_height_mm",
+    "plumbing_width_mm",
+    "plumbing_occupied_height_mm",
+    "washer_wall",
+    "washer_offset_mm",
+    "washer_height_mm",
+  ]),
   kitchen: new Set([
     "room_layout",
     "room_rotation",
     "room_mirror",
+    "island_rotation",
+    "plumbing_width_mm",
+    "plumbing_occupied_height_mm",
+    "vent_chimney_wall",
+    "vent_chimney_offset_mm",
+    "vent_chimney_height_mm",
+    "vent_chimney_width_mm",
+    "vent_chimney_occupied_height_mm",
+    "vent_chimney_depth_mm",
     "window_wall",
     "wall_a_mm",
     "wall_b_mm",

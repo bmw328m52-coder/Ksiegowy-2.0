@@ -34,13 +34,13 @@ export default function PomiarSection({
         <p className="text-xs text-zinc-500">
           {scanned
             ? "Wymiary są w skanie. Uzupełnij wybory: fronty, blat, AGD, LED-y itd."
-            : "Brak danych pomiaru. Wypełnij wymiary, kolory, AGD, LED-y itd."}
+            : "Wymiary zbiera skaner na iPadzie. Tu uzupełnij wybory: fronty, blat, AGD, LED-y itd."}
         </p>
         <Link
           href={`/jobs/${jobId}/pomiar/edit`}
           className="rounded-md bg-accent text-white py-2 text-sm font-medium text-center"
         >
-          {scanned ? "+ Uzupełnij wybory" : "+ Wypełnij pomiar"}
+          + Uzupełnij wybory
         </Link>
       </section>
     );

@@ -14,136 +14,20 @@ import {
   type BriefSchema,
 } from "@/lib/briefSchema";
 import type { QuoteBrief } from "@/lib/dao/quote_briefs.types";
-import type { UtilityDef } from "./UtilityLocationDiagram";
-
-const OFFSET_LABEL = "Odległość od lewego narożnika ściany";
-const HEIGHT_LABEL = "Wysokość od podłogi";
-const WIDTH_LABEL = "Szerokość zajmowanego pola";
-const OCCUPIED_HEIGHT_LABEL = "Wysokość zajmowanego pola";
 import CorpusListInput from "./CorpusListInput";
 import HingesBreakdownInput from "./HingesBreakdownInput";
 import LiftBreakdownInput from "./LiftBreakdownInput";
 
-const KitchenLayoutDiagram = dynamic(() => import("./KitchenLayoutDiagram"), {
-  ssr: false,
-  loading: () => <DiagramSkeleton />,
-});
-const WardrobeShapeDiagram = dynamic(() => import("./WardrobeShapeDiagram"), {
-  ssr: false,
-  loading: () => <DiagramSkeleton />,
-});
-const BathroomLayoutDiagram = dynamic(() => import("./BathroomLayoutDiagram"), {
-  ssr: false,
-  loading: () => <DiagramSkeleton />,
-});
 const SinkDiagram = dynamic(() => import("./SinkDiagram"), {
   ssr: false,
   loading: () => <DiagramSkeleton />,
 });
-const UtilityLocationDiagram = dynamic(() => import("./UtilityLocationDiagram"), {
-  ssr: false,
-  loading: () => <DiagramSkeleton />,
-});
-
 function DiagramSkeleton() {
   return (
     <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-400">
       Ładowanie diagramu…
     </div>
   );
-}
-
-type Layout = "lin" | "l" | "u" | "wneka" | "kwadrat" | "kwadrat_pol";
-type WardrobeShape = "prosta" | "skos_trojkat" | "skos_kolankowy" | "skos_pionowy";
-
-const KITCHEN_UTILITIES: UtilityDef[] = [
-  {
-    key: "plumbing",
-    label: "Wodno-kan.",
-    color: "#2563eb",
-    fields: [
-      { key: "plumbing_offset_mm", label: OFFSET_LABEL, role: "offset" },
-      {
-        key: "plumbing_height_mm",
-        label: HEIGHT_LABEL,
-        role: "height",
-        help: "wysokość środka pola przyłączy",
-      },
-      { key: "plumbing_width_mm", label: WIDTH_LABEL, role: "width" },
-      {
-        key: "plumbing_occupied_height_mm",
-        label: OCCUPIED_HEIGHT_LABEL,
-        role: "occupied_height",
-      },
-    ],
-  },
-  {
-    key: "gas",
-    label: "Gaz",
-    color: "#f59e0b",
-    fields: [
-      { key: "gas_offset_mm", label: OFFSET_LABEL, role: "offset" },
-      { key: "gas_height_mm", label: HEIGHT_LABEL, role: "height" },
-    ],
-  },
-  {
-    key: "vent_chimney",
-    label: "Komin went.",
-    color: "#10b981",
-    fields: [
-      { key: "vent_chimney_offset_mm", label: OFFSET_LABEL, role: "offset" },
-      {
-        key: "vent_chimney_height_mm",
-        label: "Wysokość wlotu od podłogi",
-        role: "height",
-      },
-      { key: "vent_chimney_width_mm", label: WIDTH_LABEL, role: "width" },
-      {
-        key: "vent_chimney_occupied_height_mm",
-        label: OCCUPIED_HEIGHT_LABEL,
-        role: "occupied_height",
-      },
-      {
-        key: "vent_chimney_depth_mm",
-        label: "Głębokość wystawania ze ściany",
-        role: "extra",
-        help: "0 = w licu ściany; >0 = występ",
-      },
-    ],
-  },
-];
-
-const BATHROOM_UTILITIES: UtilityDef[] = [
-  {
-    key: "plumbing",
-    label: "Wodno-kan.",
-    color: "#2563eb",
-    fields: [
-      { key: "plumbing_offset_mm", label: OFFSET_LABEL, role: "offset" },
-      { key: "plumbing_height_mm", label: HEIGHT_LABEL, role: "height" },
-      { key: "plumbing_width_mm", label: WIDTH_LABEL, role: "width" },
-      {
-        key: "plumbing_occupied_height_mm",
-        label: OCCUPIED_HEIGHT_LABEL,
-        role: "occupied_height",
-      },
-    ],
-  },
-  {
-    key: "washer",
-    label: "Pralka",
-    color: "#ef4444",
-    fields: [
-      { key: "washer_offset_mm", label: OFFSET_LABEL, role: "offset" },
-      { key: "washer_height_mm", label: HEIGHT_LABEL, role: "height" },
-    ],
-  },
-];
-
-function buildDiagramFieldSet(utils: UtilityDef[]): Set<string> {
-  const s = new Set<string>();
-  for (const u of utils) for (const f of u.fields) s.add(f.key);
-  return s;
 }
 
 type Action = (prev: { error?: string }, formData: FormData) => Promise<{ error?: string }>;
@@ -162,7 +46,6 @@ export default function BriefForm({
   defaultProjectType,
   submitLabel,
   openPostByDefault = false,
-  scanned = false,
 }: {
   action?: Action;
   initial?: QuoteBrief;
@@ -177,8 +60,6 @@ export default function BriefForm({
   defaultProjectType?: ProjectType;
   submitLabel?: string;
   openPostByDefault?: boolean;
-  /** Zlecenie ma skan z iPada — wymiary/okna/przyłącza biorą się ze skanu. */
-  scanned?: boolean;
 }) {
   const [tab, setTab] = useState<"measurement" | "post">(
     openPostByDefault ? "post" : "measurement"
@@ -191,20 +72,9 @@ export default function BriefForm({
   const schema: BriefSchema = getBriefSchema(projectType);
   const initialData = initial?.data ?? {};
 
-  const scanKeys = scanned ? SCAN_FIELDS[projectType] : undefined;
+  // Geometrię pomieszczenia zbiera skaner na iPadzie — formularz to same wybory.
+  const scanKeys = SCAN_FIELDS[projectType];
   const isFromScan = (f: BriefField) => scanKeys?.has(f.key) === true;
-
-  // Ze skanem diagramy A/B/C/D są zbędne — pozostałe pola rysujemy zwyczajnie.
-  const diagramUtilities: UtilityDef[] | null = scanKeys
-    ? null
-    : projectType === "kitchen"
-      ? KITCHEN_UTILITIES
-      : projectType === "bathroom"
-        ? BATHROOM_UTILITIES
-        : null;
-  const diagramFieldSet = diagramUtilities
-    ? buildDiagramFieldSet(diagramUtilities)
-    : null;
 
   return (
     <form action={formAction} className="flex flex-col gap-5" noValidate>
@@ -269,65 +139,6 @@ export default function BriefForm({
 
       {(() => {
         const renderFieldNode = (f: BriefField): ReactNode => {
-          if (projectType === "kitchen" && f.key === "window_wall") {
-            const layoutRaw = initialData["room_layout"];
-            const layout: Layout =
-              layoutRaw === "lin" ||
-              layoutRaw === "l" ||
-              layoutRaw === "u" ||
-              layoutRaw === "wneka" ||
-              layoutRaw === "kwadrat" ||
-              layoutRaw === "kwadrat_pol"
-                ? layoutRaw
-                : "u";
-            const wwRaw = initialData["window_wall"];
-            const ww = typeof wwRaw === "string" ? wwRaw : "";
-            const islandRaw = initialData["has_island"];
-            const island = islandRaw === true || islandRaw === "true" || islandRaw === "on";
-            const rotRaw = initialData["island_rotation"];
-            const rot: 0 | 90 = rotRaw === "90" || rotRaw === 90 ? 90 : 0;
-            return (
-              <KitchenLayoutDiagram
-                key={f.key}
-                initialLayout={layout}
-                initialWindowWall={ww}
-                initialHasIsland={island}
-                initialIslandRotation={rot}
-              />
-            );
-          }
-          if (projectType === "wardrobe" && f.key === "room_shape") {
-            const shapeRaw = initialData["room_shape"];
-            const shape: WardrobeShape =
-              shapeRaw === "prosta" ||
-              shapeRaw === "skos_trojkat" ||
-              shapeRaw === "skos_kolankowy" ||
-              shapeRaw === "skos_pionowy"
-                ? shapeRaw
-                : "prosta";
-            return (
-              <div key={f.key} className="flex flex-col gap-3">
-                <FieldRender field={f} initialValue={initialData[f.key]} />
-                <WardrobeShapeDiagram initialShape={shape} />
-              </div>
-            );
-          }
-          if (projectType === "bathroom" && f.key === "room_layout") {
-            const layoutRaw = initialData["room_layout"];
-            const layout: Layout =
-              layoutRaw === "lin" ||
-              layoutRaw === "l" ||
-              layoutRaw === "u" ||
-              layoutRaw === "wneka"
-                ? layoutRaw
-                : "lin";
-            return (
-              <div key={f.key} className="flex flex-col gap-3">
-                <FieldRender field={f} initialValue={initialData[f.key]} />
-                <BathroomLayoutDiagram initialLayout={layout} />
-              </div>
-            );
-          }
           if (projectType === "bathroom" && f.key === "sink_width_mm") {
             return (
               <div key={f.key} className="flex flex-col gap-3">
@@ -364,20 +175,6 @@ export default function BriefForm({
                 initialJson={typeof raw === "string" ? raw : undefined}
               />
             );
-          }
-          if (diagramUtilities && f.key === "plumbing_wall") {
-            return (
-              <div key={f.key} className="flex flex-col gap-3">
-                <UtilityLocationDiagram
-                  utilities={diagramUtilities}
-                  initialData={initialData}
-                />
-                <FieldRender field={f} initialValue={initialData[f.key]} />
-              </div>
-            );
-          }
-          if (diagramFieldSet?.has(f.key)) {
-            return null;
           }
           return (
             <FieldRender
@@ -416,11 +213,9 @@ export default function BriefForm({
 
             {/* Panel: Pomiar — tylko dane zbierane na wizycie */}
             <div className={showMeasurement ? "flex flex-col gap-5" : "hidden"}>
-              {scanKeys && (
-                <p className="rounded-xl border border-[#cfe4d4] bg-[#eef6f0] px-3.5 py-2.5 text-xs text-[#3a6b4d]">
-                  Wymiary ścian, okna i położenie przyłączy biorą się ze skanu iPada — tu zostają tylko wybory.
-                </p>
-              )}
+              <p className="rounded-xl border border-[#cfe4d4] bg-[#eef6f0] px-3.5 py-2.5 text-xs text-[#3a6b4d]">
+                Wymiary ścian, okna i położenie przyłączy zbiera skaner na iPadzie — tu zostają tylko wybory.
+              </p>
               {schema.groups.map((group) => {
                 const measurementFields = group.fields.filter((f) => !isPost(f));
                 if (measurementFields.length === 0) return null;
@@ -491,7 +286,7 @@ export default function BriefForm({
   );
 }
 
-/** Pole ze skanu — niewidoczne, ale zachowuje wartość wpisaną przed skanem. */
+/** Pole geometrii — niewidoczne, ale zachowuje wartość wpisaną dawniej ręcznie. */
 function HiddenField({
   field,
   value,
