@@ -3,19 +3,20 @@ import { PageContainer } from "@/components/ui";
 import { listJobs } from "@/lib/dao/jobs";
 import { getActiveTimer, listRecentEntries, sumMinutesByJob } from "@/lib/dao/time_entries";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
-import { getJobMaterialCostMap } from "@/lib/dao/finance";
+import { getJobMaterialCostMap, getHourlyOverhead } from "@/lib/dao/finance";
 import { getJobMarginsMap, computeJobMarginFull } from "@/lib/jobMargin";
 import TimerPanel from "./TimerPanel";
 
 export const metadata = { title: "Licznik czasu" };
 
 export default async function TimerPage() {
-  const [jobs, active, recent, minutesByJob, settings] = await Promise.all([
+  const [jobs, active, recent, minutesByJob, settings, overhead] = await Promise.all([
     listJobs(),
     getActiveTimer(),
     listRecentEntries(20),
     sumMinutesByJob(),
     getUserSettingsOrDefault(),
+    getHourlyOverhead(),
   ]);
 
   // Marża per zlecenie = przychód − koszty (spójnie z panelem Rentowność).
@@ -56,6 +57,7 @@ export default async function TimerPage() {
         minutesByJob={minutesByJob}
         marginByJob={marginByJob}
         targetRate={settings.default_hourly_rate}
+        overhead={overhead}
       />
     </PageContainer>
   );

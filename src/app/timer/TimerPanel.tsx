@@ -14,6 +14,7 @@ import {
   type WorkPhase,
 } from "@/lib/dao/time_entries.types";
 import type { Job } from "@/lib/dao/jobs";
+import type { HourlyOverhead } from "@/lib/dao/finance";
 import { fmtDate, fmtDuration } from "@/lib/format";
 
 // Stawka zł/h = marża (przychód − koszty) ÷ przepracowane godziny. null gdy brak czasu.
@@ -27,6 +28,13 @@ function fmtRate(rate: number | null): string {
   if (rate === null) return "—";
   return `${Math.round(rate).toLocaleString("pl-PL")} zł/h`;
 }
+
+// Stawka po odjęciu narzutu firmy (ZUS + koszty stałe) przypadającego na godzinę pracy.
+function afterOverhead(rate: number | null, perHour: number): number | null {
+  return rate === null ? null : rate - perHour;
+}
+
+const zl = (v: number) => `${Math.round(v).toLocaleString("pl-PL")} zł`;
 
 // Kolor stawki względem docelowej: zielony ≥ cel, bursztynowy ≥ 80% celu, czerwony niżej.
 function rateTone(rate: number | null, target: number): string {
@@ -54,6 +62,7 @@ export default function TimerPanel({
   minutesByJob,
   marginByJob,
   targetRate,
+  overhead,
 }: {
   jobs: JobWithClient[];
   active: TimeEntry | null;
@@ -62,6 +71,7 @@ export default function TimerPanel({
   minutesByJob: Record<string, number>;
   marginByJob: Record<string, number>;
   targetRate: number;
+  overhead: HourlyOverhead;
 }) {
   // Podsumowanie: łączny czas + marża per klient (z rozbiciem na zlecenia) → stawka zł/h.
   const summary = useMemo(() => {
@@ -160,6 +170,7 @@ export default function TimerPanel({
           margin={activeJob ? (marginByJob[active.job_id] ?? 0) : 0}
           priorMinutes={minutesByJob[active.job_id] ?? 0}
           targetRate={targetRate}
+          overheadPerHour={overhead.perHour}
           onStop={handleStop}
           pending={pending}
         />
@@ -255,10 +266,21 @@ export default function TimerPanel({
               >
                 {fmtRate(hourlyRate(summary.grandMargin, summary.grandTotal))}
               </span>
+              <span className="block text-[11px] tabular-nums text-zinc-500">
+                po ZUS i kosztach stałych:{" "}
+                <b className="font-semibold text-zinc-700">
+                  {fmtRate(afterOverhead(hourlyRate(summary.grandMargin, summary.grandTotal), overhead.perHour))}
+                </b>
+              </span>
             </div>
           </div>
           <p className="text-[11px] text-zinc-400 mb-3">
             Stawka = marża (przychód − koszty) ÷ godziny. Cel: {Math.round(targetRate)} zł/h.
+            <br />
+            Po ZUS i kosztach stałych: minus {overhead.perHour.toFixed(1).replace(".", ",")} zł/h = (ZUS {zl(overhead.zus)}
+            {" + "}koszty firmy bez zlecenia {zl(overhead.fixed)}/mies.
+            {overhead.months > 0 ? `, średnia z ${overhead.months} mies., bez zakupów z dotacji` : ""}) ÷ 144 h pracy w
+            miesiącu. Zdrowotna liczona minimalna, bez podatku dochodowego.
           </p>
           <ul className="flex flex-col gap-2.5">
             {summary.clients.map((c) => {
@@ -276,6 +298,9 @@ export default function TimerPanel({
                       </span>
                     </span>
                   </div>
+                  <p className="text-right text-[11px] tabular-nums text-zinc-500">
+                    po ZUS i kosztach stałych: {fmtRate(afterOverhead(cRate, overhead.perHour))}
+                  </p>
                   <ul className="mt-1 flex flex-col gap-0.5">
                     {c.jobs.map((j) => {
                       const jRate = hourlyRate(j.margin, j.minutes);
@@ -349,6 +374,7 @@ function ActiveBanner({
   margin,
   priorMinutes,
   targetRate,
+  overheadPerHour,
   onStop,
   pending,
 }: {
@@ -357,6 +383,7 @@ function ActiveBanner({
   margin: number;
   priorMinutes: number;
   targetRate: number;
+  overheadPerHour: number;
   onStop: () => void;
   pending: boolean;
 }) {
@@ -392,6 +419,11 @@ function ActiveBanner({
             <span className="ml-1.5 text-[11px] font-normal text-emerald-700/70">
               cel {Math.round(targetRate)} zł/h
             </span>
+          </p>
+        )}
+        {liveRate !== null && (
+          <p className="text-[11px] tabular-nums text-emerald-800/80">
+            po ZUS i kosztach stałych: {fmtRate(afterOverhead(liveRate, overheadPerHour))}
           </p>
         )}
       </div>

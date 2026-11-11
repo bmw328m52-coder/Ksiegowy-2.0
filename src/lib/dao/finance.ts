@@ -5,6 +5,7 @@ import { getUserSettingsOrDefault } from "./user_settings";
 import { listDeadlines } from "./deadlines";
 import { isJobMissingSalesInvoice, type Job } from "./jobs.types";
 import { isOverdueUnpaid } from "@/lib/dao/invoices.types";
+import { zusForMonth } from "@/lib/zus";
 
 function toNum(v: string | number | null | undefined): number {
   if (v === null || v === undefined) return 0;
@@ -98,6 +99,76 @@ export async function getMonthEstimatedCost(
     count += 1;
   }
   return { estCostNet, estCostGross, count };
+}
+
+// Godziny produktywne w miesiącu — to samo założenie co kalkulator „Stawka usługi" (1728 h / rok).
+const PRODUCTIVE_HOURS_MONTH = 144;
+
+export type HourlyOverhead = {
+  /** ZUS za bieżący miesiąc (społeczne wg fazy + zdrowotna minimalna). */
+  zus: number;
+  /** Średnie miesięczne koszty firmy nieprzypisane do zleceń (bez zakupów z dotacji). */
+  fixed: number;
+  /** Z ilu pełnych miesięcy policzono średnią kosztów stałych. */
+  months: number;
+  /** (zus + fixed) ÷ 144 h produktywne. */
+  perHour: number;
+};
+
+// Narzut firmy na godzinę pracy: ZUS + koszty ogólne (faktury kosztowe bez zlecenia).
+// Koszty ogólne = średnia z ostatnich pełnych miesięcy (max 3, nie wcześniej niż start firmy);
+// zakupy z dotacji pomijamy — to jednorazowe wyposażenie, nie koszt stały.
+// Kwoty netto u VAT-owca (jak marża zleceń), inaczej brutto.
+export async function getHourlyOverhead(now: Date = new Date()): Promise<HourlyOverhead> {
+  const supabase = await createClient();
+  const settings = await getUserSettingsOrDefault();
+  const year = now.getFullYear();
+  const monthIdx = now.getMonth();
+
+  const zusCalc = settings.zus_start_date
+    ? zusForMonth({
+        startDate: settings.zus_start_date,
+        year,
+        monthIdx,
+        taxForm: settings.tax_form,
+        monthIncome: 0,
+        minHealth: settings.health_insurance_min,
+      }).total
+    : settings.zus_monthly;
+
+  const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  let months = 3;
+  if (settings.zus_start_date) {
+    const st = new Date(settings.zus_start_date + "T00:00:00");
+    const full = (year - st.getFullYear()) * 12 + (monthIdx - st.getMonth());
+    months = Math.min(3, Math.max(0, full));
+  }
+  let fixed = 0;
+  if (months > 0) {
+    const from = `${ym(new Date(year, monthIdx - months, 1))}-01`;
+    const to = `${ym(new Date(year, monthIdx, 1))}-01`;
+    const { data, error } = await supabase
+      .from("cost_lines")
+      .select("amount_net, amount_gross, invoices(funded_by_grant)")
+      .is("job_id", null)
+      .gte("cost_date", from)
+      .lt("cost_date", to);
+    if (error) throw error;
+    type Row = {
+      amount_net: string | number;
+      amount_gross: string | number;
+      invoices: { funded_by_grant: boolean | null } | { funded_by_grant: boolean | null }[] | null;
+    };
+    let sum = 0;
+    for (const r of (data ?? []) as Row[]) {
+      const inv = Array.isArray(r.invoices) ? r.invoices[0] : r.invoices;
+      if (inv?.funded_by_grant) continue;
+      sum += toNum(settings.is_vat_payer ? r.amount_net : r.amount_gross);
+    }
+    fixed = Math.max(0, sum / months);
+  }
+
+  return { zus: zusCalc, fixed, months, perHour: (zusCalc + fixed) / PRODUCTIVE_HOURS_MONTH };
 }
 
 export type JobProfitability = {
