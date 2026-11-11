@@ -63,6 +63,7 @@ final class Laser: NSObject, ObservableObject {
     func forget() {
         wanted = false
         UserDefaults.standard.removeObject(forKey: GLM.savedKey)
+        fallback?.cancel()
         central?.stopScan()
         if let peripheral { central?.cancelPeripheralConnection(peripheral) }
         peripheral = nil
@@ -89,7 +90,19 @@ final class Laser: NSObject, ObservableObject {
         state = .connecting
         // Żądanie połączenia nie wygasa — gdy dalmierz jest wyłączony, połączy się po włączeniu.
         central?.connect(p)
+        // Zapamiętany adres bywa nieaktualny (reset Bluetooth, dalmierz sparowany z innym urządzeniem) —
+        // wtedy żądanie wisi bez końca. Po chwili szukamy równolegle od nowa.
+        fallback?.cancel()
+        fallback = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard let self, !Task.isCancelled, self.state == .connecting,
+                  let central = self.central, central.state == .poweredOn else { return }
+            self.note("Brak odpowiedzi — szukam dalmierza od nowa")
+            central.scanForPeripherals(withServices: nil)
+        }
     }
+
+    private var fallback: Task<Void, Never>?
 
     /// Ostatnie zdarzenia i surowe ramki (hex) — podgląd „Diagnostyka" przy dalmierzu.
     @Published private(set) var log: [String] = []
@@ -149,7 +162,12 @@ extension Laser: CBCentralManagerDelegate {
         let services = ad[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
         guard name.uppercased().contains("GLM") || services.contains(GLM.service) else { return }
         Task { @MainActor in
-            guard state == .searching else { return }
+            // .connecting = szukanie zapasowe; ten sam dalmierz połączy się z wiszącego żądania.
+            guard state == .searching || (state == .connecting && p.identifier != peripheral?.identifier) else { return }
+            if state == .connecting, let old = peripheral {
+                note("Znaleziono dalmierz pod nowym adresem")
+                central?.cancelPeripheralConnection(old)
+            }
             deviceName = name.isEmpty ? "Bosch GLM" : name
             connect(p)
         }
@@ -157,20 +175,30 @@ extension Laser: CBCentralManagerDelegate {
 
     nonisolated func centralManager(_ c: CBCentralManager, didConnect p: CBPeripheral) {
         Task { @MainActor in
+            fallback?.cancel()
+            central?.stopScan()
+            note("Połączono z \(p.name ?? "dalmierzem")")
             UserDefaults.standard.set(p.identifier.uuidString, forKey: GLM.savedKey)
             p.discoverServices(nil)
         }
     }
 
     nonisolated func centralManager(_ c: CBCentralManager, didFailToConnect p: CBPeripheral, error: Error?) {
+        let err = error?.localizedDescription
         Task { @MainActor in
+            note("Połączenie nieudane: " + (err ?? "bez opisu"))
+            guard peripheral?.identifier == p.identifier else { return }
             state = .idle
             if wanted { connect(p) }
         }
     }
 
     nonisolated func centralManager(_ c: CBCentralManager, didDisconnectPeripheral p: CBPeripheral, error: Error?) {
+        let err = error?.localizedDescription
         Task { @MainActor in
+            note("Rozłączono: " + (err ?? "na żądanie"))
+            // Porzucony stary adres (szukanie zapasowe) — nie ruszamy bieżącego połączenia.
+            if let current = peripheral, current.identifier != p.identifier { return }
             guard wanted, peripheral?.identifier == p.identifier else {
                 state = .idle
                 return
