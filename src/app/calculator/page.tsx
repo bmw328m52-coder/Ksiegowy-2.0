@@ -8,6 +8,7 @@ import { listQuoteTemplates } from "@/lib/dao/quote_templates";
 import { getDashboardData } from "@/lib/dao/dashboard";
 import { getJobMaterialCostMap } from "@/lib/dao/finance";
 import { createClient } from "@/lib/supabase/server";
+import { ZUS_PHASE_LABELS, zusPhaseForMonth, zusSocialForPhase } from "@/lib/zus";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Kalkulator" };
@@ -65,6 +66,10 @@ export default async function CalculatorPage({
     ? jobOptions.find((j) => j.id === initialJobId)
     : undefined;
 
+  // Faza ZUS na dziś (ulga / preferencyjny / pełny) — domyślne składki społeczne w kalkulatorze.
+  const today = new Date();
+  const zusPhase = zusPhaseForMonth(settings.zus_start_date, today.getFullYear(), today.getMonth());
+
   const backHref = presetJob ? `/jobs/${presetJob.id}` : "/wiecej";
 
   return (
@@ -116,9 +121,9 @@ export default async function CalculatorPage({
           defaultYearIncome={Math.max(0, dashboard.pit.profitYtd)}
           templates={templates}
           materialCategories={settings.material_categories}
-          defaultZusPelny={settings.zus_pelny ?? 1900}
-          defaultZusMaly={settings.zus_maly ?? 891.34}
-          defaultZusUlga={settings.zus_ulga ?? 397.16}
+          defaultSocialMonthly={zusSocialForPhase(zusPhase)}
+          zusPhaseLabel={ZUS_PHASE_LABELS[zusPhase]}
+          healthMinMonthly={settings.health_insurance_min}
           initialJobId={initialJobId}
         />
     </PageContainer>

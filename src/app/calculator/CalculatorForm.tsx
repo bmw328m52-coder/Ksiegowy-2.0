@@ -1,7 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
-import { calcDeal, type TaxForm } from "@/lib/tax";
+import { useActionState, useState, useSyncExternalStore } from "react";
+import type { CalcResult, TaxForm } from "@/lib/tax";
+import {
+  calcJobProfit,
+  rateStatus,
+  requiredHourlyRate,
+  requiredPriceGross,
+  type JobProfitInput,
+  type RateStatus,
+} from "@/lib/profitability";
+import { ZUS_SOCIAL_FULL_2026, ZUS_SOCIAL_PREF_2026 } from "@/lib/zus";
 import { fmtPLN, parseAmount } from "@/lib/format";
 import type { QuoteTemplate } from "@/lib/dao/quote_templates.types";
 import { saveQuoteTemplateAction, deleteQuoteTemplateAction } from "./actions";
@@ -26,12 +35,88 @@ function jobCostGross(job: JobOption): number {
   return invoices > 0 ? invoices : job.materials_gross;
 }
 
+// Koszt planowany = pozycje wyceny, ale tylko gdy są już faktury do porównania.
+function jobPlannedGross(job: JobOption): number {
+  return job.costs_net + job.costs_vat > 0 ? job.materials_gross : 0;
+}
+
 type BomLine = { id: string; category: string; amountStr: string };
 
 // Czynsz warsztatu (z prądem) — koszt stały co miesiąc, jak ZUS. Kwota pamiętana lokalnie.
 const RENT_STORAGE_KEY = "calc.workshopRentMonthly";
 const DEFAULT_WORKSHOP_RENT = 300;
 const HOURS_PER_DAY = 8;
+// Cel zarobku — pamiętany na urządzeniu, żeby nie wpisywać przy każdej wycenie.
+const MONTHLY_TARGET_KEY = "calc.monthlyTarget";
+const BILLABLE_HOURS_KEY = "calc.billableHoursMonth";
+const TARGET_RATE_KEY = "calc.targetRate";
+const MIN_RATE_KEY = "calc.minRate";
+const AVAILABLE_HOURS_MONTH = 160;
+const RATE_PRESETS = [75, 90, 100, 110, 120];
+
+const PREF_EVENT = "luviano:calcPrefs";
+// Kopia w pamięci — pole działa także, gdy localStorage jest zablokowany.
+const prefMemory = new Map<string, string>();
+
+function subscribePrefs(cb: () => void) {
+  window.addEventListener(PREF_EVENT, cb);
+  return () => window.removeEventListener(PREF_EVENT, cb);
+}
+
+function usePref(key: string, fallback: string): [string, (v: string) => void] {
+  const value = useSyncExternalStore(
+    subscribePrefs,
+    () => {
+      const mem = prefMemory.get(key);
+      if (mem !== undefined) return mem;
+      try {
+        return localStorage.getItem(key) ?? fallback;
+      } catch {
+        return fallback;
+      }
+    },
+    () => fallback,
+  );
+  const set = (v: string) => {
+    prefMemory.set(key, v);
+    try {
+      localStorage.setItem(key, v);
+    } catch {}
+    window.dispatchEvent(new Event(PREF_EVENT));
+  };
+  return [value, set];
+}
+
+const STATUS_TONE: Record<
+  RateStatus,
+  { box: string; label: string; value: string; sub: string; text: string }
+> = {
+  cel: {
+    box: "border-emerald-300 bg-emerald-50",
+    label: "text-emerald-700",
+    value: "text-emerald-900",
+    sub: "text-emerald-700/80",
+    text: "Cel osiągnięty",
+  },
+  minimum: {
+    box: "border-amber-300 bg-amber-50",
+    label: "text-amber-800",
+    value: "text-amber-900",
+    sub: "text-amber-800/80",
+    text: "Powyżej minimum, poniżej celu",
+  },
+  ponizej: {
+    box: "border-red-300 bg-red-50",
+    label: "text-red-700",
+    value: "text-red-900",
+    sub: "text-red-700/80",
+    text: "Poniżej minimum",
+  },
+};
+
+function fmtRate(v: number): string {
+  return `${fmtPLN(v)}/h`;
+}
 
 function makeBomLine(category = ""): BomLine {
   return {
@@ -51,9 +136,9 @@ export default function CalculatorForm({
   defaultYearIncome,
   templates,
   materialCategories,
-  defaultZusPelny,
-  defaultZusMaly,
-  defaultZusUlga,
+  defaultSocialMonthly,
+  zusPhaseLabel,
+  healthMinMonthly,
   initialJobId,
 }: {
   jobs: JobOption[];
@@ -63,13 +148,15 @@ export default function CalculatorForm({
   defaultYearIncome: number;
   templates: QuoteTemplate[];
   materialCategories: string[];
-  defaultZusPelny: number;
-  defaultZusMaly: number;
-  defaultZusUlga: number;
+  /** Składki społeczne wg dzisiejszej fazy ZUS (ulga na start = 0). */
+  defaultSocialMonthly: number;
+  zusPhaseLabel: string;
+  healthMinMonthly: number;
   initialJobId?: string;
 }) {
   const presetJob = initialJobId ? jobs.find((j) => j.id === initialJobId) : undefined;
   const presetCostsGross = presetJob ? jobCostGross(presetJob) : 0;
+  const presetPlanned = presetJob ? jobPlannedGross(presetJob) : 0;
 
   const [amountStr, setAmountStr] = useState("");
   const [vatPct, setVatPct] = useState(String(Math.round(defaultVatRate * 100)));
@@ -91,9 +178,18 @@ export default function CalculatorForm({
   const [pitFlat, setPitFlat] = useState(false);
   const [hoursStr, setHoursStr] = useState("");
   const [timeUnit, setTimeUnit] = useState<"h" | "dni">("h");
-  const [rentStr, setRentStr] = useState(DEFAULT_WORKSHOP_RENT.toFixed(2));
-  const [zusStr, setZusStr] = useState(defaultZusPelny.toFixed(2));
-  const [hoursPerMonthStr, setHoursPerMonthStr] = useState("160");
+  const [rentStr, onRentChange] = usePref(RENT_STORAGE_KEY, DEFAULT_WORKSHOP_RENT.toFixed(2));
+  const [zusStr, setZusStr] = useState(defaultSocialMonthly.toFixed(2));
+  const [hoursPerMonthStr, setHoursPerMonthStr] = usePref(BILLABLE_HOURS_KEY, "120");
+  const [monthlyTargetStr, setMonthlyTargetStr] = usePref(MONTHLY_TARGET_KEY, "12000");
+  // Pusta = stawka wynika z celu miesięcznego ÷ godziny płatne.
+  const [targetRateStr, setTargetRateStr] = usePref(TARGET_RATE_KEY, "");
+  const [minRateStr, setMinRateStr] = usePref(MIN_RATE_KEY, "75");
+  const [plannedCostsStr, setPlannedCostsStr] = useState(
+    presetPlanned > 0 ? presetPlanned.toFixed(2) : "",
+  );
+  const [discountStr, setDiscountStr] = useState("");
+  const [discountMode, setDiscountMode] = useState<"zl" | "pct">("zl");
   const [withInvoice, setWithInvoice] = useState(true);
   const [deductCostsVat, setDeductCostsVat] = useState(false);
   const [reserveVacation, setReserveVacation] = useState(false);
@@ -105,20 +201,6 @@ export default function CalculatorForm({
   const router = useRouter();
   const [applyPending, setApplyPending] = useState(false);
   const [applyError, setApplyError] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(RENT_STORAGE_KEY);
-      if (saved !== null && saved !== "") setRentStr(saved);
-    } catch {}
-  }, []);
-
-  function onRentChange(v: string) {
-    setRentStr(v);
-    try {
-      localStorage.setItem(RENT_STORAGE_KEY, v);
-    } catch {}
-  }
 
   function loadTemplate(id: string) {
     setTemplateId(id);
@@ -147,6 +229,8 @@ export default function CalculatorForm({
     if (!job) return;
     const gross = jobCostGross(job);
     setCostsGrossStr(gross > 0 ? gross.toFixed(2) : "");
+    const planned = jobPlannedGross(job);
+    setPlannedCostsStr(planned > 0 ? planned.toFixed(2) : "");
   }
 
   async function applyToJob() {
@@ -190,47 +274,90 @@ export default function CalculatorForm({
   const costsGross = useBom ? bomTotal : (parseAmount(costsGrossStr) ?? 0);
   const vatRate = Math.max(0, Number(vatPct) / 100) || 0;
   const costsVatRate = isVatPayer ? Math.max(0, Number(costsVatPct) / 100) || 0 : 0;
-  const extraCosts = costsVatRate > 0 ? costsGross / (1 + costsVatRate) : costsGross;
-  const extraCostsVat = costsGross - extraCosts;
-
-  const result = useMemo(
-    () =>
-      calcDeal({
-        amountGross: amount,
-        vatRate,
-        costsNet: extraCosts,
-        costsVat: extraCostsVat,
-        taxForm,
-        isVatPayer,
-        yearIncomeBefore: yearIncome,
-        pitFlat,
-      }),
-    [amount, vatRate, extraCosts, extraCostsVat, taxForm, isVatPayer, yearIncome, pitFlat]
-  );
 
   const timeValue = Math.max(0, parseAmount(hoursStr) ?? 0);
   const hours = timeUnit === "dni" ? timeValue * HOURS_PER_DAY : timeValue;
+  // Składki społeczne miesięcznie; zdrowotna liczy się sama z dochodu (lib/profitability).
   const zusMonthly = Math.max(0, parseAmount(zusStr) ?? 0);
-  const hoursPerMonth = Math.max(1, parseAmount(hoursPerMonthStr) ?? 160);
-  // Składka ZUS + zdrowotna to koszt stały co miesiąc, niezależnie od tego, czy zlecenie
-  // idzie na fakturę. Przypisujemy zleceniu jego proporcjonalną część także bez faktury.
-  const zusForJob = (zusMonthly / hoursPerMonth) * hours;
-  // Warsztat (czynsz + prąd) — ta sama logika: miesięczna kwota rozbita na godziny pracy.
+  // Godziny PŁATNE w miesiącu: na nie rozkładają się ZUS i warsztat, z nich wynika stawka z celu.
+  const hoursPerMonth = Math.max(1, parseAmount(hoursPerMonthStr) ?? 120);
   const rentMonthly = Math.max(0, parseAmount(rentStr) ?? 0);
-  const rentForJob = (rentMonthly / hoursPerMonth) * hours;
-  // Bez faktury: koszt = brutto. Jeśli VATowiec może odliczyć VAT od kosztów, efektywny koszt = netto.
-  const canDeductVat = !withInvoice && isVatPayer && deductCostsVat;
-  const recoveredVat = canDeductVat ? extraCostsVat : 0;
-  const profitNoInvoice = amount - costsGross + recoveredVat;
-  const netCashAfterZus = (withInvoice ? result.netCash : profitNoInvoice) - zusForJob - rentForJob;
   // Rezerwa: 26 dni urlopu × 8 h = 208 h, 10 dni L4 × 8 h = 80 h, na rok 1728 h produktywnych
   const reserveRatio = ((reserveVacation ? 208 : 0) + (reserveSick ? 80 : 0)) / 1728;
-  const reserveAmount = netCashAfterZus * reserveRatio;
-  const netCashAfterReserves = netCashAfterZus - reserveAmount;
-  const ratePerHour = hours > 0 ? netCashAfterReserves / hours : 0;
-  const ratePerHourBeforeTaxes = hours > 0
-    ? (withInvoice ? result.profit : profitNoInvoice) / hours
-    : 0;
+
+  const profitInput: JobProfitInput = {
+    amountGross: amount,
+    vatRate,
+    isVatPayer,
+    withInvoice,
+    deductCostsVat,
+    costsGross,
+    costsVatRate,
+    taxForm,
+    yearIncomeBefore: yearIncome,
+    pitFlat,
+    hours,
+    billableHoursMonth: hoursPerMonth,
+    socialMonthly: zusMonthly,
+    healthMinMonthly,
+    rentMonthly,
+    reserveRatio,
+  };
+  const calc = calcJobProfit(profitInput);
+  const result: CalcResult = {
+    revenueNet: calc.revenueNet,
+    revenueVat: calc.revenueVat,
+    profit: calc.incomeBeforeTax,
+    vatToPay: calc.vatToPay,
+    pitDelta: calc.pit,
+    netCash: calc.cashAfterTax,
+  };
+  const extraCosts = calc.costsNet;
+  const extraCostsVat = calc.costsVat;
+  const zusForJob = calc.zus;
+  const rentForJob = calc.rent;
+  const recoveredVat = calc.recoveredVat;
+  const profitNoInvoice = calc.incomeBeforeTax;
+  const netCashAfterZus = calc.cashAfterFixed;
+  const reserveAmount = calc.reserve;
+  const netCashAfterReserves = calc.netCash;
+  const ratePerHour = calc.ratePerHour;
+  const ratePerHourBeforeTaxes = calc.rateBeforeTax;
+
+  // Cel: stawka na rękę z celu miesięcznego (np. 12 000 ÷ 120 h = 100 zł/h) albo wpisana ręcznie.
+  const monthlyTarget = Math.max(0, parseAmount(monthlyTargetStr) ?? 0);
+  const rateFromGoal = requiredHourlyRate(monthlyTarget, hoursPerMonth);
+  const customTargetRate = parseAmount(targetRateStr) ?? 0;
+  const targetRate = customTargetRate > 0 ? customTargetRate : rateFromGoal;
+  const minRate = Math.max(0, parseAmount(minRateStr) ?? 0);
+  const status = hours > 0 && amount > 0 ? rateStatus(ratePerHour, targetRate, minRate) : null;
+  const targetCash = targetRate * hours;
+  const priceTarget =
+    hours > 0 && targetRate > 0 ? Math.ceil(requiredPriceGross(profitInput, targetCash)) : 0;
+  const priceMin =
+    hours > 0 && minRate > 0 ? Math.ceil(requiredPriceGross(profitInput, minRate * hours)) : 0;
+  const priceHasVat = withInvoice && isVatPayer && vatRate > 0;
+  const netOf = (gross: number) => (priceHasVat ? gross / (1 + vatRate) : gross);
+
+  // Materiały: plan (wycena) a rzeczywistość (faktury) — ile zarobku zjadło przekroczenie.
+  const plannedCosts = Math.max(0, parseAmount(plannedCostsStr) ?? 0);
+  const plannedCalc =
+    plannedCosts > 0 && Math.abs(plannedCosts - costsGross) > 0.005
+      ? calcJobProfit({ ...profitInput, costsGross: plannedCosts })
+      : null;
+
+  // Rabat: cały rachunek od nowa dla niższej ceny (VAT, PIT, zdrowotna), nie proste odejmowanie.
+  const discountValue = Math.max(0, parseAmount(discountStr) ?? 0);
+  const discountAmount =
+    discountMode === "pct"
+      ? (amount * Math.min(100, discountValue)) / 100
+      : Math.min(amount, discountValue);
+  const discountCalc =
+    discountAmount > 0 && amount > 0
+      ? calcJobProfit({ ...profitInput, amountGross: amount - discountAmount })
+      : null;
+  const discountStatus =
+    discountCalc && hours > 0 ? rateStatus(discountCalc.ratePerHour, targetRate, minRate) : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -428,6 +555,27 @@ export default function CalculatorForm({
           </p>
         )}
 
+        <Field label="Koszty planowane brutto — z wyceny (opcjonalnie)">
+          <input
+            inputMode="decimal"
+            value={plannedCostsStr}
+            onChange={(e) => setPlannedCostsStr(e.target.value)}
+            placeholder="np. 20000"
+            className="input"
+          />
+          {plannedCosts > 0 && costsGross > 0 && (
+            <span
+              className={`text-[11px] ${
+                costsGross > plannedCosts + 0.005 ? "text-red-600" : "text-zinc-500"
+              }`}
+            >
+              Rzeczywiste względem planu: {costsGross >= plannedCosts ? "+" : "−"}
+              {fmtPLN(Math.abs(costsGross - plannedCosts))} (
+              {(((costsGross - plannedCosts) / plannedCosts) * 100).toFixed(1).replace(".", ",")}%)
+            </span>
+          )}
+        </Field>
+
         <label className="flex items-center gap-2 text-xs text-zinc-700 select-none mt-1">
           <input
             type="checkbox"
@@ -588,7 +736,7 @@ export default function CalculatorForm({
         )}
       </Section>
 
-      <Section title="Stawka godzinowa (opcjonalnie)">
+      <Section title="Czas pracy i cel zarobku">
         <Field label="Czas pracy nad zleceniem">
           <div className="flex gap-2">
             <input
@@ -620,6 +768,73 @@ export default function CalculatorForm({
           )}
         </Field>
 
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Cel na rękę / mies. (PLN)">
+            <input
+              inputMode="decimal"
+              value={monthlyTargetStr}
+              onChange={(e) => setMonthlyTargetStr(e.target.value)}
+              placeholder="12000"
+              className="input"
+            />
+          </Field>
+          <Field label="Godziny płatne / mies.">
+            <input
+              inputMode="decimal"
+              value={hoursPerMonthStr}
+              onChange={(e) => setHoursPerMonthStr(e.target.value)}
+              placeholder="120"
+              className="input"
+            />
+          </Field>
+        </div>
+        <p className="text-[11px] text-zinc-500 -mt-1">
+          {fmtPLN(monthlyTarget)} ÷ {hoursPerMonth} h ={" "}
+          <span className="font-medium tabular-nums text-zinc-700">{fmtRate(rateFromGoal)}</span> na rękę ·
+          wykorzystanie {Math.round((hoursPerMonth / AVAILABLE_HOURS_MONTH) * 100)}% z{" "}
+          {AVAILABLE_HOURS_MONTH} h. Reszta to przestoje, pomiary, wyceny i dojazdy — dlatego ZUS i
+          warsztat rozkładają się tylko na godziny płatne.
+        </p>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-zinc-600">Stawka docelowa na rękę (zł/h)</span>
+          <div className="flex flex-wrap gap-1.5">
+            <RateChip
+              label={`Z celu: ${Math.round(rateFromGoal)}`}
+              active={customTargetRate <= 0}
+              onPick={() => setTargetRateStr("")}
+            />
+            {RATE_PRESETS.map((r) => (
+              <RateChip
+                key={r}
+                label={String(r)}
+                active={customTargetRate === r}
+                onPick={() => setTargetRateStr(String(r))}
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Własna stawka docelowa">
+              <input
+                inputMode="decimal"
+                value={targetRateStr}
+                onChange={(e) => setTargetRateStr(e.target.value)}
+                placeholder={`z celu: ${Math.round(rateFromGoal)}`}
+                className="input"
+              />
+            </Field>
+            <Field label="Stawka minimalna (zł/h)">
+              <input
+                inputMode="decimal"
+                value={minRateStr}
+                onChange={(e) => setMinRateStr(e.target.value)}
+                placeholder="75"
+                className="input"
+              />
+            </Field>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-zinc-600">Rezerwa wolnego (odejmowana od stawki)</span>
           <label className="flex items-center gap-2 text-sm text-zinc-700 select-none">
@@ -638,28 +853,30 @@ export default function CalculatorForm({
             />
             <span>L4 (10 dni × 8 h / rok)</span>
           </label>
+          {(reserveVacation || reserveSick) && hoursPerMonth < AVAILABLE_HOURS_MONTH && (
+            <span className="text-[11px] text-amber-700">
+              Uwaga na podwójne liczenie: godziny płatne ({hoursPerMonth} z {AVAILABLE_HOURS_MONTH})
+              już zakładają przestoje. Zaznacz rezerwę tylko wtedy, gdy urlopu i L4 w nich nie ma.
+            </span>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Miesięczny ZUS (PLN)">
-            <input
-              inputMode="decimal"
-              value={zusStr}
-              onChange={(e) => setZusStr(e.target.value)}
-              placeholder="np. 1900"
-              className="input"
-            />
-          </Field>
-          <Field label="Godzin pracy / mies.">
-            <input
-              inputMode="decimal"
-              value={hoursPerMonthStr}
-              onChange={(e) => setHoursPerMonthStr(e.target.value)}
-              placeholder="160"
-              className="input"
-            />
-          </Field>
-        </div>
+        <Field label="ZUS społeczny / mies. (PLN)">
+          <input
+            inputMode="decimal"
+            value={zusStr}
+            onChange={(e) => setZusStr(e.target.value)}
+            placeholder="0"
+            className="input"
+          />
+          <span className="text-[11px] text-zinc-500">
+            Dziś: {zusPhaseLabel}. Zdrowotna dolicza się sama —{" "}
+            {withInvoice
+              ? `${taxForm === "liniowy" ? "4,9%" : "9%"} dochodu ze zlecenia, nie mniej niż część minimalnej`
+              : "część minimalnej"}{" "}
+            ({fmtPLN(healthMinMonthly)}/mies.).
+          </span>
+        </Field>
         <Field label="Warsztat — czynsz z prądem / mies. (PLN)">
           <input
             inputMode="decimal"
@@ -676,13 +893,13 @@ export default function CalculatorForm({
           )}
         </Field>
         <div className="flex flex-wrap gap-1.5">
-          <ZusPreset label="Ulga" amount={defaultZusUlga} onPick={setZusStr} />
-          <ZusPreset label="Mały" amount={defaultZusMaly} onPick={setZusStr} />
-          <ZusPreset label="Pełny" amount={defaultZusPelny} onPick={setZusStr} />
+          <ZusPreset label="Ulga na start" amount={0} onPick={setZusStr} />
+          <ZusPreset label="Preferencyjny" amount={ZUS_SOCIAL_PREF_2026} onPick={setZusStr} />
+          <ZusPreset label="Pełny" amount={ZUS_SOCIAL_FULL_2026} onPick={setZusStr} />
         </div>
         {!withInvoice && (
           <p className="text-[11px] text-zinc-500 -mt-1">
-            Składkę ZUS płacisz co miesiąc niezależnie od faktury, więc doliczamy jej część
+            ZUS i zdrowotną płacisz co miesiąc niezależnie od faktury, więc doliczamy ich część
             proporcjonalną do godzin także tutaj.
           </p>
         )}
@@ -692,7 +909,11 @@ export default function CalculatorForm({
             withInvoice={withInvoice}
             hours={hours}
             zusForJob={zusForJob}
-            zusMonthly={zusMonthly}
+            socialForJob={calc.social}
+            healthForJob={calc.health}
+            status={status}
+            targetRate={targetRate}
+            minRate={minRate}
             rentForJob={rentForJob}
             rentMonthly={rentMonthly}
             hoursPerMonth={hoursPerMonth}
@@ -726,8 +947,179 @@ export default function CalculatorForm({
         reserveAmount={reserveAmount}
         netCashFinal={netCashAfterReserves}
         hours={hours}
-        zusMonthly={zusMonthly}
+        fixedMonthly={zusMonthly + healthMinMonthly + rentMonthly}
       />
+
+      {amount > 0 && (
+        <section className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+          <div
+            className={`px-4 py-3 border-b ${
+              status ? STATUS_TONE[status].box : "border-zinc-200 bg-zinc-50"
+            }`}
+          >
+            <p
+              className={`text-xs font-medium uppercase tracking-wide ${
+                status ? STATUS_TONE[status].label : "text-zinc-600"
+              }`}
+            >
+              Rentowność zlecenia · prognoza
+            </p>
+            {status ? (
+              <p className={`text-sm font-semibold mt-0.5 ${STATUS_TONE[status].value}`}>
+                {STATUS_TONE[status].text}: {fmtRate(ratePerHour)} na rękę
+                <span className={`font-normal ${STATUS_TONE[status].sub}`}>
+                  {" "}
+                  · cel {fmtRate(targetRate)} · minimum {fmtRate(minRate)}
+                </span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-zinc-500 mt-0.5">
+                Podaj czas pracy, żeby zobaczyć stawkę, cenę zalecaną i minimalną.
+              </p>
+            )}
+          </div>
+
+          <Row label="Cena brutto" value={fmtPLN(amount)} />
+          {priceHasVat && <Row label="Netto (bez VAT)" value={fmtPLN(calc.revenueNet)} sub />}
+          <Row label="Dochód przed podatkami" value={fmtPLN(calc.incomeBeforeTax)} sub />
+          <Row label="Na rękę (po podatkach, ZUS, warsztacie)" value={fmtPLN(calc.netCash)} bold />
+
+          {hours > 0 && targetRate > 0 && (
+            <>
+              <GroupHeader>Cel</GroupHeader>
+              <Row
+                label={`Cel na rękę (${fmtRate(targetRate)} × ${hours} h)`}
+                value={fmtPLN(targetCash)}
+              />
+              <Row
+                label={calc.netCash >= targetCash ? "Nadwyżka nad celem" : "Brakuje do celu"}
+                value={fmtPLN(Math.abs(calc.netCash - targetCash))}
+                sub
+              />
+              <Row label="Cena zalecana brutto" value={fmtPLN(priceTarget)} bold />
+              {priceHasVat && <Row label="netto" value={fmtPLN(netOf(priceTarget))} sub />}
+              {priceMin > 0 && (
+                <>
+                  <Row
+                    label={`Cena minimalna brutto (${fmtRate(minRate)})`}
+                    value={fmtPLN(priceMin)}
+                  />
+                  {priceHasVat && <Row label="netto" value={fmtPLN(netOf(priceMin))} sub />}
+                  <Row
+                    label="Zalecana − minimalna"
+                    value={fmtPLN(priceTarget - priceMin)}
+                    sub
+                  />
+                </>
+              )}
+              <Row
+                label={
+                  amount >= priceTarget
+                    ? "Twoja cena ponad zalecaną"
+                    : "Twoja cena poniżej zalecanej"
+                }
+                value={fmtPLN(Math.abs(amount - priceTarget))}
+                sub
+              />
+            </>
+          )}
+
+          {plannedCalc && (
+            <>
+              <GroupHeader>Materiały: plan a rzeczywistość</GroupHeader>
+              <Row label="Planowane brutto" value={fmtPLN(plannedCosts)} />
+              <Row
+                label={`Rzeczywiste brutto (${costsGross >= plannedCosts ? "+" : "−"}${Math.abs(
+                  ((costsGross - plannedCosts) / plannedCosts) * 100,
+                )
+                  .toFixed(1)
+                  .replace(".", ",")}%)`}
+                value={fmtPLN(costsGross)}
+              />
+              <Row
+                label={
+                  plannedCalc.netCash >= calc.netCash
+                    ? "Utracony zarobek na rękę"
+                    : "Dodatkowy zarobek na rękę"
+                }
+                value={fmtPLN(Math.abs(plannedCalc.netCash - calc.netCash))}
+                bold
+              />
+              {hours > 0 && (
+                <Row
+                  label="Stawka przy kosztach z planu"
+                  value={fmtRate(plannedCalc.ratePerHour)}
+                  sub
+                />
+              )}
+            </>
+          )}
+
+          <GroupHeader>Symulacja rabatu</GroupHeader>
+          <div className="flex gap-2 px-4 py-3 border-b border-zinc-100">
+            <input
+              inputMode="decimal"
+              value={discountStr}
+              onChange={(e) => setDiscountStr(e.target.value)}
+              placeholder={discountMode === "pct" ? "np. 5" : "np. 1500"}
+              aria-label="Rabat"
+              className="input flex-1"
+            />
+            <div className="flex shrink-0 rounded-lg border border-zinc-200 bg-white p-0.5">
+              {(["zl", "pct"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setDiscountMode(m)}
+                  className={`px-3 rounded-md text-sm ${
+                    discountMode === m ? "bg-[#a06f3f] text-white font-medium" : "text-zinc-600"
+                  }`}
+                >
+                  {m === "zl" ? "zł" : "%"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {discountCalc && (
+            <>
+              <Row
+                label={`Cena po rabacie brutto (− ${fmtPLN(discountAmount)})`}
+                value={fmtPLN(amount - discountAmount)}
+              />
+              <Row
+                label="Spadek zarobku na rękę"
+                value={`− ${fmtPLN(calc.netCash - discountCalc.netCash)}`}
+                sub
+              />
+              <Row label="Na rękę po rabacie" value={fmtPLN(discountCalc.netCash)} bold />
+              {hours > 0 && (
+                <>
+                  <Row
+                    label={`Stawka po rabacie (było ${fmtRate(ratePerHour)})`}
+                    value={fmtRate(discountCalc.ratePerHour)}
+                  />
+                  <Row
+                    label={
+                      discountCalc.netCash >= targetCash ? "Nadal ponad celem o" : "Do celu brakuje"
+                    }
+                    value={fmtPLN(Math.abs(discountCalc.netCash - targetCash))}
+                    sub
+                  />
+                  {discountStatus && (
+                    <div className={`px-4 py-2.5 text-sm font-medium ${STATUS_TONE[discountStatus].box} ${STATUS_TONE[discountStatus].value}`}>
+                      {discountStatus === "ponizej"
+                        ? `Po rabacie schodzisz poniżej minimum ${fmtRate(minRate)}.`
+                        : discountStatus === "minimum"
+                          ? `Po rabacie nadal powyżej minimum, ale poniżej celu.`
+                          : `Po rabacie cel nadal osiągnięty.`}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {jobId && (
         <div className="rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
@@ -760,7 +1152,8 @@ export default function CalculatorForm({
       )}
 
       <p className="text-[11px] text-zinc-500 text-center">
-        To nie porada podatkowa — wyliczenie poglądowe. Skonsultuj z księgową.
+        To prognoza, nie porada podatkowa: PIT, ZUS i zdrowotna liczone wg stawek 2026 dla tego
+        jednego zlecenia. Rozliczenie roczne może wyjść inaczej — skonsultuj z księgową.
       </p>
 
       <style jsx>{`
@@ -820,11 +1213,39 @@ function ZusPreset({
   );
 }
 
+function RateChip({
+  label,
+  active,
+  onPick,
+}: {
+  label: string;
+  active: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className={`rounded-md border px-2.5 py-1.5 text-xs tabular-nums ${
+        active
+          ? "border-[#a06f3f] bg-[#a06f3f] text-white font-medium"
+          : "border-zinc-200 bg-white text-zinc-600 active:bg-zinc-50"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 function HourlyRatePanel({
   withInvoice,
   hours,
   zusForJob,
-  zusMonthly,
+  socialForJob,
+  healthForJob,
+  status,
+  targetRate,
+  minRate,
   rentForJob,
   rentMonthly,
   hoursPerMonth,
@@ -843,7 +1264,11 @@ function HourlyRatePanel({
   withInvoice: boolean;
   hours: number;
   zusForJob: number;
-  zusMonthly: number;
+  socialForJob: number;
+  healthForJob: number;
+  status: RateStatus | null;
+  targetRate: number;
+  minRate: number;
   rentForJob: number;
   rentMonthly: number;
   hoursPerMonth: number;
@@ -859,7 +1284,8 @@ function HourlyRatePanel({
   costsGross: number;
   recoveredVat: number;
 }) {
-  const positive = ratePerHour >= 0;
+  const tone = STATUS_TONE[status ?? (ratePerHour >= 0 ? "cel" : "ponizej")];
+  const zusLabel = `− ZUS i zdrowotna (społeczne ${fmtPLN(socialForJob)} + zdrowotna ${fmtPLN(healthForJob)})`;
   const reserveActive = reserveVacation || reserveSick;
   const reserveLabel = [reserveVacation ? "urlop" : null, reserveSick ? "L4" : null]
     .filter(Boolean)
@@ -876,32 +1302,21 @@ function HourlyRatePanel({
   );
   return (
     <div className="space-y-2">
-      <div
-        className={`rounded-2xl border p-4 ${
-          positive ? "border-emerald-300 bg-emerald-50" : "border-red-300 bg-red-50"
-        }`}
-      >
-        <p
-          className={`text-xs font-medium uppercase tracking-wide ${
-            positive ? "text-emerald-700" : "text-red-700"
-          }`}
-        >
+      <div className={`rounded-2xl border p-4 ${tone.box}`}>
+        <p className={`text-xs font-medium uppercase tracking-wide ${tone.label}`}>
           Stawka na rękę / godzinę {withInvoice ? "" : "(bez faktury)"}
         </p>
-        <p
-          className={`text-3xl font-bold tabular-nums mt-1 ${
-            positive ? "text-emerald-900" : "text-red-900"
-          }`}
-        >
+        <p className={`text-3xl font-bold tabular-nums mt-1 ${tone.value}`}>
           {fmtPLN(ratePerHour)}
         </p>
-        <p
-          className={`text-[11px] mt-1 ${
-            positive ? "text-emerald-700/80" : "text-red-700/80"
-          }`}
-        >
+        <p className={`text-[11px] mt-1 ${tone.sub}`}>
           {hours} h · {reserveActive ? `${tagBase}, po rezerwie ${reserveLabel}` : tagBase}
         </p>
+        {status && (
+          <p className={`text-[11px] mt-0.5 font-medium ${tone.label}`}>
+            {tone.text} · cel {fmtRate(targetRate)} · minimum {fmtRate(minRate)}
+          </p>
+        )}
       </div>
 
       <details className="rounded-xl border border-zinc-200 bg-white overflow-hidden group">
@@ -913,11 +1328,7 @@ function HourlyRatePanel({
           {withInvoice ? (
             <>
               <Row label="Na czysto (po VAT, PIT)" value={fmtPLN(netCash)} />
-              <Row
-                label={`− ZUS proporcjonalny (${fmtPLN(zusMonthly)}/${hoursPerMonth}h × ${hours}h)`}
-                value={`− ${fmtPLN(zusForJob)}`}
-                sub
-              />
+              <Row label={zusLabel} value={`− ${fmtPLN(zusForJob)}`} sub />
               {rentRow}
               <Row label={rentForJob > 0 ? "= Na rękę po ZUS i warsztacie" : "= Na rękę po ZUS"} value={fmtPLN(netCashAfterZus)} bold />
               {reserveActive && (
@@ -944,11 +1355,7 @@ function HourlyRatePanel({
                   sub
                 />
               )}
-              <Row
-                label={`− ZUS proporcjonalny (${fmtPLN(zusMonthly)}/${hoursPerMonth}h × ${hours}h)`}
-                value={`− ${fmtPLN(zusForJob)}`}
-                sub
-              />
+              <Row label={zusLabel} value={`− ${fmtPLN(zusForJob)}`} sub />
               {rentRow}
               <Row label={rentForJob > 0 ? "= Do kieszeni po ZUS i warsztacie" : "= Do kieszeni po ZUS"} value={fmtPLN(netCashAfterZus)} bold />
               {reserveActive && (
@@ -1010,9 +1417,9 @@ function ResultPanel({
   reserveAmount,
   netCashFinal,
   hours,
-  zusMonthly,
+  fixedMonthly,
 }: {
-  result: ReturnType<typeof calcDeal>;
+  result: CalcResult;
   amountGross: number;
   costsGross: number;
   costsNet: number;
@@ -1026,7 +1433,7 @@ function ResultPanel({
   reserveAmount: number;
   netCashFinal: number;
   hours: number;
-  zusMonthly: number;
+  fixedMonthly: number;
 }) {
   const { revenueNet, revenueVat, profit, vatToPay, pitDelta, netCash } = result;
   const taxTotal = vatToPay + pitDelta;
@@ -1037,7 +1444,7 @@ function ResultPanel({
   const displayCash = netCashFinal;
   const recovered = recoveredVat > 0;
   const hasDeductions = zusForJob > 0 || rentForJob > 0 || reserveAmount > 0;
-  const zusNeedsHours = zusMonthly > 0 && hours === 0;
+  const zusNeedsHours = fixedMonthly > 0 && hours === 0;
 
   return (
     <section className="space-y-3">
@@ -1063,7 +1470,7 @@ function ResultPanel({
             </div>
             {zusForJob > 0 && (
               <div className="flex items-baseline justify-between">
-                <span>− ZUS (część zlecenia)</span>
+                <span>− ZUS i zdrowotna</span>
                 <span className="tabular-nums">− {fmtPLN(zusForJob)}</span>
               </div>
             )}
@@ -1083,7 +1490,7 @@ function ResultPanel({
         )}
         {zusNeedsHours && (
           <p className="text-[11px] text-amber-700 mt-1.5">
-            Podaj „Czas pracy nad zleceniem”, aby doliczyć ZUS ({fmtPLN(zusMonthly)}/mies.) i warsztat do wyniku.
+            Podaj „Czas pracy nad zleceniem”, aby rozłożyć na zlecenie koszty stałe: ZUS, minimalną zdrowotną i warsztat.
           </p>
         )}
       </div>
@@ -1142,7 +1549,7 @@ function ResultPanel({
                 <GroupHeader>Na rękę</GroupHeader>
                 <Row label="Na czysto (po VAT i PIT)" value={fmtPLN(netCash)} />
                 {zusForJob > 0 && (
-                  <Row label="− ZUS (część zlecenia)" value={`− ${fmtPLN(zusForJob)}`} sub />
+                  <Row label="− ZUS i zdrowotna" value={`− ${fmtPLN(zusForJob)}`} sub />
                 )}
                 {rentForJob > 0 && (
                   <Row label="− Warsztat (czynsz + prąd)" value={`− ${fmtPLN(rentForJob)}`} sub />
@@ -1170,7 +1577,7 @@ function ResultPanel({
                   bold={!hasDeductions}
                 />
                 {zusForJob > 0 && (
-                  <Row label="− ZUS (część zlecenia)" value={`− ${fmtPLN(zusForJob)}`} sub />
+                  <Row label="− ZUS i zdrowotna" value={`− ${fmtPLN(zusForJob)}`} sub />
                 )}
                 {rentForJob > 0 && (
                   <Row label="− Warsztat (czynsz + prąd)" value={`− ${fmtPLN(rentForJob)}`} sub />
