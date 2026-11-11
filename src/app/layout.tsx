@@ -4,7 +4,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import Sidebar from "@/components/Sidebar";
-import RightPanel from "@/components/RightPanel";
 import ActiveTimerBar from "@/components/ActiveTimerBar";
 import ToastContainer from "@/components/ToastContainer";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
@@ -61,14 +60,13 @@ export default function RootLayout({
     <html lang="pl" translate="no" className={`notranslate h-full antialiased ${inter.variable}`}>
       <body className="min-h-full text-[#1f1d1b] pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 bg-[#f2f2f1]">
         <PrivateModeProvider>
-          <div className="flex flex-col min-h-full md:max-w-[1500px] md:mx-auto md:p-[18px] md:grid md:gap-[18px] md:items-start md:[grid-template-columns:240px_minmax(0,1fr)] lg:[grid-template-columns:240px_minmax(0,1fr)_300px]">
+          <div className="flex flex-col min-h-full md:max-w-[1500px] md:mx-auto md:p-[18px] md:grid md:gap-[18px] md:items-start md:[grid-template-columns:auto_minmax(0,1fr)]">
             <Suspense fallback={null}>
               <Sidebar />
             </Suspense>
             <div className="flex flex-col min-w-0">
               {children}
             </div>
-            <RightPanel />
           </div>
           <ToastContainer />
           <ActiveTimerBar />

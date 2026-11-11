@@ -166,7 +166,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
         </div>
       </Card>
 
-      <div className="grid gap-5 2xl:grid-cols-2">
+      <div className="grid gap-5 xl:grid-cols-2">
         <div className="flex flex-col gap-5">
           {GROUPS.map((g) => (
             <Card key={g.title}>
