@@ -86,8 +86,9 @@ const num = (s: string) => {
 };
 const str = (v: number) => String(v).replace(".", ",");
 
+// Bez szerokości — każde pole podaje własną (w-full wygrywało z w-24 i zgniatało etykiety).
 const INPUT =
-  "w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-right text-[15px] tabular-nums text-[#1f1d1b] focus:border-[#a06f3f] focus:outline-none";
+  "rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-right text-[15px] tabular-nums text-[#1f1d1b] focus:border-[#a06f3f] focus:outline-none";
 
 export default function CabinetRatesForm({ initial, defaults, saved }: { initial: Rates; defaults: Rates; saved: boolean }) {
   const toFields = (r: Rates) =>
@@ -158,7 +159,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
             inputMode="decimal"
             value={fields.margin_pct}
             onChange={(e) => set("margin_pct", e.target.value)}
-            className={`${INPUT} w-24 text-[20px] font-semibold`}
+            className={`${INPUT} w-24 shrink-0 text-[20px] font-semibold`}
             aria-label="Marża w procentach"
           />
           <span className="text-[15px] font-semibold text-[#6f6c66]">%</span>
@@ -183,9 +184,9 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
                       inputMode="decimal"
                       value={fields[f.key]}
                       onChange={(e) => set(f.key, e.target.value)}
-                      className={`${INPUT} w-24`}
+                      className={`${INPUT} w-24 shrink-0`}
                     />
-                    <span className="w-16 text-[12px] text-[#6f6c66]">{f.unit}</span>
+                    <span className="w-16 shrink-0 text-[12px] text-[#6f6c66]">{f.unit}</span>
                   </li>
                 ))}
               </ul>
@@ -242,14 +243,14 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
                   <input
                     value={e.unit}
                     onChange={(ev) => setExtra(i, { unit: ev.target.value })}
-                    className={`${INPUT} w-14 text-center`}
+                    className={`${INPUT} w-14 shrink-0 text-center`}
                     aria-label="Jednostka"
                   />
                   <input
                     inputMode="decimal"
                     value={e.price}
                     onChange={(ev) => setExtra(i, { price: ev.target.value })}
-                    className={`${INPUT} w-24`}
+                    className={`${INPUT} w-24 shrink-0`}
                     aria-label="Koszt"
                   />
                   <button
