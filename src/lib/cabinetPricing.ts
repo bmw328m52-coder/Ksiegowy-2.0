@@ -1,7 +1,7 @@
 // Cennik szafek: koszt szafki liczony z jej wymiarów (płyta, plecy, cięcie, oklejanie, fronty, okucia)
 // według stawek z realnych faktur, plus narzut (marża) → przybliżona cena dla klienta.
-// Wszystkie kwoty BRUTTO. Stawki domyślne skalibrowane na kuchni „Denis" (10.2026) —
-// porównanie model ↔ faktury: scripts/pro100/calibrate.ts.
+// Wszystkie kwoty BRUTTO. Stawki domyślne = środek z dwóch kuchni: „Denis" (10.2026, fronty zamawiane)
+// i „Ania Turek" (08.2026, fronty z płyty) — porównanie model ↔ faktury: scripts/pro100/calibrate*.ts.
 
 export type CabKind =
   | "lower_doors"
@@ -42,7 +42,7 @@ export type Extra = { key: string; name: string; unit: string; price: number };
 
 export type Rates = {
   /** Narzut na koszt w % — robocizna + zysk. Cena = koszt × (1 + marża).
-   *  62% = kuchnia Denis: koszt z modelu 21,8 tys. → sprzedana za 35,5 tys. */
+   *  Denis wyszedł na 62% (koszt 21,9 tys. → 35,5 tys.), Turek na 106% (11,7 tys. → 24 tys.); domyślnie środek. */
   margin_pct: number;
   /** Płyta korpusu, sam materiał, zł/m². */
   board_m2: number;
@@ -57,6 +57,8 @@ export type Rates = {
   hdf_m2: number;
   /** Fronty zł/m² i dodatek na blendy / panele frontowe w %. */
   front_m2: number;
+  /** Fronty z płyty laminowanej (materiał + cięcie + oklejanie + frez pod uchwyt), zł/m². */
+  front_laminate_m2: number;
   front_extra_pct: number;
   worktop_mb: number;
   hinge: number;
@@ -72,23 +74,24 @@ export type Rates = {
 };
 
 export const DEFAULT_RATES: Rates = {
-  margin_pct: 62,
-  board_m2: 52.6,
-  board_extra_pct: 44,
-  cut_mb: 1.84,
-  cut_mb_per_m2: 5.28,
-  edge_mb: 6.51,
-  edge_extra_pct: 79,
+  margin_pct: 85,
+  board_m2: 48,
+  board_extra_pct: 60,
+  cut_mb: 1.8,
+  cut_mb_per_m2: 5.6,
+  edge_mb: 6.15,
+  edge_extra_pct: 120,
   hdf_m2: 8.49,
   front_m2: 358,
+  front_laminate_m2: 115,
   front_extra_pct: 19,
-  worktop_mb: 285,
+  worktop_mb: 300,
   hinge: 14.43,
-  drawer_set: 198,
-  flap_set: 92,
-  leg: 3,
+  drawer_set: 190,
+  flap_set: 90,
+  leg: 3.5,
   hang_set: 13.5,
-  handle: 12,
+  handle: 13,
   overhead_pct: 4,
   extras: [
     { key: "cargo_tall", name: "Cargo wysokie (Dispensa)", unit: "szt", price: 2483 },
@@ -96,6 +99,10 @@ export const DEFAULT_RATES: Rates = {
     { key: "led_mb", name: "LED pod szafkami", unit: "mb", price: 45 },
     { key: "led_psu", name: "Zasilacz LED 24 V", unit: "szt", price: 159 },
     { key: "wall_panel_mb", name: "Panel ścienny nad blatem", unit: "mb", price: 253 },
+    { key: "wall_panel_lam_mb", name: "Ścianka przyblatowa z laminatu", unit: "mb", price: 91 },
+    { key: "magic_cook", name: "Magic Cook (Peka) do szafki 300", unit: "szt", price: 736 },
+    { key: "inner_drawer", name: "Szuflada wewnętrzna", unit: "szt", price: 215 },
+    { key: "worktop_deep_mb", name: "Blat pogłębiany (pod okno) — dopłata", unit: "mb", price: 193 },
   ],
 };
 
@@ -237,7 +244,19 @@ export type Estimate = {
   price: number;
 };
 
-export function estimate(cabs: Cab[], extraQty: Record<string, number>, r: Rates): Estimate {
+/** Rodzaj frontów: zamawiane (lakier / fornir / akryl) albo cięte z płyty laminowanej. */
+export type FrontType = "ordered" | "laminate";
+
+export const FRONT_TYPE_LABELS: Record<FrontType, string> = {
+  ordered: "Zamawiane (lakier, akryl)",
+  laminate: "Z płyty laminowanej",
+};
+
+export const ratesFor = (r: Rates, fronts: FrontType): Rates =>
+  fronts === "laminate" ? { ...r, front_m2: r.front_laminate_m2 } : r;
+
+export function estimate(cabs: Cab[], extraQty: Record<string, number>, rates: Rates, fronts: FrontType = "ordered"): Estimate {
+  const r = ratesFor(rates, fronts);
   const parts: CostParts = { board: 0, cutting: 0, edging: 0, hdf: 0, fronts: 0, hardware: 0, worktop: 0, overhead: 0 };
   const items = cabs
     .filter((c) => c.kind !== "skip")
@@ -322,9 +341,10 @@ export type ScanEstimateChoice = {
   extras: Record<string, number>;
   /** Szafki dopisane ręcznie (rodzaj + szerokość). */
   manual: ManualCab[];
+  fronts: FrontType;
 };
 
-export const EMPTY_CHOICE: ScanEstimateChoice = { kinds: {}, extras: {}, manual: [] };
+export const EMPTY_CHOICE: ScanEstimateChoice = { kinds: {}, extras: {}, manual: [], fronts: "ordered" };
 
 const KINDS = Object.keys(CAB_KIND_LABELS) as CabKind[];
 
@@ -337,7 +357,7 @@ export function parseChoice(v: unknown): ScanEstimateChoice {
   const manual = (Array.isArray(o.manual) ? o.manual : [])
     .filter((m) => m && KINDS.includes(m.kind) && Number(m.w) > 0)
     .map((m) => ({ kind: m.kind, w: Math.round(Number(m.w)) }));
-  return { kinds, extras, manual };
+  return { kinds, extras, manual, fronts: o.fronts === "laminate" ? "laminate" : "ordered" };
 }
 
 /** Typowe wymiary korpusu dla szafki dopisanej ręcznie. */

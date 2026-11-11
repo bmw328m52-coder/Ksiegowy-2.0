@@ -7,6 +7,7 @@ import { fmtPLN } from "@/lib/format";
 import {
   CAB_KIND_LABELS,
   COST_PART_LABELS,
+  FRONT_TYPE_LABELS,
   cabsFromScan,
   estimate,
   manualCab,
@@ -14,6 +15,7 @@ import {
   type Cab,
   type CabKind,
   type CostParts,
+  type FrontType,
   type Rates,
   type ScanEstimateChoice,
 } from "@/lib/cabinetPricing";
@@ -59,7 +61,7 @@ export default function ScanEstimate({
   const scanCabs = useMemo(() => cabsFromScan(objects, choice.kinds), [objects, choice.kinds]);
   const est = useMemo(() => {
     const cabs: Cab[] = [...scanCabs.map((c) => c.cab), ...choice.manual.map(manualCab)];
-    return estimate(cabs, choice.extras, rates);
+    return estimate(cabs, choice.extras, rates, choice.fronts);
   }, [scanCabs, choice, rates]);
   const count = est.items.length;
   const hasAnything = count > 0 || est.extrasCost > 0;
@@ -187,6 +189,17 @@ export default function ScanEstimate({
               + Szafka
             </Button>
           </div>
+
+          <label className="flex items-center gap-2 text-[13px]">
+            <span className="min-w-0 flex-1 text-[11px] font-semibold text-[#6f6c66]">Fronty</span>
+            <select value={choice.fronts} onChange={(e) => update({ fronts: e.target.value as FrontType })} className={SELECT}>
+              {(Object.keys(FRONT_TYPE_LABELS) as FrontType[]).map((k) => (
+                <option key={k} value={k}>
+                  {FRONT_TYPE_LABELS[k]}
+                </option>
+              ))}
+            </select>
+          </label>
 
           {rates.extras.length > 0 && (
             <div>

@@ -22,7 +22,7 @@ const GROUPS: { title: string; hint?: string; fields: { key: NumKey; label: stri
     title: "Korpus",
     hint: "Płyta, cięcie i oklejanie w hurtowni.",
     fields: [
-      { key: "board_m2", label: "Płyta korpusu", unit: "zł/m²", hint: "średnia z faktur: kaszmir 35,6 · halifax 96,5" },
+      { key: "board_m2", label: "Płyta korpusu", unit: "zł/m²", hint: "z faktur: biel 45,9 · dąb artisan 36,9 · kaszmir 35,6 · halifax 96,5" },
       { key: "board_extra_pct", label: "Odpad i elementy poza szafkami", unit: "%", hint: "rozkrój, blendy, cokoły, panele boczne" },
       { key: "cut_mb", label: "Cięcie", unit: "zł/mb" },
       { key: "cut_mb_per_m2", label: "Cięcia na 1 m² płyty", unit: "mb" },
@@ -34,9 +34,10 @@ const GROUPS: { title: string; hint?: string; fields: { key: NumKey; label: stri
   {
     title: "Fronty i blat",
     fields: [
-      { key: "front_m2", label: "Fronty", unit: "zł/m²" },
+      { key: "front_m2", label: "Fronty zamawiane", unit: "zł/m²", hint: "lakier / akryl — Denis 358" },
+      { key: "front_laminate_m2", label: "Fronty z płyty laminowanej", unit: "zł/m²", hint: "płyta + cięcie + oklejanie + frez — Turek ok. 115" },
       { key: "front_extra_pct", label: "Blendy i panele frontowe", unit: "%" },
-      { key: "worktop_mb", label: "Blat", unit: "zł/mb", hint: "za metr szafek dolnych" },
+      { key: "worktop_mb", label: "Blat", unit: "zł/mb", hint: "za metr szafek dolnych — Turek 218, Denis 400" },
     ],
   },
   {
@@ -137,7 +138,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight text-[#1f1d1b]">Marża</div>
           <div className="text-[12px] text-[#6f6c66]">
-            Narzut na koszt materiału — Twoja robocizna i zysk. Cena = koszt × (1 + marża). Kuchnia Denis wyszła na 62%.
+            Narzut na koszt materiału — Twoja robocizna i zysk. Cena = koszt × (1 + marża). Kuchnia Denis wyszła na 62%, Ani Turek na 106% — domyślnie środek.
           </div>
         </div>
         <div className="flex items-center gap-2">
