@@ -8,6 +8,7 @@ import {
   CAB_KIND_LABELS,
   COST_PART_LABELS,
   FRONT_TYPE_LABELS,
+  SLIDE_SYSTEM_LABELS,
   cabsFromScan,
   estimate,
   manualCab,
@@ -18,8 +19,9 @@ import {
   type FrontType,
   type Rates,
   type ScanEstimateChoice,
+  type SlideSystem,
 } from "@/lib/cabinetPricing";
-import type { ScanObject } from "@/lib/dao/room_scans.types";
+import type { ScanObject, ScanWardrobe } from "@/lib/dao/room_scans.types";
 import { SCAN_OBJECT_LABELS } from "@/lib/dao/room_scans.types";
 import { saveScanEstimateAction } from "./scanActions";
 
@@ -42,12 +44,14 @@ export default function ScanEstimate({
   objects,
   rates,
   initial,
+  wardrobes,
 }: {
   scanId: string;
   jobId: string;
   objects: ScanObject[];
   rates: Rates;
   initial: ScanEstimateChoice;
+  wardrobes: ScanWardrobe[];
 }) {
   const [choice, setChoice] = useState(initial);
   const [extraText, setExtraText] = useState<Record<string, string>>(() =>
@@ -61,10 +65,17 @@ export default function ScanEstimate({
   const scanCabs = useMemo(() => cabsFromScan(objects, choice.kinds), [objects, choice.kinds]);
   const est = useMemo(() => {
     const cabs: Cab[] = [...scanCabs.map((c) => c.cab), ...choice.manual.map(manualCab)];
-    return estimate(cabs, choice.extras, rates, choice.fronts);
-  }, [scanCabs, choice, rates]);
+    return estimate(cabs, choice.extras, rates, {
+      fronts: choice.fronts,
+      wardrobes,
+      slide: choice.slide,
+      margin_pct: choice.margin_pct,
+    });
+  }, [scanCabs, choice, rates, wardrobes]);
   const count = est.items.length;
-  const hasAnything = count > 0 || est.extrasCost > 0;
+  const hasAnything = count > 0 || est.wardrobes.length > 0 || est.extrasCost > 0;
+  const hasSliding = wardrobes.some((w) => w.doors === "sliding");
+  const setMargin = (v: number) => update({ margin_pct: Math.min(Math.max(Math.round(v), 0), 300) });
 
   const update = (patch: Partial<ScanEstimateChoice>) => {
     setChoice((c) => ({ ...c, ...patch }));
@@ -93,8 +104,9 @@ export default function ScanEstimate({
                 ok. {fmtPLN(roundPrice(est.price))}
               </div>
               <div className="text-[11px] text-[#6f6c66]">
-                brutto · {count} {count === 1 ? "szafka" : count < 5 && count > 1 ? "szafki" : "szafek"} · materiał {fmtPLN(est.cost)} · marża{" "}
-                {rates.margin_pct}%
+                brutto · {count} {count === 1 ? "szafka" : count < 5 && count > 1 ? "szafki" : "szafek"}
+                {est.wardrobes.length > 0 ? ` + ${est.wardrobes.length} ${est.wardrobes.length === 1 ? "szafa" : "szafy"}` : ""} · materiał{" "}
+                {fmtPLN(est.cost)} · marża {est.margin_pct}%
               </div>
             </>
           ) : (
@@ -140,6 +152,50 @@ export default function ScanEstimate({
                   );
                 })}
               </ul>
+            </div>
+          )}
+
+          {wardrobes.length > 0 && (
+            <div>
+              <div className="mb-1 text-[11px] font-semibold text-[#6f6c66]">Szafy ze skanu</div>
+              <ul className="flex flex-col gap-1.5">
+                {wardrobes.map((wd) => {
+                  const item = est.wardrobes.find((x) => x.id === wd.id);
+                  return (
+                    <li key={wd.id} className="flex items-center gap-2 text-[13px]">
+                      <span className="min-w-0 flex-1 text-[#1f1d1b]">
+                        Szafa{" "}
+                        <span className="tabular-nums text-[#6f6c66]">
+                          {Math.round(wd.width_mm)} × {Math.round(wd.height_mm)}
+                        </span>{" "}
+                        <span className="text-[11px] text-[#8b8882]">
+                          {wd.doors === "sliding"
+                            ? `drzwi przesuwne ×${wd.door_count} — okucia ${fmtPLN(item?.slide ?? 0)}`
+                            : wd.doors === "hinged"
+                              ? `drzwi uchylne ×${wd.door_count}`
+                              : "bez drzwi"}
+                        </span>
+                      </span>
+                      <span className="w-20 text-right font-medium tabular-nums">{item ? fmtPLN(item.price) : "—"}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {hasSliding && (
+                <label className="mt-2 flex items-center gap-2 text-[13px]">
+                  <span className="min-w-0 flex-1 text-[11px] text-[#6f6c66]">
+                    Drzwi przesuwne — para drzwi na 3 m: Laguna {fmtPLN(2 * rates.slide_laguna_door + 3 * rates.slide_laguna_mb)}, GTV{" "}
+                    {fmtPLN(2 * rates.slide_gtv_door + 3 * rates.slide_gtv_mb)} (same okucia)
+                  </span>
+                  <select value={choice.slide} onChange={(e) => update({ slide: e.target.value as SlideSystem })} className={SELECT}>
+                    {(Object.keys(SLIDE_SYSTEM_LABELS) as SlideSystem[]).map((k) => (
+                      <option key={k} value={k}>
+                        {SLIDE_SYSTEM_LABELS[k]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
           )}
 
@@ -201,6 +257,46 @@ export default function ScanEstimate({
             </select>
           </label>
 
+          <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
+            <span className="min-w-0 flex-1 text-[11px] font-semibold text-[#6f6c66]">
+              Marża dla tej wyceny
+              {choice.margin_pct != null && choice.margin_pct !== rates.margin_pct && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const { margin_pct: _drop, ...rest } = choice;
+                    void _drop;
+                    setChoice(rest);
+                    setDirty(true);
+                    setStatus({});
+                  }}
+                  className="ml-2 font-normal text-[#a06f3f] underline-offset-2 hover:underline"
+                >
+                  wróć do {rates.margin_pct}%
+                </button>
+              )}
+            </span>
+            {[60, 80, 100, 120].map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setMargin(p)}
+                className={`rounded-lg border px-2 py-1.5 text-[12px] tabular-nums ${
+                  est.margin_pct === p ? "border-[#a06f3f] bg-[#a06f3f] text-white" : "border-[#e3e2de] bg-white text-[#1f1d1b]"
+                }`}
+              >
+                {p}%
+              </button>
+            ))}
+            <button type="button" onClick={() => setMargin(est.margin_pct - 5)} className={`${SELECT} w-9 font-semibold`} aria-label="Marża minus 5%">
+              −
+            </button>
+            <span className="w-12 text-center font-semibold tabular-nums">{est.margin_pct}%</span>
+            <button type="button" onClick={() => setMargin(est.margin_pct + 5)} className={`${SELECT} w-9 font-semibold`} aria-label="Marża plus 5%">
+              +
+            </button>
+          </div>
+
           {rates.extras.length > 0 && (
             <div>
               <div className="mb-1 text-[11px] font-semibold text-[#6f6c66]">Dodatki</div>
@@ -254,7 +350,7 @@ export default function ScanEstimate({
                 <dd className="tabular-nums">{fmtPLN(est.cost)}</dd>
               </div>
               <div className="col-span-full flex justify-between gap-2">
-                <dt className="text-[#6f6c66]">Marża {rates.margin_pct}% (robocizna + zysk)</dt>
+                <dt className="text-[#6f6c66]">Marża {est.margin_pct}% (robocizna + zysk)</dt>
                 <dd className="tabular-nums">{fmtPLN(est.margin)}</dd>
               </div>
               <div className="col-span-full flex justify-between gap-2 font-semibold">
@@ -276,7 +372,7 @@ export default function ScanEstimate({
             </Button>
           </div>
           <p className="text-[11px] text-[#8b8882]">
-            Szacunek do rozmowy z klientem — bez sprzętu AGD, zlewu i baterii. Dokładną cenę daje wycena zlecenia.
+            Szacunek do rozmowy z klientem — bez sprzętu AGD, zlewu i baterii; drzwi przesuwne z wypełnieniem z płyty (lustro / szkło osobno). Dokładną cenę daje wycena zlecenia.
           </p>
         </div>
       )}

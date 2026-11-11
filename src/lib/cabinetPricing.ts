@@ -42,7 +42,8 @@ export type Extra = { key: string; name: string; unit: string; price: number };
 
 export type Rates = {
   /** Narzut na koszt w % — robocizna + zysk. Cena = koszt × (1 + marża).
-   *  Denis wyszedł na 70% (koszt 20,8 tys. → 35,5 tys.), Turek na 106% (11,7 tys. → 24 tys.); domyślnie środek. */
+   *  Domyślnie 100% (cena = 2 × materiał) — założenie Artura; przy skanie można ją przesunąć w górę / w dół.
+   *  Dla porównania: Denis wyszedł na 70%, Turek na 106%. */
   margin_pct: number;
   /** Płyta korpusu, sam materiał, zł/m². */
   board_m2: number;
@@ -68,13 +69,27 @@ export type Rates = {
   /** Zawieszki + odcinek szyny na jedną szafkę wiszącą. */
   hang_set: number;
   handle: number;
+  /** Drzwi przesuwne w ramie alu — Laguna Multiomega Wide (rączki 8710, ramiak 8830, tory 8840 / 8209):
+   *  na skrzydło (2 rączki 2,7 m + 2 wózki + 2 prowadniki + szczotki) i na metr szerokości szafy
+   *  (ramiaki góra / dół + tor górny + dolny). Ceny Belmeb brutto z 11.2026 (promocyjne);
+   *  2 skrzydła na 3 m = 2 × 160 + 3 × 163 ≈ 809 zł = cena gotowego kompletu. */
+  slide_laguna_door: number;
+  slide_laguna_mb: number;
+  /** To samo dla GTV: rączka NOVA S, listwy górna / dolna, tor górny + dolny PRO z maskownicą.
+   *  2 skrzydła na 3 m ≈ 560 zł. Skład kompletów wózków niepotwierdzony. */
+  slide_gtv_door: number;
+  slide_gtv_mb: number;
+  /** Drążek z uchwytami, zł/mb — szacunek, brak faktury. */
+  rail_mb: number;
+  /** Pantograf, zł/szt — szacunek, brak faktury. */
+  pantograph: number;
   /** Drobne: wkręty, kleje, pakowanie, transport, paliwo — % od kosztu materiału. */
   overhead_pct: number;
   extras: Extra[];
 };
 
 export const DEFAULT_RATES: Rates = {
-  margin_pct: 88,
+  margin_pct: 100,
   board_m2: 48,
   board_extra_pct: 60,
   cut_mb: 1.8,
@@ -92,6 +107,12 @@ export const DEFAULT_RATES: Rates = {
   leg: 3.5,
   hang_set: 13.5,
   handle: 13,
+  slide_laguna_door: 160,
+  slide_laguna_mb: 163,
+  slide_gtv_door: 125,
+  slide_gtv_mb: 104,
+  rail_mb: 25,
+  pantograph: 400,
   overhead_pct: 4,
   extras: [
     { key: "cargo_tall", name: "Cargo wysokie (Dispensa)", unit: "szt", price: 2483 },
@@ -102,6 +123,7 @@ export const DEFAULT_RATES: Rates = {
     { key: "wall_panel_lam_mb", name: "Ścianka przyblatowa z laminatu", unit: "mb", price: 91 },
     { key: "magic_cook", name: "Magic Cook (Peka) do szafki 300", unit: "szt", price: 736 },
     { key: "inner_drawer", name: "Szuflada wewnętrzna", unit: "szt", price: 215 },
+    { key: "slide_soft_close", name: "Domyk drzwi przesuwnych (na skrzydło)", unit: "szt", price: 55 },
     { key: "worktop_deep_mb", name: "Blat pogłębiany (pod okno) — dopłata", unit: "mb", price: 193 },
   ],
 };
@@ -235,6 +257,10 @@ export const priceOf = (cost: number, r: Rates) => cost * (1 + r.margin_pct / 10
 
 export type Estimate = {
   items: { cab: Cab; bom: Bom; cost: number; price: number }[];
+  /** Szafy ze skanu: koszt, cena i same okucia drzwi przesuwnych (0 przy uchylnych). */
+  wardrobes: { id: string; cost: number; price: number; slide: number }[];
+  /** Marża użyta w tej wycenie. */
+  margin_pct: number;
   parts: CostParts;
   extrasCost: number;
   /** Koszt materiału brutto (szafki + dodatki). */
@@ -255,8 +281,122 @@ export const FRONT_TYPE_LABELS: Record<FrontType, string> = {
 export const ratesFor = (r: Rates, fronts: FrontType): Rates =>
   fronts === "laminate" ? { ...r, front_m2: r.front_laminate_m2 } : r;
 
-export function estimate(cabs: Cab[], extraQty: Record<string, number>, rates: Rates, fronts: FrontType = "ordered"): Estimate {
-  const r = ratesFor(rates, fronts);
+/** System drzwi przesuwnych szafy. */
+export type SlideSystem = "laguna" | "gtv";
+
+export const SLIDE_SYSTEM_LABELS: Record<SlideSystem, string> = {
+  laguna: "Laguna Multiomega Wide",
+  gtv: "GTV Nova S + tory GTV",
+};
+
+/** Okucia drzwi przesuwnych (rączki, ramiaki, tory, wózki) — bez wypełnienia skrzydeł. */
+export const slideHardware = (r: Rates, system: SlideSystem, doors: number, widthMm: number) =>
+  system === "gtv"
+    ? doors * r.slide_gtv_door + (widthMm / 1000) * r.slide_gtv_mb
+    : doors * r.slide_laguna_door + (widthMm / 1000) * r.slide_laguna_mb;
+
+/** Szkic szafy ze Skanera (ScanWardrobe) — tylko pola potrzebne do wyceny. */
+export type WardrobeLike = {
+  id: string;
+  width_mm: number;
+  height_mm: number;
+  depth_mm: number;
+  plinth_mm: number;
+  top_mm: number;
+  doors: "sliding" | "hinged" | "none";
+  door_count: number;
+  construction?: "box_back" | "box" | "frame";
+  pawlacz_mm?: number;
+  pawlacz_doors?: number;
+  sections: { width_mm?: number; zones: { kind: string; height_mm?: number; count?: number }[] }[];
+};
+
+/** Koszt materiału szafy: korpus z sekcji i stref, plecy, drzwi (przesuwne w ramie alu albo uchylne), okucia. */
+export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): CostParts {
+  const W = wd.width_mm / 1000, D = wd.depth_mm / 1000;
+  const H = Math.max(wd.height_mm - (wd.plinth_mm || 0) - (wd.top_mm || 0), 300) / 1000;
+  const sliding = wd.doors === "sliding";
+  // Drzwi przesuwne zabierają ok. 100 mm głębokości wnętrza.
+  const d = Math.max(D - (sliding ? 0.1 : 0), 0.2);
+  const n = Math.max(wd.sections.length, 1);
+  const fixed = wd.sections.reduce((s, x) => s + (x.width_mm ?? 0), 0) / 1000;
+  const free = wd.sections.filter((x) => !x.width_mm).length;
+  const frame = wd.construction === "frame";
+  const paw = wd.pawlacz_mm && wd.pawlacz_mm > 50 ? wd.pawlacz_mm / 1000 : 0;
+
+  // Pionowe: boki (poza szkieletem we wnęce) + przegrody; poziome: wieniec górny / dolny, cokół, półka pawlacza.
+  const uprights = n - 1 + (frame ? 0 : 2);
+  let board = uprights * H * d + (frame ? 0 : 2 * W * d) + W * 0.1 + (paw ? W * d : 0);
+  let edge = uprights * H + (frame ? 0 : 2 * W) + (paw ? W : 0);
+  let drawers = 0, frontM2 = 0, hardware = 0, handles = 0;
+  for (const sec of wd.sections) {
+    const sw = sec.width_mm ? sec.width_mm / 1000 : Math.max(W - fixed, 0) / Math.max(free, 1);
+    for (const z of sec.zones) {
+      const shelves =
+        z.kind === "shelves" ? (z.count ?? 4) : z.kind === "shoes" ? (z.count ?? 3) : z.kind === "rail" || z.kind === "pantograph" ? 1 : 0;
+      board += shelves * sw * d;
+      edge += shelves * sw;
+      if (z.kind === "rail") hardware += sw * r.rail_mb;
+      if (z.kind === "pantograph") hardware += r.pantograph;
+      if (z.kind === "drawers") {
+        const c = z.count ?? 3;
+        drawers += c;
+        board += c * (Math.max(sw - 0.075, 0) * 0.47 + Math.max(sw - 0.087, 0) * 0.14);
+        edge += c * sw;
+        // Czoła szuflad w szafie — z płyty, także za drzwiami przesuwnymi.
+        frontM2 += sw * (z.height_mm ? z.height_mm / 1000 : c * 0.2);
+        handles += c;
+      }
+    }
+  }
+  hardware += drawers * r.drawer_set;
+
+  const doorN = Math.max(wd.door_count, 0);
+  const doorH = H - paw;
+  let frontsCost = frontM2 * r.front_laminate_m2;
+  if (sliding) {
+    // Skrzydła na pełną wysokość; wypełnienie z płyty 18 mm (materiał + cięcie, bez oklejania — siedzi w ramie).
+    hardware += slideHardware(r, slide, doorN, wd.width_mm);
+    frontsCost += W * H * 1.2 * (r.board_m2 + r.cut_mb_per_m2 * r.cut_mb);
+  } else if (wd.doors === "hinged") {
+    frontsCost += W * doorH * (1 + r.front_extra_pct / 100) * r.front_m2;
+    hardware += doorN * hingesPerDoor(doorH) * r.hinge;
+    handles += doorN;
+    if (paw) {
+      const pd = wd.pawlacz_doors ?? Math.max(doorN, 2);
+      frontsCost += W * paw * r.front_m2;
+      hardware += pd * 2 * r.hinge;
+      handles += pd;
+    }
+  }
+  hardware += handles * r.handle;
+
+  const boardM2 = board * (1 + r.board_extra_pct / 100);
+  const p: CostParts = {
+    board: boardM2 * r.board_m2,
+    cutting: boardM2 * r.cut_mb_per_m2 * r.cut_mb,
+    edging: edge * (1 + r.edge_extra_pct / 100) * r.edge_mb,
+    hdf: wd.construction === "box" || frame ? 0 : W * H * r.hdf_m2,
+    fronts: frontsCost,
+    hardware,
+    worktop: 0,
+    overhead: 0,
+  };
+  p.overhead = (sumParts(p) * r.overhead_pct) / 100;
+  return p;
+}
+
+export type EstimateOptions = {
+  fronts?: FrontType;
+  wardrobes?: WardrobeLike[];
+  slide?: SlideSystem;
+  /** Marża dla tej wyceny zamiast tej z cennika. */
+  margin_pct?: number;
+};
+
+export function estimate(cabs: Cab[], extraQty: Record<string, number>, rates: Rates, opts: EstimateOptions = {}): Estimate {
+  const base = ratesFor(rates, opts.fronts ?? "ordered");
+  const r = opts.margin_pct != null ? { ...base, margin_pct: opts.margin_pct } : base;
   const parts: CostParts = { board: 0, cutting: 0, edging: 0, hdf: 0, fronts: 0, hardware: 0, worktop: 0, overhead: 0 };
   const items = cabs
     .filter((c) => c.kind !== "skip")
@@ -267,10 +407,22 @@ export function estimate(cabs: Cab[], extraQty: Record<string, number>, rates: R
       const cost = sumParts(p);
       return { cab, bom, cost, price: priceOf(cost, r) };
     });
+  const slide = opts.slide ?? "laguna";
+  const wardrobes = (opts.wardrobes ?? []).map((wd) => {
+    const p = wardrobeCost(wd, r, slide);
+    for (const k of Object.keys(parts) as (keyof CostParts)[]) parts[k] += p[k];
+    const cost = sumParts(p);
+    return {
+      id: wd.id,
+      cost,
+      price: priceOf(cost, r),
+      slide: wd.doors === "sliding" ? slideHardware(r, slide, Math.max(wd.door_count, 0), wd.width_mm) : 0,
+    };
+  });
   const extrasCost = r.extras.reduce((s, e) => s + (Number(extraQty[e.key]) || 0) * e.price, 0);
   const cost = sumParts(parts) + extrasCost;
   const price = priceOf(cost, r);
-  return { items, parts, extrasCost, cost, margin: price - cost, price };
+  return { items, wardrobes, parts, extrasCost, cost, margin: price - cost, margin_pct: r.margin_pct, price };
 }
 
 // ── Szafki ze skanu ──────────────────────────────────────────────────────────
@@ -342,9 +494,12 @@ export type ScanEstimateChoice = {
   /** Szafki dopisane ręcznie (rodzaj + szerokość). */
   manual: ManualCab[];
   fronts: FrontType;
+  slide: SlideSystem;
+  /** Marża tylko dla tej wyceny (brak = z cennika). */
+  margin_pct?: number;
 };
 
-export const EMPTY_CHOICE: ScanEstimateChoice = { kinds: {}, extras: {}, manual: [], fronts: "ordered" };
+export const EMPTY_CHOICE: ScanEstimateChoice = { kinds: {}, extras: {}, manual: [], fronts: "ordered", slide: "laguna" };
 
 const KINDS = Object.keys(CAB_KIND_LABELS) as CabKind[];
 
@@ -357,7 +512,15 @@ export function parseChoice(v: unknown): ScanEstimateChoice {
   const manual = (Array.isArray(o.manual) ? o.manual : [])
     .filter((m) => m && KINDS.includes(m.kind) && Number(m.w) > 0)
     .map((m) => ({ kind: m.kind, w: Math.round(Number(m.w)) }));
-  return { kinds, extras, manual, fronts: o.fronts === "laminate" ? "laminate" : "ordered" };
+  const m = Number(o.margin_pct);
+  return {
+    kinds,
+    extras,
+    manual,
+    fronts: o.fronts === "laminate" ? "laminate" : "ordered",
+    slide: o.slide === "gtv" ? "gtv" : "laguna",
+    ...(o.margin_pct != null && Number.isFinite(m) && m >= 0 ? { margin_pct: Math.round(m) } : {}),
+  };
 }
 
 /** Typowe wymiary korpusu dla szafki dopisanej ręcznie. */

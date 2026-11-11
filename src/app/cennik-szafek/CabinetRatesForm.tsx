@@ -52,6 +52,18 @@ const GROUPS: { title: string; hint?: string; fields: { key: NumKey; label: stri
     ],
   },
   {
+    title: "Szafy — drzwi przesuwne i wnętrze",
+    hint: "Okucia drzwi = skrzydła × stawka + szerokość szafy × stawka. Ceny Belmeb brutto z 11.2026 (promocyjne) — bez wypełnienia skrzydeł.",
+    fields: [
+      { key: "slide_laguna_door", label: "Laguna — na skrzydło", unit: "zł/szt", hint: "2 rączki Multiomega Wide 2,7 m + wózki + prowadniki + szczotki" },
+      { key: "slide_laguna_mb", label: "Laguna — na metr szafy", unit: "zł/mb", hint: "ramiaki + tor górny i dolny; para drzwi na 3 m ≈ 809 zł" },
+      { key: "slide_gtv_door", label: "GTV Nova S — na skrzydło", unit: "zł/szt", hint: "2 rączki Nova S 2,7 m + wózki PRO + prowadniki + szczotki" },
+      { key: "slide_gtv_mb", label: "GTV — na metr szafy", unit: "zł/mb", hint: "listwy + tor górny i dolny PRO; para drzwi na 3 m ≈ 560 zł" },
+      { key: "rail_mb", label: "Drążek z uchwytami", unit: "zł/mb", hint: "szacunek — brak faktury" },
+      { key: "pantograph", label: "Pantograf", unit: "zł/szt", hint: "szacunek — brak faktury" },
+    ],
+  },
+  {
     title: "Pozostałe",
     fields: [{ key: "overhead_pct", label: "Drobne, transport, paliwo", unit: "%", hint: "od kosztu szafek" }],
   },
@@ -138,7 +150,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight text-[#1f1d1b]">Marża</div>
           <div className="text-[12px] text-[#6f6c66]">
-            Narzut na koszt materiału — Twoja robocizna i zysk. Cena = koszt × (1 + marża). Kuchnia Denis wyszła na 70%, Ani Turek na 106% — domyślnie środek.
+            Narzut na koszt materiału — Twoja robocizna i zysk. Cena = koszt × (1 + marża). Domyślnie 100% (cena = 2 × materiał); przy każdej cenie ze skanu możesz ją przesunąć w dół lub w górę. Dla porównania: kuchnia Denis wyszła na 70%, Ani Turek na 106%.
           </div>
         </div>
         <div className="flex items-center gap-2">

@@ -59,7 +59,7 @@ console.log(`okucia szt: zawiasy ${bom.hinges} szuflady ${bom.drawers} klapy ${b
 console.log(`  faktury: szuflada ${(actual.drawers / 10).toFixed(0)} zł/kpl (+ mocowania), klapa HK-S ${(actual.flaps / 4).toFixed(0)} zł, uchwyt ${(actual.handles / 21).toFixed(1)}, noga ${(actual.legs / 36).toFixed(2)}`);
 
 console.log("\n— model ze stawkami domyślnymi, fronty z płyty —");
-const e = estimate(cabs, { magic_corner: 1, wall_panel_lam_mb: 3.9, led_mb: 5, led_psu: 1 }, DEFAULT_RATES, "laminate");
+const e = estimate(cabs, { magic_corner: 1, wall_panel_lam_mb: 3.9, led_mb: 5, led_psu: 1 }, DEFAULT_RATES, { fronts: "laminate" });
 for (const [k, v] of Object.entries(e.parts)) console.log(k.padEnd(10), f(v));
 console.log("dodatki   ", f(e.extrasCost));
 console.log("koszt     ", f(e.cost), `  faktury ${actual.total} (bez ~22 zawiasów z zapasu ≈ 320 zł)`);

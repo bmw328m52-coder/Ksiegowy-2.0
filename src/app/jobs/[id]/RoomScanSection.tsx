@@ -63,7 +63,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
 
             <RoomScanViews id={scan.id} data={scan.data} name={scan.name} />
 
-            <ScanEstimate scanId={scan.id} jobId={jobId} objects={objects} rates={rates} initial={parseChoice(scan.estimate)} />
+            <ScanEstimate scanId={scan.id} jobId={jobId} objects={objects} rates={rates} initial={parseChoice(scan.estimate)} wardrobes={scan.data.wardrobes ?? []} />
 
             <div className="grid grid-cols-4 gap-2 rounded-lg bg-[#f6f5f2] p-2 text-center">
               {[
