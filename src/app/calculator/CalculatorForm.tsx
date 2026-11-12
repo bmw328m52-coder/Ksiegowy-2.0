@@ -198,7 +198,10 @@ export default function CalculatorForm({
   const [hoursStr, setHoursStr] = useState(pp && pp.hours > 0 ? String(pp.hours) : "");
   const [timeUnit, setTimeUnit] = useState<"h" | "dni">("h");
   const [rentStr, onRentChange] = usePref(RENT_STORAGE_KEY, DEFAULT_WORKSHOP_RENT.toFixed(2));
-  const [zusStr, setZusStr] = useState((pp?.socialMonthly ?? defaultSocialMonthly).toFixed(2));
+  // Pole ZUS = cała miesięczna opłata, razem ze zdrowotną (na uldze na start to sama zdrowotna).
+  const [zusStr, setZusStr] = useState(
+    (pp ? pp.socialMonthly + pp.healthMinMonthly : defaultSocialMonthly + healthMinMonthly).toFixed(2),
+  );
   const [hoursPerMonthStr, setHoursPerMonthStr] = usePref(BILLABLE_HOURS_KEY, "120");
   const [monthlyTargetStr, setMonthlyTargetStr] = usePref(MONTHLY_TARGET_KEY, "12000");
   // Pusta = stawka wynika z celu miesięcznego ÷ godziny płatne.
@@ -261,7 +264,7 @@ export default function CalculatorForm({
     setPitFlat(p.pitFlat);
     setTimeUnit("h");
     setHoursStr(p.hours > 0 ? String(p.hours) : "");
-    setZusStr(p.socialMonthly.toFixed(2));
+    setZusStr((p.socialMonthly + p.healthMinMonthly).toFixed(2));
     setWithInvoice(p.withInvoice);
     setDeductCostsVat(p.deductCostsVat);
     setReserveVacation(job.plan.reserveVacation ?? false);
@@ -321,8 +324,11 @@ export default function CalculatorForm({
 
   const timeValue = Math.max(0, parseAmount(hoursStr) ?? 0);
   const hours = timeUnit === "dni" ? timeValue * HOURS_PER_DAY : timeValue;
-  // Składki społeczne miesięcznie; zdrowotna liczy się sama z dochodu (lib/profitability).
+  // Wpisana kwota to społeczne + zdrowotna minimalna. Rachunek (lib/profitability) dostaje je
+  // osobno, bo zdrowotna rośnie z dochodem, a społeczne obniżają podstawę PIT.
   const zusMonthly = Math.max(0, parseAmount(zusStr) ?? 0);
+  const healthMinInZus = Math.min(healthMinMonthly, zusMonthly);
+  const socialMonthly = zusMonthly - healthMinInZus;
   // Godziny PŁATNE w miesiącu: na nie rozkładają się ZUS i warsztat, z nich wynika stawka z celu.
   const hoursPerMonth = Math.max(1, parseAmount(hoursPerMonthStr) ?? 120);
   const rentMonthly = Math.max(0, parseAmount(rentStr) ?? 0);
@@ -342,8 +348,8 @@ export default function CalculatorForm({
     pitFlat,
     hours,
     billableHoursMonth: hoursPerMonth,
-    socialMonthly: zusMonthly,
-    healthMinMonthly,
+    socialMonthly,
+    healthMinMonthly: healthMinInZus,
     rentMonthly,
     reserveRatio,
   };
@@ -905,7 +911,7 @@ export default function CalculatorForm({
           )}
         </div>
 
-        <Field label="ZUS społeczny / mies. (PLN)">
+        <Field label="Miesięczny ZUS ze zdrowotną (PLN)">
           <input
             inputMode="decimal"
             value={zusStr}
@@ -914,11 +920,9 @@ export default function CalculatorForm({
             className="input"
           />
           <span className="text-[11px] text-zinc-500">
-            Dziś: {zusPhaseLabel}. Zdrowotna dolicza się sama —{" "}
-            {withInvoice
-              ? `${taxForm === "liniowy" ? "4,9%" : "9%"} dochodu ze zlecenia, nie mniej niż część minimalnej`
-              : "część minimalnej"}{" "}
-            ({fmtPLN(healthMinMonthly)}/mies.).
+            Dziś: {zusPhaseLabel}. W kwocie jest zdrowotna minimalna ({fmtPLN(healthMinMonthly)}/mies.).
+            {withInvoice &&
+              ` Gdy ${taxForm === "liniowy" ? "4,9%" : "9%"} dochodu ze zlecenia wychodzi więcej, różnica dolicza się sama.`}
           </span>
         </Field>
         <Field label="Warsztat — czynsz z prądem / mies. (PLN)">
@@ -937,9 +941,9 @@ export default function CalculatorForm({
           )}
         </Field>
         <div className="flex flex-wrap gap-1.5">
-          <ZusPreset label="Ulga na start" amount={0} onPick={setZusStr} />
-          <ZusPreset label="Preferencyjny" amount={ZUS_SOCIAL_PREF_2026} onPick={setZusStr} />
-          <ZusPreset label="Pełny" amount={ZUS_SOCIAL_FULL_2026} onPick={setZusStr} />
+          <ZusPreset label="Ulga" amount={healthMinMonthly} onPick={setZusStr} />
+          <ZusPreset label="Mały" amount={ZUS_SOCIAL_PREF_2026 + healthMinMonthly} onPick={setZusStr} />
+          <ZusPreset label="Pełny" amount={ZUS_SOCIAL_FULL_2026 + healthMinMonthly} onPick={setZusStr} />
         </div>
         {!withInvoice && (
           <p className="text-[11px] text-zinc-500 -mt-1">
@@ -991,7 +995,7 @@ export default function CalculatorForm({
         reserveAmount={reserveAmount}
         netCashFinal={netCashAfterReserves}
         hours={hours}
-        fixedMonthly={zusMonthly + healthMinMonthly + rentMonthly}
+        fixedMonthly={zusMonthly + rentMonthly}
       />
 
       {amount > 0 && (
