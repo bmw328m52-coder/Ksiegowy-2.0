@@ -1375,6 +1375,21 @@ function HourlyRatePanel({
             {tone.text} · cel {fmtRate(targetRate)} · minimum {fmtRate(minRate)}
           </p>
         )}
+        {/* Ta sama stawka przeliczona na miesiąc: pełne 160 h i godziny płatne z ustawień. */}
+        <div className={`mt-3 pt-3 border-t border-black/10 grid grid-cols-2 gap-3 ${tone.value}`}>
+          <div>
+            <p className={`text-[11px] ${tone.sub}`}>Miesięcznie przy {AVAILABLE_HOURS_MONTH} h</p>
+            <p className="text-lg font-semibold tabular-nums">
+              {fmtPLN(ratePerHour * AVAILABLE_HOURS_MONTH)}
+            </p>
+          </div>
+          {hoursPerMonth !== AVAILABLE_HOURS_MONTH && (
+            <div>
+              <p className={`text-[11px] ${tone.sub}`}>przy {hoursPerMonth} h płatnych</p>
+              <p className="text-lg font-semibold tabular-nums">{fmtPLN(ratePerHour * hoursPerMonth)}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <details className="rounded-xl border border-zinc-200 bg-white overflow-hidden group">
