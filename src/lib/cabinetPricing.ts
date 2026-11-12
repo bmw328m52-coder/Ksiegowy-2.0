@@ -83,6 +83,9 @@ export type Rates = {
    *  (boki, przegrody, wieńce, półki, cokół), więc dodatek to tylko zapas na blendy i drobne formatki.
    *  Kuchenne 60% / 120% zawyżały szafę (uwaga Artura 2026-11-12, porównanie z wyceną Zimex). */
   wardrobe_board_extra_pct: number;
+  /** Płyta na szafę, zł/m² — dekor (korpus i wypełnienie skrzydeł są na widoku), nie biała jak w korpusach kuchni.
+   *  Zimex 11.2026: maryland oak R20410 343,17 zł / arkusz 2800×2100 = 58,4 zł/m². */
+  wardrobe_board_m2: number;
   wardrobe_edge_extra_pct: number;
   /** Drążek z uchwytami, zł/mb — szacunek, brak faktury. */
   rail_mb: number;
@@ -117,6 +120,7 @@ export const DEFAULT_RATES: Rates = {
   slide_gtv_door: 125,
   slide_gtv_mb: 104,
   wardrobe_board_extra_pct: 15,
+  wardrobe_board_m2: 58,
   wardrobe_edge_extra_pct: 25,
   rail_mb: 25,
   pantograph: 400,
@@ -366,7 +370,7 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
   if (sliding) {
     // Skrzydła na pełną wysokość; wypełnienie z płyty 18 mm (materiał + cięcie, bez oklejania — siedzi w ramie).
     hardware += slideHardware(r, slide, doorN, wd.width_mm);
-    frontsCost += W * H * 1.2 * (r.board_m2 + r.cut_mb_per_m2 * r.cut_mb);
+    frontsCost += W * H * 1.2 * (r.wardrobe_board_m2 + r.cut_mb_per_m2 * r.cut_mb);
   } else if (wd.doors === "hinged") {
     frontsCost += W * doorH * (1 + r.front_extra_pct / 100) * r.front_m2;
     hardware += doorN * hingesPerDoor(doorH) * r.hinge;
@@ -385,7 +389,7 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
   // na bokach i wieńcach zawyżały cenę.
   const boardM2 = board * (1 + r.board_extra_pct / 100) + boxBoard * (1 + r.wardrobe_board_extra_pct / 100);
   const p: CostParts = {
-    board: boardM2 * r.board_m2,
+    board: boardM2 * r.wardrobe_board_m2,
     cutting: boardM2 * r.cut_mb_per_m2 * r.cut_mb,
     edging: (edge * (1 + r.edge_extra_pct / 100) + boxEdge * (1 + r.wardrobe_edge_extra_pct / 100)) * r.edge_mb,
     hdf: wd.construction === "box" || frame ? 0 : W * H * r.hdf_m2,

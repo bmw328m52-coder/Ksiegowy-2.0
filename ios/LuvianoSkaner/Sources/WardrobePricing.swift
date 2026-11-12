@@ -25,6 +25,8 @@ struct CabinetRates {
     /// Zapas na skrzynię szafy skrzynkowej (2 boki + wieńce) — kuchenne 60% / 120% zawyżały cenę.
     /// Wnętrze, czyli cały szkielet, zostaje na kuchennych (ta cena zgadzała się z wyceną Zimex).
     var wardrobeBoardExtraPct = 15.0
+    /// Płyta na szafę (dekor), zł/m² — Zimex maryland oak 343 zł / arkusz = 58 zł/m².
+    var wardrobeBoardM2 = 58.0
     var wardrobeEdgeExtraPct = 25.0
     var railMb = 25.0
     var pantograph = 400.0
@@ -58,6 +60,7 @@ struct CabinetRates {
         v("slide_gtv_door", \.slideGtvDoor)
         v("slide_gtv_mb", \.slideGtvMb)
         v("wardrobe_board_extra_pct", \.wardrobeBoardExtraPct)
+        v("wardrobe_board_m2", \.wardrobeBoardM2)
         v("wardrobe_edge_extra_pct", \.wardrobeEdgeExtraPct)
         v("rail_mb", \.railMb)
         v("pantograph", \.pantograph)
@@ -160,7 +163,7 @@ struct WardrobePrice {
             // Skrzydła na pełną wysokość; wypełnienie z płyty 18 mm (materiał + cięcie, bez oklejania).
             slideCost = slide(r, system, doors: wd.doorCount, widthMm: wd.widthMm)
             hardware += slideCost
-            fronts += W * H * 1.2 * (r.boardM2 + r.cutMbPerM2 * r.cutMb)
+            fronts += W * H * 1.2 * (r.wardrobeBoardM2 + r.cutMbPerM2 * r.cutMb)
         } else if wd.doors == "hinged" {
             fronts += W * doorH * (1 + r.frontExtraPct / 100) * r.frontM2
             hardware += doorN * hingesPerDoor(doorH) * r.hinge
@@ -176,7 +179,7 @@ struct WardrobePrice {
 
         let boardM2 = board * (1 + r.boardExtraPct / 100) + boxBoard * (1 + r.wardrobeBoardExtraPct / 100)
         let hdf = wd.hasBack ? W * H * r.hdfM2 : 0
-        let sum = boardM2 * r.boardM2 + boardM2 * r.cutMbPerM2 * r.cutMb
+        let sum = boardM2 * r.wardrobeBoardM2 + boardM2 * r.cutMbPerM2 * r.cutMb
             + (edge * (1 + r.edgeExtraPct / 100) + boxEdge * (1 + r.wardrobeEdgeExtraPct / 100)) * r.edgeMb + hdf + fronts + hardware
         return WardrobePrice(cost: sum * (1 + r.overheadPct / 100), slideHardware: slideCost, marginPct: marginPct)
     }

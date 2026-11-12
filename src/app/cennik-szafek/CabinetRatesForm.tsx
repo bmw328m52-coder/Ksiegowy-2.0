@@ -59,6 +59,7 @@ const GROUPS: { title: string; hint?: string; fields: { key: NumKey; label: stri
       { key: "slide_laguna_mb", label: "Laguna — na metr szafy", unit: "zł/mb", hint: "ramiaki + tor górny i dolny; para drzwi na 3 m ≈ 809 zł" },
       { key: "slide_gtv_door", label: "GTV Nova S — na skrzydło", unit: "zł/szt", hint: "2 rączki Nova S 2,7 m + wózki PRO + prowadniki + szczotki" },
       { key: "slide_gtv_mb", label: "GTV — na metr szafy", unit: "zł/mb", hint: "listwy + tor górny i dolny PRO; para drzwi na 3 m ≈ 560 zł" },
+      { key: "wardrobe_board_m2", label: "Szafa — płyta (dekor)", unit: "zł/m²", hint: "korpus i wypełnienie skrzydeł; Zimex maryland oak 343 zł / arkusz 2800×2100 = 58 zł/m². Biała ≈ 48" },
       { key: "wardrobe_board_extra_pct", label: "Szafa skrzynkowa — zapas płyty na boki i wieńce", unit: "%", hint: "wnętrze (przegrody, półki, szuflady) liczone jak w szkielecie, zapasem kuchennym" },
       { key: "wardrobe_edge_extra_pct", label: "Szafa skrzynkowa — zapas oklejania boków i wieńców", unit: "%", hint: "krawędzie poza przodem elementów" },
       { key: "rail_mb", label: "Drążek z uchwytami", unit: "zł/mb", hint: "szacunek — brak faktury" },
