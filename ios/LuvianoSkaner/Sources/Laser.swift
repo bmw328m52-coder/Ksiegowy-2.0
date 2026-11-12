@@ -60,10 +60,36 @@ final class Laser: NSObject, ObservableObject {
         central.scanForPeripherals(withServices: nil)
     }
 
+    /// Twardy restart połączenia: porzuca wiszące żądanie i szuka dalmierza od zera.
+    /// Ratunek, gdy „Czekam na dalmierz…" nie mija mimo włączonego GLM.
+    func reconnect() {
+        wanted = true
+        guard let central, central.state == .poweredOn else { return start() }
+        fallback?.cancel()
+        watchdog?.cancel()
+        central.stopScan()
+        if let peripheral { central.cancelPeripheralConnection(peripheral) }
+        peripheral = nil
+        note("Łączę od nowa")
+        // Dalmierz trzymany przez system (np. po innej aplikacji) nie rozgłasza się — bierzemy go wprost.
+        if let p = central.retrieveConnectedPeripherals(withServices: [GLM.service]).first {
+            connect(p)
+        } else {
+            scan()
+        }
+    }
+
+    /// Powrót do aplikacji: niepołączony dalmierz łączymy od nowa (żądanie sprzed uśpienia bywa martwe).
+    func wake() {
+        guard wanted, central != nil, state != .connected else { return }
+        reconnect()
+    }
+
     func forget() {
         wanted = false
         UserDefaults.standard.removeObject(forKey: GLM.savedKey)
         fallback?.cancel()
+        watchdog?.cancel()
         central?.stopScan()
         if let peripheral { central?.cancelPeripheralConnection(peripheral) }
         peripheral = nil
@@ -103,6 +129,8 @@ final class Laser: NSObject, ObservableObject {
     }
 
     private var fallback: Task<Void, Never>?
+    /// Pilnuje, żeby po zestawieniu łącza dalmierz faktycznie zaczął odpowiadać.
+    private var watchdog: Task<Void, Never>?
 
     /// Ostatnie zdarzenia i surowe ramki (hex) — podgląd „Diagnostyka" przy dalmierzu.
     @Published private(set) var log: [String] = []
@@ -162,10 +190,13 @@ extension Laser: CBCentralManagerDelegate {
         let services = ad[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
         guard name.uppercased().contains("GLM") || services.contains(GLM.service) else { return }
         Task { @MainActor in
-            // .connecting = szukanie zapasowe; ten sam dalmierz połączy się z wiszącego żądania.
-            guard state == .searching || (state == .connecting && p.identifier != peripheral?.identifier) else { return }
+            guard state == .searching || state == .connecting else { return }
+            // .connecting = szukanie zapasowe: dalmierz się rozgłasza, a wiszące żądanie go nie złapało —
+            // porzucamy je i łączymy się ze świeżo znalezionym (także pod tym samym adresem).
             if state == .connecting, let old = peripheral {
-                note("Znaleziono dalmierz pod nowym adresem")
+                // Łącze już stoi, czekamy tylko na usługi — nie ruszać.
+                if old.state == .connected { return }
+                note(old.identifier == p.identifier ? "Dalmierz widoczny — ponawiam połączenie" : "Znaleziono dalmierz pod nowym adresem")
                 central?.cancelPeripheralConnection(old)
             }
             deviceName = name.isEmpty ? "Bosch GLM" : name
@@ -180,6 +211,15 @@ extension Laser: CBCentralManagerDelegate {
             note("Połączono z \(p.name ?? "dalmierzem")")
             UserDefaults.standard.set(p.identifier.uuidString, forKey: GLM.savedKey)
             p.discoverServices(nil)
+            // Łącze jest, ale bez usług / subskrypcji pomiary nie przyjdą — po chwili zaczynamy od nowa.
+            let pid = p.identifier
+            watchdog?.cancel()
+            watchdog = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(10))
+                guard let self, !Task.isCancelled, self.state != .connected, self.peripheral?.identifier == pid else { return }
+                self.note("Połączono, ale dalmierz nie odpowiada — łączę od nowa")
+                self.reconnect()
+            }
         }
     }
 
@@ -200,9 +240,11 @@ extension Laser: CBCentralManagerDelegate {
             // Porzucony stary adres (szukanie zapasowe) — nie ruszamy bieżącego połączenia.
             if let current = peripheral, current.identifier != p.identifier { return }
             guard wanted, peripheral?.identifier == p.identifier else {
-                state = .idle
+                // Trwające szukanie (po „Połącz od nowa") zostaje.
+                if state != .searching { state = .idle }
                 return
             }
+            watchdog?.cancel()
             // Dalmierz zgasł (auto-wyłączenie) — czekamy na niego.
             connect(p)
         }
@@ -240,6 +282,7 @@ extension Laser: CBPeripheralDelegate {
         p.writeValue(GLM.autoSync, for: ch, type: type)
         Task { @MainActor in
             note("Auto-sync → \(id)")
+            watchdog?.cancel()
             state = .connected
         }
     }
@@ -261,6 +304,7 @@ struct LaserButton: View {
     @EnvironmentObject private var laser: Laser
     @State private var menu = false
     @State private var diagnostics = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Button { menu = true } label: {
@@ -271,6 +315,7 @@ struct LaserButton: View {
         }
         .confirmationDialog("Dalmierz Bosch GLM 50 C", isPresented: $menu, titleVisibility: .visible) {
             if laser.state == .searching || laser.state == .connecting || laser.isConnected {
+                if !laser.isConnected { Button("Połącz od nowa") { laser.reconnect() } }
                 Button("Rozłącz i zapomnij", role: .destructive) { laser.forget() }
             } else {
                 Button("Połącz") { laser.search() }
@@ -281,6 +326,9 @@ struct LaserButton: View {
         }
         .sheet(isPresented: $diagnostics) { LaserLogView() }
         .onAppear { laser.start() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { laser.wake() }
+        }
     }
 
     private var title: String {
@@ -305,8 +353,11 @@ struct LaserHint: View {
             Image(systemName: fromLaser ? "checkmark.circle.fill" : "scope")
             Text(text)
             Spacer(minLength: 0)
-            if !laser.isConnected && laser.state != .connecting && laser.state != .searching {
-                Button("Połącz") { laser.search() }.buttonStyle(.bordered).controlSize(.small)
+            if !laser.isConnected {
+                // W trakcie czekania — twardy restart; stąd nie trzeba wracać do paska narzędzi.
+                let waiting = laser.state == .connecting || laser.state == .searching
+                Button(waiting ? "Połącz od nowa" : "Połącz") { waiting ? laser.reconnect() : laser.search() }
+                    .buttonStyle(.bordered).controlSize(.small)
             }
         }
         .font(.footnote)
