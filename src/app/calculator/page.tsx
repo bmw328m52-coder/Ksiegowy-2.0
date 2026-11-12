@@ -3,6 +3,7 @@ import PageHeader from "@/components/PageHeader";
 import { PageContainer } from "@/components/ui";
 import CalculatorForm from "./CalculatorForm";
 import { listJobs } from "@/lib/dao/jobs";
+import { listClients } from "@/lib/dao/clients";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { listQuoteTemplates } from "@/lib/dao/quote_templates";
 import { getDashboardData } from "@/lib/dao/dashboard";
@@ -39,8 +40,9 @@ export default async function CalculatorPage({
   const { job: jobParam } = await searchParams;
   const initialJobId = typeof jobParam === "string" && jobParam ? jobParam : undefined;
 
-  const [jobs, settings, costSummaries, templates, dashboard] = await Promise.all([
+  const [jobs, clients, settings, costSummaries, templates, dashboard] = await Promise.all([
     listJobs(),
+    listClients(),
     getUserSettingsOrDefault(),
     getJobCostSummaries(),
     listQuoteTemplates(),
@@ -117,6 +119,7 @@ export default async function CalculatorPage({
         )}
         <CalculatorForm
           jobs={jobOptions}
+          clients={clients.map((c) => ({ id: c.id, name: c.name }))}
           defaultTaxForm={settings.tax_form}
           defaultVatRate={settings.default_vat_rate}
           defaultIsVatPayer={settings.is_vat_payer}

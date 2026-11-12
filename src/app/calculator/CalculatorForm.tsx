@@ -14,7 +14,11 @@ import {
 import { ZUS_SOCIAL_FULL_2026, ZUS_SOCIAL_PREF_2026 } from "@/lib/zus";
 import { fmtDate, fmtPLN, parseAmount } from "@/lib/format";
 import type { QuoteTemplate } from "@/lib/dao/quote_templates.types";
-import { saveQuoteTemplateAction, deleteQuoteTemplateAction } from "./actions";
+import {
+  saveQuoteTemplateAction,
+  deleteQuoteTemplateAction,
+  createJobForQuoteAction,
+} from "./actions";
 import { applyQuoteToJobAction } from "@/app/jobs/actions";
 import type { CalcQuote } from "@/lib/dao/jobs.types";
 import { useRouter } from "next/navigation";
@@ -142,7 +146,8 @@ function makeBomLine(category = ""): BomLine {
 }
 
 export default function CalculatorForm({
-  jobs,
+  jobs: initialJobs,
+  clients,
   defaultTaxForm,
   defaultVatRate,
   defaultIsVatPayer,
@@ -155,6 +160,7 @@ export default function CalculatorForm({
   initialJobId,
 }: {
   jobs: JobOption[];
+  clients: { id: string; name: string }[];
   defaultTaxForm: TaxForm;
   defaultVatRate: number;
   defaultIsVatPayer: boolean;
@@ -167,6 +173,9 @@ export default function CalculatorForm({
   healthMinMonthly: number;
   initialJobId?: string;
 }) {
+  // Zlecenia założone w tej sesji kalkulatora („+ Nowy klient / nowe zlecenie").
+  const [createdJobs, setCreatedJobs] = useState<JobOption[]>([]);
+  const jobs = [...createdJobs.filter((c) => !initialJobs.some((j) => j.id === c.id)), ...initialJobs];
   const presetJob = initialJobId ? jobs.find((j) => j.id === initialJobId) : undefined;
   const presetCosts = presetJob ? jobCostFields(presetJob) : { costs: 0, planned: 0 };
   const presetCostsGross = presetCosts.costs;
@@ -221,6 +230,13 @@ export default function CalculatorForm({
     error: undefined as string | undefined,
   });
   const router = useRouter();
+  const [showNewJob, setShowNewJob] = useState(false);
+  const [newClientId, setNewClientId] = useState("");
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newJobTitle, setNewJobTitle] = useState("");
+  const [newJobPending, setNewJobPending] = useState(false);
+  const [newJobError, setNewJobError] = useState<string | undefined>(undefined);
   const [applyPending, setApplyPending] = useState(false);
   const [applyError, setApplyError] = useState<string | undefined>(undefined);
 
@@ -269,6 +285,44 @@ export default function CalculatorForm({
     setDeductCostsVat(p.deductCostsVat);
     setReserveVacation(job.plan.reserveVacation ?? false);
     setReserveSick(job.plan.reserveSick ?? false);
+  }
+
+  // Zakłada klienta (jeśli nowy) i zlecenie, po czym wybiera je w polu „Zlecenie".
+  // Wpisane kwoty zostają — nowe zlecenie nie ma jeszcze kosztów ani planu.
+  async function createJobHere() {
+    setNewJobPending(true);
+    setNewJobError(undefined);
+    try {
+      const res = await createJobForQuoteAction({
+        clientId: newClientId || undefined,
+        clientName: newClientName,
+        clientPhone: newClientPhone,
+        title: newJobTitle,
+        vatRate: isVatPayer && withInvoice ? vatRate : 0,
+      });
+      if (res.error || !res.job) {
+        setNewJobError(res.error ?? "Nie udało się utworzyć zlecenia.");
+        return;
+      }
+      const created: JobOption = {
+        ...res.job,
+        costs_net: 0,
+        costs_vat: 0,
+        materials_gross: 0,
+        plan: null,
+        plan_saved_at: null,
+      };
+      setCreatedJobs((prev) => [created, ...prev]);
+      setJobId(created.id);
+      setApplyError(undefined);
+      setShowNewJob(false);
+      setNewClientId("");
+      setNewClientName("");
+      setNewClientPhone("");
+      setNewJobTitle("");
+    } finally {
+      setNewJobPending(false);
+    }
   }
 
   async function applyToJob() {
@@ -568,6 +622,88 @@ export default function CalculatorForm({
             Po wyborze zlecenia koszty uzupełnią się automatycznie: z faktur kosztowych, a gdy ich brak — z pozycji wyceny. Możesz je nadpisać.
           </p>
         </Field>
+        {!showNewJob ? (
+          <button
+            type="button"
+            onClick={() => {
+              setShowNewJob(true);
+              setNewJobError(undefined);
+            }}
+            className="rounded-lg border border-zinc-200 bg-white text-sm py-2 active:bg-zinc-50"
+          >
+            + Nowy klient / nowe zlecenie
+          </button>
+        ) : (
+          <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-3">
+            <Field label="Klient">
+              <select
+                value={newClientId}
+                onChange={(e) => setNewClientId(e.target.value)}
+                className="input"
+              >
+                <option value="">— nowy klient —</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {!newClientId && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Field label="Imię i nazwisko / nazwa">
+                  <input
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    placeholder="np. Jan Kowalski"
+                    className="input"
+                  />
+                </Field>
+                <Field label="Telefon (opcjonalnie)">
+                  <input
+                    inputMode="tel"
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                    placeholder="np. 600 100 200"
+                    className="input"
+                  />
+                </Field>
+              </div>
+            )}
+            <Field label="Nazwa zlecenia">
+              <input
+                value={newJobTitle}
+                onChange={(e) => setNewJobTitle(e.target.value)}
+                placeholder="np. Kuchnia"
+                className="input"
+              />
+            </Field>
+            {newJobError && <p className="text-xs text-red-600">{newJobError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={createJobHere}
+                disabled={
+                  newJobPending || !newJobTitle.trim() || (!newClientId && !newClientName.trim())
+                }
+                className="flex-1 rounded-lg bg-accent text-white text-sm py-2 font-medium active:opacity-80 disabled:opacity-50"
+              >
+                {newJobPending ? "Tworzę…" : "Utwórz zlecenie"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNewJob(false)}
+                className="rounded-lg border border-zinc-200 text-sm px-3 active:bg-zinc-50"
+              >
+                Anuluj
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Zlecenie trafi na etap „Do wyceny”. Kwotę i plan zapisze przycisk „Przenieś wycenę do
+              zlecenia” na dole.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Koszty brutto (PLN)">
             <input
