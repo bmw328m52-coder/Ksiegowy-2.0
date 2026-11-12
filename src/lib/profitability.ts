@@ -173,3 +173,82 @@ export function rateStatus(rate: number, targetRate: number, minRate: number): R
 export function requiredHourlyRate(monthlyTarget: number, billableHoursMonth: number): number {
   return billableHoursMonth > 0 ? Math.max(0, monthlyTarget) / billableHoursMonth : 0;
 }
+
+// ============================================================
+// Plan zlecenia a wykonanie.
+// Plan = dane rachunku z chwili wyceny, zapisane na zleceniu (jobs.calc_quote.plan).
+// Wykonanie = godziny z licznika i koszty z faktur, liczone TYM SAMYM rachunkiem.
+// ============================================================
+
+export type JobPlan = {
+  /** Dane rachunku z wyceny: costsGross = planowane materiały, hours = planowane godziny. */
+  input: JobProfitInput;
+  /** Stawka docelowa i minimalna na rękę (zł/h) obowiązujące przy wycenie. */
+  targetRate: number;
+  minRate: number;
+  reserveVacation?: boolean;
+  reserveSick?: boolean;
+};
+
+export type PlanActuals = {
+  /** Aktualna kwota zlecenia brutto (0 = bierz z planu). */
+  amountGross: number;
+  /** Godziny z licznika i wpisów ręcznych. */
+  hours: number;
+  /** Koszty z przypiętych faktur, brutto (0 = brak faktur). */
+  costsGross: number;
+  /** Zamontowane/rozliczone: liczymy to, co jest. W toku: nie mniej niż plan. */
+  finished: boolean;
+};
+
+export type PlanVsActual = {
+  planned: JobProfitResult;
+  actual: JobProfitResult;
+  /** Godziny i koszty przyjęte do wyniku „actual". */
+  hoursUsed: number;
+  costsUsed: number;
+  /** true = wartość wzięta z planu (brak danych albo zlecenie w toku poniżej planu). */
+  hoursFromPlan: boolean;
+  costsFromPlan: boolean;
+  plannedStatus: RateStatus | null;
+  actualStatus: RateStatus | null;
+  /** Cena brutto, która przy faktycznych godzinach i kosztach dałaby stawkę docelową. */
+  priceForTarget: number;
+};
+
+export function planVsActual(plan: JobPlan, actuals: PlanActuals): PlanVsActual {
+  const planHours = Math.max(0, plan.input.hours);
+  const planCosts = Math.max(0, plan.input.costsGross);
+  const hours = Math.max(0, actuals.hours);
+  const costs = Math.max(0, actuals.costsGross);
+
+  // W toku godziny i faktury dopiero przyrastają — do prognozy bierzemy nie mniej niż plan.
+  const hoursUsed = actuals.finished ? (hours > 0 ? hours : planHours) : Math.max(hours, planHours);
+  const costsUsed = actuals.finished ? (costs > 0 ? costs : planCosts) : Math.max(costs, planCosts);
+
+  const actualInput: JobProfitInput = {
+    ...plan.input,
+    amountGross: actuals.amountGross > 0 ? actuals.amountGross : plan.input.amountGross,
+    hours: hoursUsed,
+    costsGross: costsUsed,
+  };
+  const planned = calcJobProfit(plan.input);
+  const actual = calcJobProfit(actualInput);
+  const status = (r: JobProfitResult, h: number) =>
+    h > 0 && plan.targetRate > 0 ? rateStatus(r.ratePerHour, plan.targetRate, plan.minRate) : null;
+
+  return {
+    planned,
+    actual,
+    hoursUsed,
+    costsUsed,
+    hoursFromPlan: hoursUsed !== hours,
+    costsFromPlan: costsUsed !== costs,
+    plannedStatus: status(planned, planHours),
+    actualStatus: status(actual, hoursUsed),
+    priceForTarget:
+      hoursUsed > 0 && plan.targetRate > 0
+        ? requiredPriceGross(actualInput, plan.targetRate * hoursUsed)
+        : 0,
+  };
+}

@@ -7,11 +7,12 @@ import {
   rateStatus,
   requiredHourlyRate,
   requiredPriceGross,
+  type JobPlan,
   type JobProfitInput,
   type RateStatus,
 } from "@/lib/profitability";
 import { ZUS_SOCIAL_FULL_2026, ZUS_SOCIAL_PREF_2026 } from "@/lib/zus";
-import { fmtPLN, parseAmount } from "@/lib/format";
+import { fmtDate, fmtPLN, parseAmount } from "@/lib/format";
 import type { QuoteTemplate } from "@/lib/dao/quote_templates.types";
 import { saveQuoteTemplateAction, deleteQuoteTemplateAction } from "./actions";
 import { applyQuoteToJobAction } from "@/app/jobs/actions";
@@ -26,6 +27,9 @@ type JobOption = {
   costs_vat: number;
   /** Suma pozycji wyceny (job_materials) brutto — koszt materiałów, gdy brak faktur kosztowych. */
   materials_gross: number;
+  /** Plan zapisany na zleceniu przy poprzednim „Przenieś wycenę" (jobs.calc_quote.plan). */
+  plan: JobPlan | null;
+  plan_saved_at: string | null;
 };
 
 // Koszt zlecenia do kalkulatora: najpierw realne faktury kosztowe (cost_lines),
@@ -38,6 +42,15 @@ function jobCostGross(job: JobOption): number {
 // Koszt planowany = pozycje wyceny, ale tylko gdy są już faktury do porównania.
 function jobPlannedGross(job: JobOption): number {
   return job.costs_net + job.costs_vat > 0 ? job.materials_gross : 0;
+}
+
+// Pola kosztów po wyborze zlecenia. Gdy zlecenie ma zapisany plan, planem są koszty z wyceny
+// z tamtej chwili, a rzeczywistością faktury (jeśli już są).
+function jobCostFields(job: JobOption): { costs: number; planned: number } {
+  const planCosts = job.plan?.input.costsGross ?? 0;
+  if (planCosts <= 0) return { costs: jobCostGross(job), planned: jobPlannedGross(job) };
+  const invoices = job.costs_net + job.costs_vat;
+  return invoices > 0 ? { costs: invoices, planned: planCosts } : { costs: planCosts, planned: 0 };
 }
 
 type BomLine = { id: string; category: string; amountStr: string };
@@ -155,13 +168,17 @@ export default function CalculatorForm({
   initialJobId?: string;
 }) {
   const presetJob = initialJobId ? jobs.find((j) => j.id === initialJobId) : undefined;
-  const presetCostsGross = presetJob ? jobCostGross(presetJob) : 0;
-  const presetPlanned = presetJob ? jobPlannedGross(presetJob) : 0;
+  const presetCosts = presetJob ? jobCostFields(presetJob) : { costs: 0, planned: 0 };
+  const presetCostsGross = presetCosts.costs;
+  const presetPlanned = presetCosts.planned;
+  // Zlecenie z zapisanym planem otwiera kalkulator z tamtymi danymi, nie z pustymi polami.
+  const presetPlan = presetJob?.plan ?? null;
+  const pp = presetPlan?.input;
 
-  const [amountStr, setAmountStr] = useState("");
-  const [vatPct, setVatPct] = useState(String(Math.round(defaultVatRate * 100)));
-  const [taxForm, setTaxForm] = useState<TaxForm>(defaultTaxForm);
-  const [isVatPayer, setIsVatPayer] = useState<boolean>(defaultIsVatPayer);
+  const [amountStr, setAmountStr] = useState(pp ? pp.amountGross.toFixed(2) : "");
+  const [vatPct, setVatPct] = useState(String(Math.round((pp?.vatRate ?? defaultVatRate) * 100)));
+  const [taxForm, setTaxForm] = useState<TaxForm>(pp?.taxForm ?? defaultTaxForm);
+  const [isVatPayer, setIsVatPayer] = useState<boolean>(pp?.isVatPayer ?? defaultIsVatPayer);
   const [yearIncomeStr, setYearIncomeStr] = useState(
     defaultYearIncome > 0 ? defaultYearIncome.toFixed(2) : ""
   );
@@ -169,17 +186,19 @@ export default function CalculatorForm({
   const [costsGrossStr, setCostsGrossStr] = useState(
     presetCostsGross > 0 ? presetCostsGross.toFixed(2) : "",
   );
-  const [costsVatPct, setCostsVatPct] = useState("23");
+  const [costsVatPct, setCostsVatPct] = useState(
+    pp && pp.isVatPayer ? String(Math.round(pp.costsVatRate * 100)) : "23",
+  );
   const [jobId, setJobId] = useState<string>(presetJob ? presetJob.id : "");
   const [useBom, setUseBom] = useState(false);
   const [bomLines, setBomLines] = useState<BomLine[]>([makeBomLine()]);
   const [templateId, setTemplateId] = useState<string>("");
   const [showSave, setShowSave] = useState(false);
-  const [pitFlat, setPitFlat] = useState(false);
-  const [hoursStr, setHoursStr] = useState("");
+  const [pitFlat, setPitFlat] = useState(pp?.pitFlat ?? false);
+  const [hoursStr, setHoursStr] = useState(pp && pp.hours > 0 ? String(pp.hours) : "");
   const [timeUnit, setTimeUnit] = useState<"h" | "dni">("h");
   const [rentStr, onRentChange] = usePref(RENT_STORAGE_KEY, DEFAULT_WORKSHOP_RENT.toFixed(2));
-  const [zusStr, setZusStr] = useState(defaultSocialMonthly.toFixed(2));
+  const [zusStr, setZusStr] = useState((pp?.socialMonthly ?? defaultSocialMonthly).toFixed(2));
   const [hoursPerMonthStr, setHoursPerMonthStr] = usePref(BILLABLE_HOURS_KEY, "120");
   const [monthlyTargetStr, setMonthlyTargetStr] = usePref(MONTHLY_TARGET_KEY, "12000");
   // Pusta = stawka wynika z celu miesięcznego ÷ godziny płatne.
@@ -190,10 +209,10 @@ export default function CalculatorForm({
   );
   const [discountStr, setDiscountStr] = useState("");
   const [discountMode, setDiscountMode] = useState<"zl" | "pct">("zl");
-  const [withInvoice, setWithInvoice] = useState(true);
-  const [deductCostsVat, setDeductCostsVat] = useState(false);
-  const [reserveVacation, setReserveVacation] = useState(false);
-  const [reserveSick, setReserveSick] = useState(false);
+  const [withInvoice, setWithInvoice] = useState(pp?.withInvoice ?? true);
+  const [deductCostsVat, setDeductCostsVat] = useState(pp?.deductCostsVat ?? false);
+  const [reserveVacation, setReserveVacation] = useState(presetPlan?.reserveVacation ?? false);
+  const [reserveSick, setReserveSick] = useState(presetPlan?.reserveSick ?? false);
   const [templateName, setTemplateName] = useState("");
   const [saveState, saveAction, savePending] = useActionState(saveQuoteTemplateAction, {
     error: undefined as string | undefined,
@@ -227,10 +246,26 @@ export default function CalculatorForm({
     if (!id) return;
     const job = jobs.find((j) => j.id === id);
     if (!job) return;
-    const gross = jobCostGross(job);
+    const { costs: gross, planned } = jobCostFields(job);
     setCostsGrossStr(gross > 0 ? gross.toFixed(2) : "");
-    const planned = jobPlannedGross(job);
     setPlannedCostsStr(planned > 0 ? planned.toFixed(2) : "");
+    // Zapisany plan wraca do pól — wycena nie ginie po wyjściu z kalkulatora.
+    const p = job.plan?.input;
+    if (!job.plan || !p) return;
+    setUseBom(false);
+    setAmountStr(p.amountGross.toFixed(2));
+    setVatPct(String(Math.round(p.vatRate * 100)));
+    setTaxForm(p.taxForm);
+    setIsVatPayer(p.isVatPayer);
+    if (p.isVatPayer) setCostsVatPct(String(Math.round(p.costsVatRate * 100)));
+    setPitFlat(p.pitFlat);
+    setTimeUnit("h");
+    setHoursStr(p.hours > 0 ? String(p.hours) : "");
+    setZusStr(p.socialMonthly.toFixed(2));
+    setWithInvoice(p.withInvoice);
+    setDeductCostsVat(p.deductCostsVat);
+    setReserveVacation(job.plan.reserveVacation ?? false);
+    setReserveSick(job.plan.reserveSick ?? false);
   }
 
   async function applyToJob() {
@@ -254,6 +289,14 @@ export default function CalculatorForm({
         hours,
         profit: netCashAfterReserves,
         savedAt: new Date().toISOString(),
+        // Plan: materiały z wyceny (nie z faktur) + godziny i stawki z tej chwili.
+        plan: {
+          input: { ...profitInput, costsGross: plannedCosts > 0 ? plannedCosts : costsGross },
+          targetRate,
+          minRate,
+          reserveVacation,
+          reserveSick,
+        },
       };
       const res = await applyQuoteToJobAction(jobId, amountNum, vatRate, snapshot);
       if (res.error) {
@@ -266,6 +309,7 @@ export default function CalculatorForm({
     }
   }
 
+  const selectedJob = jobId ? jobs.find((j) => j.id === jobId) : undefined;
   const amount = parseAmount(amountStr) ?? 0;
   const yearIncome = parseAmount(yearIncomeStr) ?? 0;
   const bomTotal = useBom
@@ -1147,7 +1191,17 @@ export default function CalculatorForm({
           </div>
           <p className="text-[10px] text-[#b3b0aa]">
             Ta wycena (kwota, koszty, ZUS, warsztat, urlop, zysk) pojawi się na karcie zlecenia 1:1.
+            Razem z nią zapisuje się plan:{" "}
+            {hours > 0 ? `${hours} h` : "bez godzin — wpisz czas pracy"}, materiały{" "}
+            {fmtPLN(plannedCosts > 0 ? plannedCosts : costsGross)}, cel {fmtRate(targetRate)}. Zlecenie
+            porówna go potem z licznikiem i fakturami.
           </p>
+          {selectedJob?.plan_saved_at && (
+            <p className="text-[10px] text-[#a18653]">
+              To zlecenie ma już plan z {fmtDate(selectedJob.plan_saved_at)} — jest wczytany powyżej.
+              Przeniesienie zastąpi go obecnymi danymi.
+            </p>
+          )}
         </div>
       )}
 

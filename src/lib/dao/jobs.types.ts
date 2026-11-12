@@ -1,3 +1,4 @@
+import type { JobPlan } from "@/lib/profitability";
 import type { ProjectType } from "./job_checklist.types";
 
 export type JobStatus =
@@ -99,6 +100,8 @@ export type CalcQuote = {
   hours: number;
   profit: number;
   savedAt: string;
+  /** Plan do porównania z wykonaniem (godziny, materiały, stawka docelowa). Brak w starszych migawkach. */
+  plan?: JobPlan;
 };
 
 export type Job = {

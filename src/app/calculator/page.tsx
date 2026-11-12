@@ -59,6 +59,8 @@ export default async function CalculatorPage({
       costs_net: c?.net ?? 0,
       costs_vat: c?.vat ?? 0,
       materials_gross: materialCosts.get(j.id)?.gross ?? 0,
+      plan: j.calc_quote?.plan ?? null,
+      plan_saved_at: j.calc_quote?.plan ? j.calc_quote.savedAt : null,
     };
   });
 

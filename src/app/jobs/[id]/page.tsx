@@ -17,6 +17,7 @@ import {
 } from "../actions";
 import InvoiceSection from "./InvoiceSection";
 import MarginSection from "./MarginSection";
+import PlanSection from "./PlanSection";
 import LaborSection from "./LaborSection";
 import PomiarSection from "./PomiarSection";
 import RoomScanSection from "./RoomScanSection";
@@ -80,6 +81,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {!isCancelled && <MarginSection job={job} />}
 
         {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
+
+        {!isCancelled && job.calc_quote?.plan?.input && (
+          <PlanSection job={job} plan={job.calc_quote.plan} savedAt={job.calc_quote.savedAt} />
+        )}
 
 
         <StageActions

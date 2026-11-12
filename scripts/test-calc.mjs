@@ -21,7 +21,7 @@ for (const name of ["tax", "zus", "profitability"]) {
   }).outputText;
   fs.writeFileSync(path.join(outDir, `${name}.js`), js);
 }
-const { calcJobProfit, requiredPriceGross, rateStatus, requiredHourlyRate } = require(
+const { calcJobProfit, requiredPriceGross, rateStatus, requiredHourlyRate, planVsActual } = require(
   path.join(outDir, "profitability.js"),
 );
 process.on("exit", () => fs.rmSync(outDir, { recursive: true, force: true }));
@@ -124,4 +124,39 @@ test("cel miesięczny i progi kolorów", () => {
   assert.equal(rateStatus(100, 100, 75), "cel");
   assert.equal(rateStatus(80, 100, 75), "minimum");
   assert.equal(rateStatus(60, 100, 75), "ponizej");
+});
+
+// Plan zapisany na zleceniu: 20 000 materiałów i 180 h, cel 100 zł/h, minimum 75.
+const plan = { input: { ...base, costsGross: 20000, hours: 180 }, targetRate: 100, minRate: 75 };
+
+test("plan a wykonanie: po zakończeniu liczą się faktyczne godziny i faktury", () => {
+  const r = planVsActual(plan, { amountGross: base.amountGross, hours: 225, costsGross: 23000, finished: true });
+  near(r.planned.netCash, calcJobProfit(plan.input).netCash);
+  near(r.actual.netCash, calcJobProfit(base).netCash);
+  assert.equal(r.hoursFromPlan, false);
+  assert.equal(r.costsFromPlan, false);
+  assert.ok(r.actual.ratePerHour < r.planned.ratePerHour);
+  assert.equal(r.actualStatus, "ponizej");
+  near(calcJobProfit({ ...base, amountGross: r.priceForTarget }).ratePerHour, 100, 0.01);
+});
+
+test("plan a wykonanie: w toku prognoza nie spada poniżej planu godzin i kosztów", () => {
+  const early = planVsActual(plan, { amountGross: base.amountGross, hours: 40, costsGross: 5000, finished: false });
+  assert.equal(early.hoursUsed, 180);
+  assert.equal(early.costsUsed, 20000);
+  assert.equal(early.hoursFromPlan, true);
+  near(early.actual.ratePerHour, early.planned.ratePerHour);
+  const over = planVsActual(plan, { amountGross: base.amountGross, hours: 200, costsGross: 21000, finished: false });
+  assert.equal(over.hoursUsed, 200);
+  assert.equal(over.costsUsed, 21000);
+  assert.ok(over.actual.ratePerHour < over.planned.ratePerHour);
+});
+
+test("plan a wykonanie: brak godzin i faktur po zakończeniu → wartości z planu; rabat zmienia wynik", () => {
+  const r = planVsActual(plan, { amountGross: 0, hours: 0, costsGross: 0, finished: true });
+  assert.equal(r.hoursFromPlan, true);
+  assert.equal(r.costsFromPlan, true);
+  near(r.actual.netCash, r.planned.netCash);
+  const cheaper = planVsActual(plan, { amountGross: base.amountGross - 2000, hours: 0, costsGross: 0, finished: true });
+  near(r.planned.netCash - cheaper.actual.netCash, (2000 / 1.08) * 0.79);
 });
