@@ -22,6 +22,9 @@ struct CabinetRates {
     var slideLagunaMb = 163.0
     var slideGtvDoor = 125.0
     var slideGtvMb = 104.0
+    /// Szafy mają własny, mały zapas płyty i oklejania — kuchenne 60% / 120% zawyżały cenę.
+    var wardrobeBoardExtraPct = 15.0
+    var wardrobeEdgeExtraPct = 25.0
     var railMb = 25.0
     var pantograph = 400.0
     var overheadPct = 4.0
@@ -53,6 +56,8 @@ struct CabinetRates {
         v("slide_laguna_mb", \.slideLagunaMb)
         v("slide_gtv_door", \.slideGtvDoor)
         v("slide_gtv_mb", \.slideGtvMb)
+        v("wardrobe_board_extra_pct", \.wardrobeBoardExtraPct)
+        v("wardrobe_edge_extra_pct", \.wardrobeEdgeExtraPct)
         v("rail_mb", \.railMb)
         v("pantograph", \.pantograph)
         v("overhead_pct", \.overheadPct)
@@ -166,10 +171,10 @@ struct WardrobePrice {
         }
         hardware += handles * r.handle
 
-        let boardM2 = board * (1 + r.boardExtraPct / 100)
+        let boardM2 = board * (1 + r.wardrobeBoardExtraPct / 100)
         let hdf = wd.hasBack ? W * H * r.hdfM2 : 0
         let sum = boardM2 * r.boardM2 + boardM2 * r.cutMbPerM2 * r.cutMb
-            + edge * (1 + r.edgeExtraPct / 100) * r.edgeMb + hdf + fronts + hardware
+            + edge * (1 + r.wardrobeEdgeExtraPct / 100) * r.edgeMb + hdf + fronts + hardware
         return WardrobePrice(cost: sum * (1 + r.overheadPct / 100), slideHardware: slideCost, marginPct: marginPct)
     }
 

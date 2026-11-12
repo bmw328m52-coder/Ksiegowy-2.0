@@ -79,6 +79,11 @@ export type Rates = {
    *  2 skrzydła na 3 m ≈ 560 zł. Skład kompletów wózków niepotwierdzony. */
   slide_gtv_door: number;
   slide_gtv_mb: number;
+  /** Szafy: dodatek do płyty i do oklejania w %. Osobno od kuchni — w szafie model liczy każdy element
+   *  (boki, przegrody, wieńce, półki, cokół), więc dodatek to tylko zapas na blendy i drobne formatki.
+   *  Kuchenne 60% / 120% zawyżały szafę (uwaga Artura 2026-11-12, porównanie z wyceną Zimex). */
+  wardrobe_board_extra_pct: number;
+  wardrobe_edge_extra_pct: number;
   /** Drążek z uchwytami, zł/mb — szacunek, brak faktury. */
   rail_mb: number;
   /** Pantograf, zł/szt — szacunek, brak faktury. */
@@ -111,6 +116,8 @@ export const DEFAULT_RATES: Rates = {
   slide_laguna_mb: 163,
   slide_gtv_door: 125,
   slide_gtv_mb: 104,
+  wardrobe_board_extra_pct: 15,
+  wardrobe_edge_extra_pct: 25,
   rail_mb: 25,
   pantograph: 400,
   overhead_pct: 4,
@@ -371,11 +378,11 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
   }
   hardware += handles * r.handle;
 
-  const boardM2 = board * (1 + r.board_extra_pct / 100);
+  const boardM2 = board * (1 + r.wardrobe_board_extra_pct / 100);
   const p: CostParts = {
     board: boardM2 * r.board_m2,
     cutting: boardM2 * r.cut_mb_per_m2 * r.cut_mb,
-    edging: edge * (1 + r.edge_extra_pct / 100) * r.edge_mb,
+    edging: edge * (1 + r.wardrobe_edge_extra_pct / 100) * r.edge_mb,
     hdf: wd.construction === "box" || frame ? 0 : W * H * r.hdf_m2,
     fronts: frontsCost,
     hardware,
