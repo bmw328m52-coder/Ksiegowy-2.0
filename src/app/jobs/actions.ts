@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createJob, updateJob, deleteJob, getJob, type JobInput, type JobStatus } from "@/lib/dao/jobs";
 import { JOB_STATUS_WORKFLOW, type CalcQuote } from "@/lib/dao/jobs.types";
+import { removeJobFilesStorage } from "@/lib/dao/job_files";
 import { parseAmount } from "@/lib/format";
 import {
   countChecklistByJob,
@@ -483,6 +484,7 @@ export async function applyQuoteToJobAction(
 }
 
 export async function deleteJobAction(id: string, clientId: string) {
+  await removeJobFilesStorage(id).catch(() => {});
   await deleteJob(id);
   revalidatePath("/jobs");
   revalidatePath(`/clients/${clientId}`);

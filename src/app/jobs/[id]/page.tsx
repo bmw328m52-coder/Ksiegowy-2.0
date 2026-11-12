@@ -21,6 +21,7 @@ import PlanSection from "./PlanSection";
 import LaborSection from "./LaborSection";
 import PomiarSection from "./PomiarSection";
 import RoomScanSection from "./RoomScanSection";
+import ProjectFilesSection from "./ProjectFilesSection";
 import ScanStatusCard from "./ScanStatusCard";
 import { listScansByJob } from "@/lib/dao/room_scans";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
@@ -95,6 +96,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         />
 
         <StageTimeline stages={stages} />
+
+        <ProjectFilesSection jobId={id} />
 
         {(scans.length > 0 || MEASURE_STAGES.includes(job.status)) && <ScanStatusCard jobId={id} scans={scans} />}
 
