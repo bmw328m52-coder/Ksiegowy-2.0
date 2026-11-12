@@ -27,6 +27,8 @@ export default async function TimerPage() {
     getJobMaterialCostMap(ids),
   ]);
   const marginByJob: Record<string, number> = {};
+  // Zlecenie bez faktury (VAT 0% u VAT-owca) — bez podatku dochodowego w stawce na rękę.
+  const untaxedJobs: string[] = [];
   for (const j of jobs) {
     const cost = costMap.get(j.id);
     const mat = matMap.get(j.id);
@@ -36,6 +38,7 @@ export default async function TimerPage() {
     const materials = mat ? [{ qty: mat.gross, unit_price_gross: 1 }] : [];
     const m = computeJobMarginFull(j, costLines, materials, settings.is_vat_payer);
     marginByJob[j.id] = (cost?.count ?? 0) > 0 ? m.realProfit : m.estProfit;
+    if (settings.is_vat_payer && Number(j.vat_rate) === 0) untaxedJobs.push(j.id);
   }
 
   const jobMap = new Map(jobs.map((j) => [j.id, j]));
@@ -56,6 +59,7 @@ export default async function TimerPage() {
         recent={recentWithMeta}
         minutesByJob={minutesByJob}
         marginByJob={marginByJob}
+        untaxedJobs={untaxedJobs}
         targetRate={settings.default_hourly_rate}
         overhead={overhead}
       />

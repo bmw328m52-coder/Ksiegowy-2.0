@@ -5,7 +5,8 @@ import { getUserSettingsOrDefault } from "./user_settings";
 import { listDeadlines } from "./deadlines";
 import { isJobMissingSalesInvoice, type Job } from "./jobs.types";
 import { isOverdueUnpaid } from "@/lib/dao/invoices.types";
-import { zusForMonth } from "@/lib/zus";
+import { zusForMonth, HEALTH_RATE_LINIOWY, HEALTH_RATE_SKALA } from "@/lib/zus";
+import { PIT_RATE_LOW, PIT_RATE_LINEAR } from "@/lib/tax";
 
 function toNum(v: string | number | null | undefined): number {
   if (v === null || v === undefined) return 0;
@@ -113,6 +114,12 @@ export type HourlyOverhead = {
   months: number;
   /** (zus + fixed) ÷ 144 h produktywne. */
   perHour: number;
+  /** Do stawki „na rękę" (lib/timerRate): godziny, składki i stopy podatku. */
+  hours: number;
+  social: number;
+  healthMin: number;
+  pitRate: number;
+  healthRate: number;
 };
 
 // Narzut firmy na godzinę pracy: ZUS + koszty ogólne (faktury kosztowe bez zlecenia).
@@ -125,7 +132,7 @@ export async function getHourlyOverhead(now: Date = new Date()): Promise<HourlyO
   const year = now.getFullYear();
   const monthIdx = now.getMonth();
 
-  const zusCalc = settings.zus_start_date
+  const zusParts = settings.zus_start_date
     ? zusForMonth({
         startDate: settings.zus_start_date,
         year,
@@ -133,8 +140,12 @@ export async function getHourlyOverhead(now: Date = new Date()): Promise<HourlyO
         taxForm: settings.tax_form,
         monthIncome: 0,
         minHealth: settings.health_insurance_min,
-      }).total
-    : settings.zus_monthly;
+      })
+    : null;
+  const zusCalc = zusParts ? zusParts.total : settings.zus_monthly;
+  // Bez daty startu ZUS jest jedną kwotą — dzielimy ją na zdrowotną minimalną i resztę (społeczne).
+  const healthMin = zusParts ? zusParts.health : Math.min(zusCalc, settings.health_insurance_min);
+  const social = zusParts ? zusParts.social : Math.max(0, zusCalc - healthMin);
 
   const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   let months = 3;
@@ -168,7 +179,17 @@ export async function getHourlyOverhead(now: Date = new Date()): Promise<HourlyO
     fixed = Math.max(0, sum / months);
   }
 
-  return { zus: zusCalc, fixed, months, perHour: (zusCalc + fixed) / PRODUCTIVE_HOURS_MONTH };
+  return {
+    zus: zusCalc,
+    fixed,
+    months,
+    perHour: (zusCalc + fixed) / PRODUCTIVE_HOURS_MONTH,
+    hours: PRODUCTIVE_HOURS_MONTH,
+    social,
+    healthMin,
+    pitRate: settings.tax_form === "liniowy" ? PIT_RATE_LINEAR : PIT_RATE_LOW,
+    healthRate: settings.tax_form === "liniowy" ? HEALTH_RATE_LINIOWY : HEALTH_RATE_SKALA,
+  };
 }
 
 export type JobProfitability = {
