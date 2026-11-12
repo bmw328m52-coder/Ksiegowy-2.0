@@ -5,8 +5,13 @@ import SwiftUI
 enum MarkerKind: String, CaseIterable, Identifiable {
     case waterCold = "water_cold", waterHot = "water_hot", drain
     case socket, power400 = "power_400", gas, vent, light, lightSwitch = "switch", other
+    /// Nie instalacja: pionowa granica na ścianie — odkąd (dokąd) ma stać mebel.
+    case furnitureEdge = "furniture_edge"
 
     var id: String { rawValue }
+
+    /// Rodzaje do wyboru jako punkt instalacji (granica mebla ma własny przycisk w widoku ściany).
+    static let installations = allCases.filter { $0 != .furnitureEdge }
 
     var label: String {
         switch self {
@@ -20,6 +25,7 @@ enum MarkerKind: String, CaseIterable, Identifiable {
         case .light: return "Wypust światła"
         case .lightSwitch: return "Włącznik"
         case .other: return "Inne"
+        case .furnitureEdge: return "Początek / koniec mebla"
         }
     }
 
@@ -34,6 +40,7 @@ enum MarkerKind: String, CaseIterable, Identifiable {
         case .light: return "lightbulb.fill"
         case .lightSwitch: return "lightswitch.on.fill"
         case .other: return "mappin"
+        case .furnitureEdge: return "arrow.left.and.right"
         }
     }
 
@@ -49,10 +56,31 @@ enum MarkerKind: String, CaseIterable, Identifiable {
         case .light: return Color(red: 0.75, green: 0.55, blue: 0.1)
         case .lightSwitch: return Color(red: 0.55, green: 0.45, blue: 0.3)
         case .other: return Color(white: 0.4)
+        case .furnitureEdge: return Brand.gold
         }
     }
 
     init(key: String) { self = MarkerKind(rawValue: key) ?? .other }
+}
+
+extension ScanMarker {
+    var isFurnitureEdge: Bool { kind == MarkerKind.furnitureEdge.rawValue }
+}
+
+/// Strefa mebla na ścianie wyznaczona znacznikami „początek / koniec mebla".
+enum FurnitureZone {
+    /// Położenia znaczników na ścianie, od lewej.
+    static func edges(_ scan: ScanPayload, wallId: String) -> [Double] {
+        scan.markers.filter { $0.wallId == wallId && $0.isFurnitureEdge }.map(\.offsetMm).sorted()
+    }
+
+    /// Dwa znaczniki = od–do. Jeden = od znacznika do dalszego narożnika. Bez znaczników — nil (cała ściana).
+    static func range(_ scan: ScanPayload, wallId: String, length: Double) -> (a: Double, b: Double)? {
+        let e = edges(scan, wallId: wallId).map { min(max($0, 0), length) }
+        guard let first = e.first else { return nil }
+        let r: (a: Double, b: Double) = e.count >= 2 ? (a: first, b: e[1]) : first <= length / 2 ? (a: first, b: length) : (a: 0, b: first)
+        return r.b - r.a >= 100 ? r : nil
+    }
 }
 
 /// Znacznik instalacji: kółko w kolorze rodzaju z ikoną (rzut i widok ściany).
@@ -106,6 +134,7 @@ struct MarkerSheet: View {
 
     private func num(_ s: String) -> Double? { Double(s.replacingOccurrences(of: ",", with: ".")) }
     private var kind: MarkerKind { MarkerKind(key: marker.kind) }
+    private var isEdge: Bool { kind == .furnitureEdge }
     private var valid: Bool {
         guard let o = num(offsetText), let h = num(heightText) else { return false }
         return o >= 0 && o <= wallLength + 1 && h >= 0
@@ -114,9 +143,10 @@ struct MarkerSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if !isEdge {
                 Section("Rodzaj") {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
-                        ForEach(MarkerKind.allCases) { k in
+                        ForEach(MarkerKind.installations) { k in
                             Button { marker.kind = k.rawValue } label: {
                                 HStack(spacing: 8) {
                                     Image(systemName: k.symbol)
@@ -136,6 +166,7 @@ struct MarkerSheet: View {
                     }
                     .padding(.vertical, 4)
                 }
+                }
 
                 Section {
                     Picker("Mierzone od", selection: $fromRight) {
@@ -149,20 +180,23 @@ struct MarkerSheet: View {
                     }
                     LaserHint()
                     mmField(fromRight ? "Od prawego narożnika" : "Od lewego narożnika", text: $offsetText, field: .offset)
-                    mmField("Od podłogi (środek punktu)", text: $heightText, field: .height)
+                    if !isEdge { mmField("Od podłogi (środek punktu)", text: $heightText, field: .height) }
                 } header: {
                     Text("Położenie na ścianie \(wallName)")
                 } footer: {
-                    Text("Długość ściany \(Int(wallLength.rounded())) mm. Wpisz wymiar z miarki lub dalmierza.")
+                    Text("Długość ściany \(Int(wallLength.rounded())) mm. Wpisz wymiar z miarki lub dalmierza."
+                         + (isEdge ? " Drugi znacznik na tej samej ścianie wyznacza koniec mebla." : ""))
                 }
 
-                MarkerPhotosSection(photos: Binding(
-                    get: { marker.photos ?? [] },
-                    set: { marker.photos = $0.isEmpty ? nil : $0 }
-                ))
+                if !isEdge {
+                    MarkerPhotosSection(photos: Binding(
+                        get: { marker.photos ?? [] },
+                        set: { marker.photos = $0.isEmpty ? nil : $0 }
+                    ))
+                }
 
                 Section("Notatka") {
-                    TextField("np. podwójne, do przesunięcia, zawór kulowy…", text: Binding(
+                    TextField(isEdge ? "np. od listwy, do krawędzi ościeżnicy…" : "np. podwójne, do przesunięcia, zawór kulowy…", text: Binding(
                         get: { marker.note ?? "" },
                         set: { marker.note = $0.isEmpty ? nil : $0 }
                     ), axis: .vertical)
@@ -170,14 +204,14 @@ struct MarkerSheet: View {
 
                 if !isNew {
                     Section {
-                        Button("Usuń punkt", role: .destructive) {
+                        Button(isEdge ? "Usuń znacznik" : "Usuń punkt", role: .destructive) {
                             onDelete()
                             dismiss()
                         }
                     }
                 }
             }
-            .navigationTitle(isNew ? "Nowy punkt instalacji" : kind.label)
+            .navigationTitle(isEdge ? "Początek / koniec mebla" : isNew ? "Nowy punkt instalacji" : kind.label)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Anuluj") { dismiss() } }
@@ -202,6 +236,7 @@ struct MarkerSheet: View {
             switch laserTarget {
             case .offset:
                 offsetText = v
+                guard !isEdge else { return }
                 laserTarget = .height
                 if focus != nil { focus = .height }
             case .height:

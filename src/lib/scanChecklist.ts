@@ -99,13 +99,15 @@ export function scanChecklist(scan: ScanData, name = ""): CheckItem[] {
     });
   }
 
-  if (markers.length > 0) {
-    const bare = markers.filter((m) => !(m.photos ?? []).length).length;
+  // Granica mebla to nie instalacja — zdjęcia nie wymagamy.
+  const points = markers.filter((m) => m.kind !== "furniture_edge");
+  if (points.length > 0) {
+    const bare = points.filter((m) => !(m.photos ?? []).length).length;
     out.push({
       id: "photos",
       group: "Zdjęcia",
       title: "Zdjęcia punktów instalacji",
-      detail: bare === 0 ? "wszystkie mają zdjęcie" : `bez zdjęcia: ${bare} z ${markers.length}`,
+      detail: bare === 0 ? "wszystkie mają zdjęcie" : `bez zdjęcia: ${bare} z ${points.length}`,
       ok: bare === 0,
     });
   }

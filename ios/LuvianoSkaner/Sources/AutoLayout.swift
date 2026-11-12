@@ -118,6 +118,11 @@ enum AutoLayout {
     private static func freeIntervals(_ scan: ScanPayload, _ g: PlanModel.Wall, z0: Double, z1: Double,
                                        depth: Double, lower: Bool, o: Options) -> [Iv] {
         var blocked: [Iv] = []
+        // Zaznaczony początek / koniec mebla: poza strefą nie stawiamy.
+        if let zone = FurnitureZone.range(scan, wallId: g.w.id, length: g.len) {
+            blocked.append(Iv(a: 0, b: zone.a))
+            blocked.append(Iv(a: zone.b, b: g.len))
+        }
         for s in g.spans {
             // Pod oknem z parapetem przy blacie szafki stoją (parapet tuż nad / pod blatem).
             let bottom = lower && s.kind == "window" && s.bottom >= o.counterMm - 200 ? z1 : s.bottom

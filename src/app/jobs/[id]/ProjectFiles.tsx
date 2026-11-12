@@ -135,7 +135,7 @@ export default function ProjectFiles({
       if (requested.current.has(f.id)) continue;
       requested.current.add(f.id);
       void (async () => {
-        let blob = await cachedImage(f.id);
+        let blob = await cachedImage(f);
         if (!blob) {
           const get = async (url: string | undefined) => {
             if (!url) return null;
@@ -143,7 +143,7 @@ export default function ProjectFiles({
             return res?.ok ? await res.blob() : null;
           };
           blob = (await get(urls[f.id])) ?? (await get((await jobFileUrlAction(f.id).catch(() => ({ url: undefined }))).url));
-          if (blob) void cacheImage(f.id, blob);
+          if (blob) void cacheImage(f, blob);
         }
         showImage(f.id, blob);
       })();
@@ -197,7 +197,7 @@ export default function ProjectFiles({
           if (saved.error || !saved.file) throw new Error(saved.error ?? "Nie udało się zapisać pliku.");
           const file = saved.file;
           requested.current.add(file.id);
-          void cacheImage(file.id, p.blob);
+          void cacheImage(file, p.blob);
           showImage(file.id, p.blob);
           setFiles((prev) => [...prev, file]);
         }

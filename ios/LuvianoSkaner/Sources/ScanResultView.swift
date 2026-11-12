@@ -452,7 +452,10 @@ struct ScanResultView: View {
     private func newWardrobe(wall i: Int) {
         guard scan.walls.indices.contains(i) else { return }
         let w = scan.walls[i]
-        wardrobeEdit = ScanWardrobe.make(wallId: w.id, offset: 0, width: w.length.rounded(), height: w.heightMm.rounded())
+        // Zaznaczony początek / koniec mebla wyznacza szerokość szafy; bez znaczników — cała ściana.
+        let zone = FurnitureZone.range(scan, wallId: w.id, length: w.length) ?? (a: 0, b: w.length)
+        wardrobeEdit = ScanWardrobe.make(wallId: w.id, offset: zone.a.rounded(), width: (zone.b - zone.a).rounded(),
+                                         height: w.heightMm.rounded())
     }
 
     private func saveFeature(_ f: ScanFeature) {
@@ -669,10 +672,15 @@ struct ScanResultView: View {
                 } else if let k = pendingFeature, scan.walls.indices.contains(i) {
                     pendingFeature = nil
                     edit = .feature(newFeature(k, wall: i, t: t, z: z), isNew: true)
+                } else if pendingKind == .furnitureEdge, scan.walls.indices.contains(i) {
+                    // Granica mebla wchodzi od razu — przeciągnięcie poprawia, drugie stuknięcie otwiera wpisanie wymiaru.
+                    pendingKind = nil
+                    selectedFeature = nil
+                    saveMarker(ScanMarker(kind: MarkerKind.furnitureEdge.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z))
                 } else if scan.walls.indices.contains(i) {
                     selectedMarker = nil
                     selectedFeature = nil
-                    let last = pendingKind ?? scan.markers.last.map { MarkerKind(key: $0.kind) } ?? .socket
+                    let last = pendingKind ?? scan.markers.last(where: { !$0.isFurnitureEdge }).map { MarkerKind(key: $0.kind) } ?? .socket
                     pendingKind = nil
                     edit = .marker(ScanMarker(kind: last.rawValue, wallId: scan.walls[i].id, offsetMm: t, heightMm: z), isNew: true)
                 }
@@ -714,9 +722,7 @@ struct ScanResultView: View {
             }
         )
             .overlay(alignment: .bottom) {
-                Text(pendingFeature.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
-                     ?? pendingKind.map { "Stuknij w ścianę tam, gdzie jest: \($0.label)" }
-                     ?? "Stuknij wymiar → pomiar · ścianę → punkt · punkt/element przeciągnij palcem albo stuknij 2× → edycja")
+                Text(wallHint)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
@@ -738,6 +744,13 @@ struct ScanResultView: View {
                         Label("Element", systemImage: "plus.rectangle.on.rectangle")
                     }
                     .tint(pendingFeature == nil ? Brand.ink : PlanStyle.selected)
+                    Button {
+                        pendingKind = pendingKind == .furnitureEdge ? nil : .furnitureEdge
+                        pendingFeature = nil
+                    } label: {
+                        Label("Początek mebla", systemImage: MarkerKind.furnitureEdge.symbol)
+                    }
+                    .tint(pendingKind == .furnitureEdge ? PlanStyle.selected : Brand.ink)
                     Menu {
                         let onWall = scan.walls.indices.contains(i) ? scan.wardrobes.filter { $0.wallId == scan.walls[i].id } : []
                         ForEach(onWall) { wd in
@@ -770,6 +783,14 @@ struct ScanResultView: View {
                     .padding(.top, 66)
                 }
             }
+    }
+
+    /// Podpowiedź na dole widoku ściany — co zrobi następne stuknięcie.
+    private var wallHint: String {
+        if let f = pendingFeature { return "Stuknij w ścianę tam, gdzie jest: \(f.label)" }
+        if pendingKind == .furnitureEdge { return "Stuknij w ścianę tam, gdzie mebel ma się zaczynać (drugi znacznik = koniec)" }
+        if let k = pendingKind { return "Stuknij w ścianę tam, gdzie jest: \(k.label)" }
+        return "Stuknij wymiar → pomiar · ścianę → punkt · punkt/element przeciągnij palcem albo stuknij 2× → edycja"
     }
 
     private func step(_ d: Int) {
@@ -1116,7 +1137,8 @@ struct ScanResultView: View {
                         .background(k.color, in: Circle())
                     VStack(alignment: .leading, spacing: 1) {
                         Text(k.label).font(.subheadline)
-                        Text("Ściana \(wallLetter(row.wall)) · \(Int(row.mk.offsetMm.rounded())) od lewej · \(Int(row.mk.heightMm.rounded())) od podłogi")
+                        Text("Ściana \(wallLetter(row.wall)) · \(Int(row.mk.offsetMm.rounded())) od lewej"
+                             + (row.mk.isFurnitureEdge ? "" : " · \(Int(row.mk.heightMm.rounded())) od podłogi"))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                         if let note = row.mk.note {

@@ -137,7 +137,9 @@ export type ScanMarkerKind =
   | "vent"
   | "light"
   | "switch"
-  | "other";
+  | "other"
+  /** Nie instalacja: pionowa granica na ścianie — odkąd (dokąd) ma stać mebel. `height_mm` bez znaczenia. */
+  | "furniture_edge";
 
 /** Punkt instalacji wskazany ręcznie na ścianie. */
 export type ScanMarker = {

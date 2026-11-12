@@ -111,10 +111,11 @@ enum MeasureCheck {
         }
 
         // Zdjęcia punktów.
-        let bare = scan.markers.filter { ($0.photos ?? []).isEmpty }
-        if !scan.markers.isEmpty {
+        let points = scan.markers.filter { !$0.isFurnitureEdge }
+        let bare = points.filter { ($0.photos ?? []).isEmpty }
+        if !points.isEmpty {
             out.append(Item(id: "photos", group: "Zdjęcia", title: "Zdjęcia punktów instalacji",
-                            detail: bare.isEmpty ? "wszystkie mają zdjęcie" : "bez zdjęcia: \(bare.count) z \(scan.markers.count)",
+                            detail: bare.isEmpty ? "wszystkie mają zdjęcie" : "bez zdjęcia: \(bare.count) z \(points.count)",
                             ok: bare.isEmpty, action: bare.first.map { Action.marker($0.id) }, noneKey: nil))
         }
         return out

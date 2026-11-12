@@ -15,6 +15,7 @@ export const SCAN_MARKER_KINDS: Record<ScanMarkerKind, { label: string; code: st
   light: { label: "Wypust światła", code: "Ś", color: "#bf8c1a" },
   switch: { label: "Włącznik", code: "Wł", color: "#8c734d" },
   other: { label: "Inne", code: "•", color: "#666666" },
+  furniture_edge: { label: "Początek / koniec mebla", code: "M", color: "#a06f3f" },
 };
 
 /** Elementy na ścianach (jak FeatureKind w WallFeatures.swift). */

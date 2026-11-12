@@ -253,7 +253,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                 <table className="w-full text-xs">
                   <thead className="text-zinc-500 text-left">
                     <tr>
-                      <th className="py-1 pr-3 font-medium">Instalacja</th>
+                      <th className="py-1 pr-3 font-medium">Punkt</th>
                       <th className="py-1 pr-3 font-medium">Ściana</th>
                       <th className="py-1 pr-3 font-medium">Od lewego / prawego</th>
                       <th className="py-1 font-medium">Od podłogi</th>
@@ -305,7 +305,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                           <td className="py-1 pr-3 tabular-nums">
                             {Math.round(mk.offset_mm)} / {Math.round(walls[wi].length_mm - mk.offset_mm)}
                           </td>
-                          <td className="py-1 tabular-nums">{mm(mk.height_mm)}</td>
+                          <td className="py-1 tabular-nums">{mk.kind === "furniture_edge" ? "—" : mm(mk.height_mm)}</td>
                         </tr>
                       );
                     })}

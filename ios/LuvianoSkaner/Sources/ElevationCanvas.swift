@@ -339,9 +339,41 @@ enum ElevationDraw {
         Draft.dimension(ctx, p(0, 0), p(0, H), out: CGVector(dx: -1, dy: 0), off: leftOff,
                         text: "\(Int(H.rounded()))", color: PlanStyle.wall, bg: bg)
 
+        // Granice mebla: pionowa linia na całą wysokość ściany; para na ścianie = strefa mebla z szerokością.
+        let edges = markers.filter(\.isFurnitureEdge).sorted { $0.offsetMm < $1.offsetMm }
+        var pair = 0
+        while pair + 1 < edges.count {
+            let a = edges[pair].offsetMm, b = edges[pair + 1].offsetMm
+            let r = CGRect(x: p(a, 0).x, y: p(0, H).y, width: (b - a) * s, height: H * s)
+            ctx.fill(Path(r), with: .color(Brand.gold.opacity(0.1)))
+            if r.width > 60 {
+                ctx.draw(Text("Mebel \(Int((b - a).rounded()))")
+                            .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                            .foregroundColor(Brand.gold),
+                         at: CGPoint(x: r.midX, y: r.minY + 14))
+            }
+            pair += 2
+        }
+        for e in edges {
+            ctx.stroke(Draft.line(p(e.offsetMm, 0), p(e.offsetMm, H)), with: .color(Brand.gold),
+                       style: StrokeStyle(lineWidth: e.id == selected ? 2.6 : 1.8, dash: [8, 4]))
+        }
+
         // Punkty instalacji: zaznaczony z liniami wymiarowymi od bliższego narożnika i od podłogi.
         for mk in markers where mk.id == selected {
             let c = p(mk.offsetMm, mk.heightMm)
+            if mk.isFurnitureEdge {
+                // Granica mebla: odległość od obu narożników.
+                if mk.offsetMm > 5 {
+                    Draft.dimension(ctx, p(0, mk.heightMm), c, out: CGVector(dx: 0, dy: -1), off: 0,
+                                    text: "\(Int(mk.offsetMm.rounded()))", color: Brand.gold, bg: Color(white: 0.97))
+                }
+                if W - mk.offsetMm > 5 {
+                    Draft.dimension(ctx, c, p(W, mk.heightMm), out: CGVector(dx: 0, dy: -1), off: 0,
+                                    text: "\(Int((W - mk.offsetMm).rounded()))", color: Brand.gold, bg: Color(white: 0.97))
+                }
+                continue
+            }
             let fromLeft = mk.offsetMm <= W / 2
             let edge = fromLeft ? 0.0 : W
             let dist = abs(mk.offsetMm - edge)
@@ -361,7 +393,8 @@ enum ElevationDraw {
             let c = p(mk.offsetMm, mk.heightMm)
             MarkerDraw.badge(ctx, MarkerKind(key: mk.kind), at: c, r: 13, selected: mk.id == selected)
             guard mk.id != selected else { continue }
-            ctx.draw(Text("\(Int(mk.offsetMm.rounded())) · h \(Int(mk.heightMm.rounded()))")
+            ctx.draw(Text(mk.isFurnitureEdge ? "\(Int(mk.offsetMm.rounded())) | \(Int((W - mk.offsetMm).rounded()))"
+                          : "\(Int(mk.offsetMm.rounded())) · h \(Int(mk.heightMm.rounded()))")
                         .font(.system(size: 10, weight: .medium).monospacedDigit())
                         .foregroundColor(PlanStyle.dim),
                      at: CGPoint(x: c.x, y: c.y + 24))

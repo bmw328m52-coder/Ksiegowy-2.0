@@ -266,6 +266,44 @@ final class Session: ObservableObject {
         _ = try await storage("object/scan-photos", method: "DELETE", body: body, contentType: "application/json")
     }
 
+    // MARK: Kartki — odręczne szkice jako pliki projektu (bucket job-files, tabela job_files)
+
+    /// Wysyła kartkę jako obraz do sekcji „Projekt" zlecenia. Ponowne wysłanie podmienia obraz
+    /// w tym samym wierszu (poprawki naniesione w meble-app zostają); nowa ścieżka pliku przy każdej
+    /// wersji, bo meble-app trzyma obrazy w pamięci tabletu po ścieżce. Zwraca id wiersza i ścieżkę.
+    func uploadSketch(jobId: String, name: String, jpeg: Data, width: Int, height: Int,
+                      remoteId: String?, remotePath: String?) async throws -> (id: String, path: String) {
+        struct Row: Decodable { let id: String }
+        struct Fields: Encodable { let jobId: String; let name: String; let filePath: String; let width: Int; let height: Int }
+        // Zlecenie założone bez zasięgu musi najpierw trafić do meble-app.
+        try await syncPending()
+        let uid = try await userId()
+        let path = "\(uid)/\(PendingJob.newId()).jpg"
+        _ = try await storage("object/job-files/\(path)", method: "POST", body: jpeg, contentType: "image/jpeg")
+        let body = try Self.snake.0.encode(Fields(jobId: jobId, name: name, filePath: path, width: width, height: height))
+        var id: String?
+        if let remoteId {
+            let out = try await rest("job_files", query: [
+                URLQueryItem(name: "id", value: "eq.\(remoteId)"),
+                URLQueryItem(name: "select", value: "id"),
+            ], method: "PATCH", body: body, returning: true)
+            id = try JSONDecoder().decode([Row].self, from: out).first?.id
+        }
+        if id == nil {
+            // Pierwsze wysłanie albo plik usunięty w meble-app — nowy wiersz.
+            let out = try await rest("job_files", query: [URLQueryItem(name: "select", value: "id")], method: "POST",
+                                     body: body, returning: true)
+            id = try JSONDecoder().decode([Row].self, from: out).first?.id
+        }
+        guard let id else { throw ApiError(message: "Serwer nie zwrócił zapisanej kartki.") }
+        // Poprzednia wersja obrazu nie jest już potrzebna.
+        if let remotePath, remotePath != path,
+           let del = try? JSONSerialization.data(withJSONObject: ["prefixes": [remotePath]]) {
+            _ = try? await storage("object/job-files", method: "DELETE", body: del, contentType: "application/json")
+        }
+        return (id, path)
+    }
+
     private static func errorMessage(_ data: Data, fallback: String) -> String {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return fallback }
         for key in ["error_description", "msg", "message"] {

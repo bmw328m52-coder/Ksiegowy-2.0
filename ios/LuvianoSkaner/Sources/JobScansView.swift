@@ -12,6 +12,8 @@ struct JobScansView: View {
     @State private var error: String?
     @State private var opened: SavedScan?
     @State private var newScan = false
+    @State private var sketches: [SavedSketch] = []
+    @State private var openedSketch: SavedSketch?
 
     /// Skany z meble-app, których nie ma jeszcze na tym iPadzie.
     private var remoteOnly: [Session.RemoteScan] {
@@ -34,6 +36,31 @@ struct JobScansView: View {
                         .padding(.vertical, 6)
                 }
                 .disabled(!RoomCaptureSession.isSupported)
+                Button {
+                    let s = SavedSketch(jobId: job.id, name: "Kartka \(sketches.count + 1)")
+                    SketchStore.save(s)
+                    openedSketch = s
+                } label: {
+                    Label("Nowa kartka — szkic odręczny", systemImage: "pencil.and.scribble")
+                        .font(.headline)
+                        .padding(.vertical, 6)
+                }
+            } footer: {
+                Text("Kartka to pusty arkusz do rysowania rysikiem albo palcem — gdy czegoś nie da się zeskanować.")
+            }
+
+            if !sketches.isEmpty {
+                Section("Kartki") {
+                    ForEach(sketches) { s in
+                        Button { openedSketch = s } label: { sketchRow(s) }
+                            .swipeActions {
+                                Button("Usuń z iPada", role: .destructive) {
+                                    SketchStore.delete(s.id)
+                                    reloadLocal()
+                                }
+                            }
+                    }
+                }
             }
 
             Section("Na iPadzie") {
@@ -89,6 +116,30 @@ struct JobScansView: View {
         .fullScreenCover(isPresented: $newScan, onDismiss: { Task { await load() } }) {
             ScanScreen(job: job)
         }
+        .fullScreenCover(item: $openedSketch, onDismiss: { reloadLocal() }) { s in
+            SketchScreen(job: job, sketch: s, onDone: { openedSketch = nil })
+        }
+    }
+
+    private func sketchRow(_ s: SavedSketch) -> some View {
+        let status: (String, String, Color) = s.synced ? ("W zleceniu", "checkmark.icloud", Color.green)
+            : s.remoteId != nil ? ("Zmiany niewysłane", "arrow.triangle.2.circlepath.icloud", Color.orange)
+            : ("Niewysłana", "ipad", Color.secondary)
+        return HStack(spacing: 14) {
+            SketchThumb(sketch: s)
+                .frame(width: 96, height: 72)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(s.name).font(.headline).foregroundStyle(Brand.ink)
+                Text("Szkic odręczny").font(.subheadline).foregroundStyle(.secondary)
+                Text(s.updatedAt.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Label(status.0, systemImage: status.1)
+                .font(.caption)
+                .foregroundStyle(status.2)
+        }
+        .padding(.vertical, 4)
     }
 
     private func row(name: String, scan: ScanPayload, detail: String, status: (String, String, Color)) -> some View {
@@ -112,7 +163,10 @@ struct JobScansView: View {
         .padding(.vertical, 4)
     }
 
-    private func reloadLocal() { local = ScanStore.scans(jobId: job.id) }
+    private func reloadLocal() {
+        local = ScanStore.scans(jobId: job.id)
+        sketches = SketchStore.sketches(jobId: job.id)
+    }
 
     private func load() async {
         reloadLocal()

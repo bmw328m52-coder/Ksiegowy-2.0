@@ -6,7 +6,10 @@ import { parseMarks, type FileMark } from "@/lib/dao/job_files.types";
 
 // Celowo bez prefiksu „mf-" — service worker kasuje swoje stare cache przy każdej nowej wersji.
 const IMAGE_CACHE = "luviano-job-files-v1";
-const cacheKey = (id: string) => `/__job-file/${id}`;
+// Klucz zawiera ścieżkę obrazu: kartka wysłana ponownie ze Skanera dostaje nową ścieżkę w tym samym wierszu.
+type CachedFile = { id: string; file_path: string };
+const cacheBase = (id: string) => `/__job-file/${id}`;
+const cacheKey = (f: CachedFile) => `${cacheBase(f.id)}?p=${encodeURIComponent(f.file_path)}`;
 const marksKey = (id: string) => `jobfile.marks.${id}`;
 
 async function openCache(): Promise<Cache | null> {
@@ -17,18 +20,21 @@ async function openCache(): Promise<Cache | null> {
   }
 }
 
-export async function cachedImage(id: string): Promise<Blob | null> {
+export async function cachedImage(f: CachedFile): Promise<Blob | null> {
   try {
-    const hit = await (await openCache())?.match(cacheKey(id));
+    const hit = await (await openCache())?.match(cacheKey(f));
     return hit ? await hit.blob() : null;
   } catch {
     return null;
   }
 }
 
-export async function cacheImage(id: string, blob: Blob): Promise<void> {
+export async function cacheImage(f: CachedFile, blob: Blob): Promise<void> {
   try {
-    await (await openCache())?.put(cacheKey(id), new Response(blob, { headers: { "Content-Type": blob.type } }));
+    const cache = await openCache();
+    // Poprzednia wersja obrazu tego pliku nie jest już potrzebna.
+    await cache?.delete(cacheBase(f.id), { ignoreSearch: true });
+    await cache?.put(cacheKey(f), new Response(blob, { headers: { "Content-Type": blob.type } }));
   } catch {
     // Brak miejsca / tryb prywatny — obraz po prostu pobierze się ponownie.
   }
@@ -36,7 +42,7 @@ export async function cacheImage(id: string, blob: Blob): Promise<void> {
 
 export async function uncacheImage(id: string): Promise<void> {
   try {
-    await (await openCache())?.delete(cacheKey(id));
+    await (await openCache())?.delete(cacheBase(id), { ignoreSearch: true });
   } catch {}
 }
 

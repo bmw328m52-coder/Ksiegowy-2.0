@@ -228,7 +228,8 @@ private struct WallPage: View {
             }
             if !markers.isEmpty {
                 Text(markers.sorted { $0.offsetMm < $1.offsetMm }.map {
-                    "\(MarkerKind(key: $0.kind).label) \(Int($0.offsetMm.rounded()))/\(Int($0.heightMm.rounded()))"
+                    $0.isFurnitureEdge ? "\(MarkerKind.furnitureEdge.label) \(Int($0.offsetMm.rounded())) od lewej"
+                        : "\(MarkerKind(key: $0.kind).label) \(Int($0.offsetMm.rounded()))/\(Int($0.heightMm.rounded()))"
                 }.joined(separator: "  ·  "))
                 .font(.system(size: 9).monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -261,7 +262,8 @@ private struct MarkersPage: View {
                             .background(k.color, in: Circle())
                         VStack(alignment: .leading, spacing: 2) {
                             Text(k.label).font(.system(size: 11, weight: .medium))
-                            Text("Ściana \(wallLetter(r.wall)) · \(Int(r.mk.offsetMm.rounded())) od lewej · \(Int(r.mk.heightMm.rounded())) od podłogi")
+                            Text("Ściana \(wallLetter(r.wall)) · \(Int(r.mk.offsetMm.rounded())) od lewej"
+                                 + (r.mk.isFurnitureEdge ? "" : " · \(Int(r.mk.heightMm.rounded())) od podłogi"))
                                 .font(.system(size: 10).monospacedDigit())
                                 .foregroundStyle(.secondary)
                             if let n = r.mk.note, !n.isEmpty {
