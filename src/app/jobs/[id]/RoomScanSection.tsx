@@ -8,7 +8,7 @@ import { featureKind, markerKind, planModel, planStats } from "@/lib/scan2d";
 import { deleteScanAction } from "./scanActions";
 import { scanPhotoUrls } from "@/lib/dao/room_scans";
 import { getCabinetRates } from "@/lib/dao/cabinet_pricing";
-import { parseChoice } from "@/lib/cabinetPricing";
+import { ledLabel, ledPlan, parseChoice } from "@/lib/cabinetPricing";
 import ScanEstimate from "./ScanEstimate";
 
 const mm = (v: number) => `${Math.round(v)} mm`;
@@ -168,11 +168,15 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                     {Math.round(wd.depth_mm)} mm
                   </div>
                   <div className="text-zinc-500">
-                    {wd.construction === "frame" ? "sam szkielet" : wd.construction === "box" ? "skrzynkowa bez pleców" : "skrzynkowa z plecami"}{" "}
+                    {wd.construction === "frame" ? "sam szkielet" : wd.construction === "modular" ? "segmentowa (korpusy z plecami)" : wd.construction === "box" ? "skrzynkowa bez pleców" : "skrzynkowa z plecami"}{" "}
                     · od lewego narożnika {mm(wd.offset_mm)} · cokół {mm(wd.plinth_mm)} · {doors}
                     {wd.pawlacz_mm && wd.pawlacz_mm > 50
                       ? ` · pawlacz na całą szerokość ${Math.round(wd.pawlacz_mm)} mm${wd.doors !== "none" ? ` (drzwiczki ×${wd.pawlacz_doors ?? Math.max(wd.door_count, 2)})` : ""}`
                       : ""}
+                    {(() => {
+                      const led = ledPlan(wd.led_mm, wd.led_wm);
+                      return led ? ` · ${ledLabel(led)}` : "";
+                    })()}
                   </div>
                   {(wd.body_decor || wd.handle_color || wd.track_top_color || wd.track_bottom_color) && (
                     <div className="mt-1 text-zinc-600">

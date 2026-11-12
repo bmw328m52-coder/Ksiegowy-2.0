@@ -217,7 +217,7 @@ struct WardrobeEditor: View {
 
             card("Konstrukcja") {
                 Picker("Konstrukcja", selection: Binding(get: { w.kind }, set: { w.construction = $0 })) {
-                    ForEach(ScanWardrobe.constructions, id: \.key) { c in Text(c.label).tag(c.key) }
+                    ForEach(ScanWardrobe.constructions, id: \.key) { c in Text(ScanWardrobe.shortLabel(c.key)).tag(c.key) }
                 }
                 .pickerStyle(.segmented)
                 Toggle("Pawlacz na całą szerokość", isOn: Binding(
@@ -225,10 +225,35 @@ struct WardrobeEditor: View {
                     set: { w.pawlaczMm = $0 ? 450 : nil }
                 ))
                 .font(.subheadline)
-                Text(w.isFrame ? "Przegrody i półki mocowane do ścian, bez boków przy ścianach, wieńców i pleców."
-                     : w.hasBack ? "Korpusy z bokami, wieńcami i plecami (HDF)." : "Korpusy z bokami i wieńcami, bez pleców — ściana widoczna od środka.")
+                Text(constructionHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            card("Oświetlenie LED") {
+                Toggle("Taśma LED 24 V w profilu", isOn: Binding(
+                    get: { w.ledPlan != nil },
+                    set: { w.ledMm = $0 ? (w.widthMm / 100).rounded() * 100 : nil }
+                ))
+                .font(.subheadline)
+                if let led = w.ledPlan {
+                    HStack(spacing: 8) {
+                        Button("Poziomo — szerokość") { w.ledMm = (w.widthMm / 100).rounded() * 100 }
+                        Button("Pionowo — każdy segment") { w.ledMm = ledVerticalMm }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    Stepper("Długość taśmy: \(LedPlan.num(led.meters)) m", value: Binding(
+                        get: { w.ledMm ?? 0 }, set: { w.ledMm = max($0, 100) }), in: 100...30000, step: 100)
+                        .font(.subheadline)
+                    Picker("Moc taśmy", selection: Binding(get: { led.wm }, set: { w.ledWm = $0 })) {
+                        ForEach(LedPlan.powers, id: \.self) { p in Text("\(LedPlan.num(p)) W/m").tag(p) }
+                    }
+                    .pickerStyle(.segmented)
+                    Text("Moc \(Int(led.watts.rounded())) W + 20% zapasu → zasilacz 24 V \(led.psuCount > 1 ? "\(led.psuCount) × " : "")\(led.psuW) W. Odcinki dłuższe niż 5 m zasilać z dwóch stron.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             card("Fronty") {
@@ -416,6 +441,18 @@ struct WardrobeEditor: View {
         guard w.sections[k].zones.indices.contains(to) else { return }
         w.sections[k].zones.swapAt(j, to)
         zone = to
+    }
+
+    private var constructionHint: String {
+        if w.isFrame { return "Przegrody i półki mocowane do ścian, bez boków przy ścianach, wieńców i pleców." }
+        if w.isModular { return "Gotowe segmenty: każdy z własnymi bokami, górą, dnem i plecami, skręcane ze sobą. Pawlacz jako osobne nadstawki." }
+        return w.hasBack ? "Korpusy z bokami, wieńcami i plecami (HDF)." : "Korpusy z bokami i wieńcami, bez pleców — ściana widoczna od środka."
+    }
+
+    /// Taśma pionowo w każdym segmencie (wysokość sekcji), zaokrąglona do 100 mm.
+    private var ledVerticalMm: Double {
+        let h = WardrobeGeom.sectionTop(w) - WardrobeGeom.innerZ(w).0
+        return (Double(max(w.sections.count, 1)) * h / 100).rounded() * 100
     }
 
     private func card<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {

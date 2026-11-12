@@ -20,7 +20,8 @@ struct ScanWardrobe: Codable, Identifiable, Equatable {
     var doorCount: Int
     var sections: [WardrobeSection]
     var note: String?
-    /// box_back = skrzynkowa z plecami, box = skrzynkowa bez pleców, frame = sam szkielet (zabudowa wnęki).
+    /// box_back = skrzynkowa z plecami, box = skrzynkowa bez pleców, frame = sam szkielet (zabudowa wnęki),
+    /// modular = segmentowa: osobne korpusy z plecami skręcane ze sobą (pawlacz jako nadstawki).
     var construction: String?
     /// Pawlacz na całą szerokość nad sekcjami — wysokość w świetle (nil / 0 = brak).
     var pawlaczMm: Double?
@@ -33,6 +34,41 @@ struct ScanWardrobe: Codable, Identifiable, Equatable {
     var handleColor: String?
     var trackTopColor: String?
     var trackBottomColor: String?
+    /// Oświetlenie LED 24 V: łączna długość taśmy (nil = brak) i moc taśmy w W/m (nil = 9,6).
+    var ledMm: Double?
+    var ledWm: Double?
+}
+
+/// Dobór zasilacza LED — kopia `ledPlan` z meble-app (cabinetPricing.ts).
+struct LedPlan {
+    let meters: Double
+    let wm: Double
+    let watts: Double
+    let psuW: Int
+    let psuCount: Int
+
+    static let powers: [Double] = [4.8, 9.6, 14.4]
+    static let psuSizes: [Int] = [30, 60, 100, 150]
+
+    /// Moc taśmy + 20% zapasu → najmniejszy typowy zasilacz; ponad 150 W kilka zasilaczy 150 W.
+    static func make(mm: Double?, wm: Double?) -> LedPlan? {
+        guard let mm, mm >= 100 else { return nil }
+        let meters = mm / 1000
+        let power = (wm ?? 0) > 0 ? (wm ?? 9.6) : 9.6
+        let watts = meters * power
+        let need = watts * 1.2
+        if let fit = psuSizes.first(where: { Double($0) >= need }) {
+            return LedPlan(meters: meters, wm: power, watts: watts, psuW: fit, psuCount: 1)
+        }
+        return LedPlan(meters: meters, wm: power, watts: watts, psuW: 150, psuCount: Int((need / 150).rounded(.up)))
+    }
+
+    static func num(_ v: Double) -> String { String(format: "%.1f", v).replacingOccurrences(of: ".", with: ",") }
+
+    var label: String {
+        let psu = psuCount > 1 ? "\(psuCount) × \(psuW) W" : "\(psuW) W"
+        return "\(LedPlan.num(meters)) m · \(LedPlan.num(wm)) W/m = \(Int(watts.rounded())) W · zasilacz 24 V \(psu)"
+    }
 }
 
 struct WardrobeSection: Codable, Equatable {
@@ -147,13 +183,26 @@ extension ScanWardrobe {
     var kind: String { construction ?? "box_back" }
     var hasPawlacz: Bool { (pawlaczMm ?? 0) > 50 }
     var pawlaczDoorCount: Int { pawlaczDoors ?? max(doorCount, 2) }
-    var hasBack: Bool { kind == "box_back" }
+    var hasBack: Bool { kind == "box_back" || kind == "modular" }
+    /// Segmentowa: każdy segment to osobny korpus (własne boki, góra, dno, plecy).
+    var isModular: Bool { kind == "modular" }
+    var ledPlan: LedPlan? { LedPlan.make(mm: ledMm, wm: ledWm) }
     /// Szkielet: bez boków przy ścianach, bez wieńców i pleców — przegrody i półki do ścian.
     var isFrame: Bool { kind == "frame" }
 
     static let constructions: [(key: String, label: String)] = [
-        ("box_back", "Skrzynkowa z plecami"), ("box", "Skrzynkowa bez pleców"), ("frame", "Sam szkielet (wnęka)"),
+        ("box_back", "Skrzynkowa z plecami"), ("box", "Skrzynkowa bez pleców"),
+        ("modular", "Segmentowa (korpusy z plecami)"), ("frame", "Sam szkielet (wnęka)"),
     ]
+    /// Krótka nazwa do przełącznika w edytorze.
+    static func shortLabel(_ key: String) -> String {
+        switch key {
+        case "box_back": return "Z plecami"
+        case "box": return "Bez pleców"
+        case "modular": return "Segmentowa"
+        default: return "Szkielet"
+        }
+    }
     var constructionLabel: String { Self.constructions.first { $0.key == kind }?.label ?? "" }
 
     /// Płyta i okucia do opisu (PDF, panel): (nazwa, wartość).
@@ -166,6 +215,7 @@ extension ScanWardrobe {
             if let t = trackTopColor { out.append(("Tor górny", t)) }
             if let t = trackBottomColor { out.append(("Tor dolny", t)) }
         }
+        if let led = ledPlan { out.append(("Oświetlenie LED", led.label)) }
         return out
     }
 

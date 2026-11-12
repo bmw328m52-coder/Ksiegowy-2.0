@@ -27,6 +27,15 @@ struct CabinetRates {
     var wardrobeBoardExtraPct = 15.0
     /// Płyta na szafę (dekor), zł/m² — Zimex maryland oak 343 zł / arkusz = 58 zł/m².
     var wardrobeBoardM2 = 58.0
+    /// Prowadnice szuflady skrzynkowej: Blum Movento 500 mm z Blumotion + 2 sprzęgła (Mercury).
+    var wardrobeDrawerRunner = 165.0
+    /// LED 24 V: metr taśmy w profilu, zasilacze wg mocy, włącznik / czujnik (szacunek).
+    var ledM = 45.0
+    var ledPsu30 = 59.0
+    var ledPsu60 = 89.0
+    var ledPsu100 = 129.0
+    var ledPsu150 = 159.0
+    var ledSwitch = 40.0
     var wardrobeEdgeExtraPct = 25.0
     var railMb = 25.0
     var pantograph = 400.0
@@ -61,6 +70,13 @@ struct CabinetRates {
         v("slide_gtv_mb", \.slideGtvMb)
         v("wardrobe_board_extra_pct", \.wardrobeBoardExtraPct)
         v("wardrobe_board_m2", \.wardrobeBoardM2)
+        v("wardrobe_drawer_runner", \.wardrobeDrawerRunner)
+        v("led_m", \.ledM)
+        v("led_psu_30", \.ledPsu30)
+        v("led_psu_60", \.ledPsu60)
+        v("led_psu_100", \.ledPsu100)
+        v("led_psu_150", \.ledPsu150)
+        v("led_switch", \.ledSwitch)
         v("wardrobe_edge_extra_pct", \.wardrobeEdgeExtraPct)
         v("rail_mb", \.railMb)
         v("pantograph", \.pantograph)
@@ -95,6 +111,8 @@ struct WardrobePrice {
     let cost: Double
     /// Same okucia drzwi przesuwnych (rączki, ramiaki / listwy, tory, wózki); 0 przy innych drzwiach.
     let slideHardware: Double
+    /// Oświetlenie LED (taśma, zasilacz, włącznik); 0 = brak.
+    var ledCost: Double = 0
     let marginPct: Double
     var price: Double { cost * (1 + marginPct / 100) }
     /// Cena dla klienta zaokrąglona do 100 zł.
@@ -103,6 +121,19 @@ struct WardrobePrice {
     static func slide(_ r: CabinetRates, _ system: SlideSystem, doors: Int, widthMm: Double) -> Double {
         let d = Double(max(doors, 0)), m = widthMm / 1000
         return system == .gtv ? d * r.slideGtvDoor + m * r.slideGtvMb : d * r.slideLagunaDoor + m * r.slideLagunaMb
+    }
+
+    /// Koszt oświetlenia: taśma w profilu + dobrany zasilacz (lub kilka) + włącznik.
+    static func led(_ r: CabinetRates, _ p: LedPlan?) -> Double {
+        guard let p else { return 0 }
+        let psu: Double
+        switch p.psuW {
+        case 30: psu = r.ledPsu30
+        case 60: psu = r.ledPsu60
+        case 100: psu = r.ledPsu100
+        default: psu = r.ledPsu150
+        }
+        return p.meters * r.ledM + Double(p.psuCount) * psu + r.ledSwitch
     }
 
     private static func hingesPerDoor(_ h: Double) -> Double { h < 0.9 ? 2 : h < 1.6 ? 3 : h < 2.0 ? 4 : 5 }
@@ -119,12 +150,23 @@ struct WardrobePrice {
         let frame = wd.isFrame
         let paw = wd.hasPawlacz ? (wd.pawlaczMm ?? 0) / 1000 : 0
 
+        // Segmentowa: każdy segment to osobny korpus z plecami (2 boki + góra + dno);
+        // pawlacz to osobne nadstawki — kolejna góra i dno na każdym segmencie.
+        let modular = wd.isModular
+        let tops: Double = paw > 0 ? 4 : 2
         // Wnętrze (wspólne dla szkieletu i skrzynkowej): przegrody, cokół, półka pawlacza, półki, szuflady.
-        var board = (n - 1) * H * d + W * 0.1 + (paw > 0 ? W * d : 0)
-        var edge = (n - 1) * H + (paw > 0 ? W : 0)
-        // Skrzynia (tylko skrzynkowa): 2 boki + wieniec górny i dolny.
-        let boxBoard = frame ? 0 : 2 * H * d + 2 * W * d
-        let boxEdge = frame ? 0 : 2 * H + 2 * W
+        let dividers: Double = modular ? 0 : (n - 1) * H * d + (paw > 0 ? W * d : 0)
+        var board: Double = dividers + W * 0.1
+        var edge: Double = modular ? 0 : (n - 1) * H + (paw > 0 ? W : 0)
+        // Skrzynia: skrzynkowa = 2 boki + wieniec górny i dolny; segmentowa = to samo na każdy segment.
+        var boxBoard: Double = 0, boxEdge: Double = 0
+        if modular {
+            boxBoard = 2 * n * H * d + tops * W * d
+            boxEdge = 2 * n * H + tops * W
+        } else if !frame {
+            boxBoard = 2 * H * d + 2 * W * d
+            boxEdge = 2 * H + 2 * W
+        }
         var drawers = 0.0, frontM2 = 0.0, hardware = 0.0, handles = 0.0
         for sec in wd.sections {
             let sw: Double = sec.widthMm.map { $0 / 1000 } ?? max(W - fixed, 0) / max(free, 1)
@@ -142,7 +184,9 @@ struct WardrobePrice {
                 case "drawers":
                     let c = Double(z.count ?? 3)
                     drawers += c
-                    board += c * (max(sw - 0.075, 0) * 0.47 + max(sw - 0.087, 0) * 0.14)
+                    // Skrzynka: dno + przód i tył + 2 boki (wys. 140, gł. 500).
+                    let box: Double = max(sw - 0.075, 0) * 0.47 + 2 * max(sw - 0.087, 0) * 0.14 + 0.14
+                    board += c * box
                     edge += c * sw
                     // Czoła szuflad w szafie — z płyty, także za drzwiami przesuwnymi.
                     frontM2 += sw * (z.heightMm.map { $0 / 1000 } ?? c * 0.2)
@@ -153,7 +197,9 @@ struct WardrobePrice {
                 edge += shelves * sw
             }
         }
-        hardware += drawers * r.drawerSet
+        hardware += drawers * r.wardrobeDrawerRunner
+        let ledCost = led(r, wd.ledPlan)
+        hardware += ledCost
 
         let doorN = Double(max(wd.doorCount, 0))
         let doorH = H - paw
@@ -181,7 +227,7 @@ struct WardrobePrice {
         let hdf = wd.hasBack ? W * H * r.hdfM2 : 0
         let sum = boardM2 * r.wardrobeBoardM2 + boardM2 * r.cutMbPerM2 * r.cutMb
             + (edge * (1 + r.edgeExtraPct / 100) + boxEdge * (1 + r.wardrobeEdgeExtraPct / 100)) * r.edgeMb + hdf + fronts + hardware
-        return WardrobePrice(cost: sum * (1 + r.overheadPct / 100), slideHardware: slideCost, marginPct: marginPct)
+        return WardrobePrice(cost: sum * (1 + r.overheadPct / 100), slideHardware: slideCost, ledCost: ledCost, marginPct: marginPct)
     }
 
     static func zl(_ v: Double) -> String {
@@ -221,6 +267,16 @@ struct WardrobePriceCard: View {
                 .font(.subheadline)
                 Text("Para drzwi na 3 m: Laguna \(WardrobePrice.zl(WardrobePrice.slide(rates, .laguna, doors: 2, widthMm: 3000))), GTV \(WardrobePrice.zl(WardrobePrice.slide(rates, .gtv, doors: 2, widthMm: 3000))). Wypełnienie z płyty — lustro / szkło osobno.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+
+            if let led = wardrobe.ledPlan {
+                HStack {
+                    Text("Oświetlenie LED")
+                    Spacer()
+                    Text(WardrobePrice.zl(p.ledCost)).monospacedDigit()
+                }
+                .font(.subheadline)
+                Text(led.label).font(.caption).foregroundStyle(.secondary)
             }
 
             HStack(spacing: 8) {

@@ -53,11 +53,15 @@ export type ScanWardrobe = {
   doors: "sliding" | "hinged" | "none";
   door_count: number;
   /** Sekcje od lewej; strefy od dołu. Szerokość / wysokość brak = równy podział reszty. */
-  /** box_back = skrzynkowa z plecami (domyślnie), box = bez pleców, frame = sam szkielet (wnęka). */
-  construction?: "box_back" | "box" | "frame";
+  /** box_back = skrzynkowa z plecami (domyślnie), box = bez pleców, frame = sam szkielet (wnęka),
+   *  modular = segmentowa: osobne korpusy z plecami skręcane ze sobą (pawlacz jako nadstawki). */
+  construction?: "box_back" | "box" | "frame" | "modular";
   /** Pawlacz na całą szerokość nad sekcjami (wysokość w świetle) i liczba jego drzwiczek. */
   pawlacz_mm?: number;
   pawlacz_doors?: number;
+  /** Oświetlenie LED 24 V: łączna długość taśmy i jej moc (W/m, brak = 9,6). Zasilacz dobiera `ledPlan`. */
+  led_mm?: number;
+  led_wm?: number;
   /** Płyta korpusu / frontów z wzornika Pfleiderer (fronty brak = jak korpus). */
   body_decor?: { code: string; name: string };
   front_decor?: { code: string; name: string };

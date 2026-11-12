@@ -86,6 +86,17 @@ export type Rates = {
   /** Płyta na szafę, zł/m² — dekor (korpus i wypełnienie skrzydeł są na widoku), nie biała jak w korpusach kuchni.
    *  Zimex 11.2026: maryland oak R20410 343,17 zł / arkusz 2800×2100 = 58,4 zł/m². */
   wardrobe_board_m2: number;
+  /** Szuflada skrzynkowa w szafie: prowadnice Blum Movento 500 mm z Blumotion (760H5000SU, komplet 149,92)
+   *  + 2 sprzęgła T51.7601 (6,43) — Mercury brutto 06.2026. Skrzynka i czoło liczone z płyty. */
+  wardrobe_drawer_runner: number;
+  /** Oświetlenie LED 24 V w szafie: metr taśmy w profilu alu z kloszem (z przewodami),
+   *  zasilacze wg mocy i włącznik / czujnik otwarcia. Ceny szacunkowe — do potwierdzenia fakturą. */
+  led_m: number;
+  led_psu_30: number;
+  led_psu_60: number;
+  led_psu_100: number;
+  led_psu_150: number;
+  led_switch: number;
   wardrobe_edge_extra_pct: number;
   /** Drążek z uchwytami, zł/mb — szacunek, brak faktury. */
   rail_mb: number;
@@ -121,6 +132,13 @@ export const DEFAULT_RATES: Rates = {
   slide_gtv_mb: 104,
   wardrobe_board_extra_pct: 15,
   wardrobe_board_m2: 58,
+  wardrobe_drawer_runner: 165,
+  led_m: 45,
+  led_psu_30: 59,
+  led_psu_60: 89,
+  led_psu_100: 129,
+  led_psu_150: 159,
+  led_switch: 40,
   wardrobe_edge_extra_pct: 25,
   rail_mb: 25,
   pantograph: 400,
@@ -300,6 +318,35 @@ export const SLIDE_SYSTEM_LABELS: Record<SlideSystem, string> = {
   gtv: "GTV Nova S + tory GTV",
 };
 
+/** Moce taśm LED 24 V do wyboru w szkicu szafy, W/m. */
+export const LED_POWERS = [4.8, 9.6, 14.4];
+/** Typowe zasilacze 24 V, W. */
+export const LED_PSU_SIZES = [30, 60, 100, 150] as const;
+
+export type LedPlan = { meters: number; wm: number; watts: number; psuW: number; psuCount: number };
+
+/** Dobór zasilacza: moc taśmy (długość × W/m) + 20% zapasu → najmniejszy typowy zasilacz;
+ *  ponad 150 W dzielimy na kilka zasilaczy 150 W. Brak taśmy = null. */
+export function ledPlan(lengthMm: number | undefined, wm: number | undefined): LedPlan | null {
+  if (!lengthMm || lengthMm < 100) return null;
+  const meters = lengthMm / 1000;
+  const power = wm && wm > 0 ? wm : 9.6;
+  const watts = meters * power;
+  const need = watts * 1.2;
+  const fit = LED_PSU_SIZES.find((s) => s >= need);
+  return fit
+    ? { meters, wm: power, watts, psuW: fit, psuCount: 1 }
+    : { meters, wm: power, watts, psuW: 150, psuCount: Math.ceil(need / 150) };
+}
+
+export const ledCost = (r: Rates, p: LedPlan | null) =>
+  p ? p.meters * r.led_m + p.psuCount * r[`led_psu_${p.psuW}` as "led_psu_30"] + r.led_switch : 0;
+
+export const ledLabel = (p: LedPlan) =>
+  `LED ${p.meters.toFixed(1).replace(".", ",")} m · ${String(p.wm).replace(".", ",")} W/m = ${Math.round(p.watts)} W · zasilacz 24 V ${
+    p.psuCount > 1 ? `${p.psuCount} × ` : ""
+  }${p.psuW} W`;
+
 /** Okucia drzwi przesuwnych (rączki, ramiaki, tory, wózki) — bez wypełnienia skrzydeł. */
 export const slideHardware = (r: Rates, system: SlideSystem, doors: number, widthMm: number) =>
   system === "gtv"
@@ -316,9 +363,11 @@ export type WardrobeLike = {
   top_mm: number;
   doors: "sliding" | "hinged" | "none";
   door_count: number;
-  construction?: "box_back" | "box" | "frame";
+  construction?: "box_back" | "box" | "frame" | "modular";
   pawlacz_mm?: number;
   pawlacz_doors?: number;
+  led_mm?: number;
+  led_wm?: number;
   sections: { width_mm?: number; zones: { kind: string; height_mm?: number; count?: number }[] }[];
 };
 
@@ -335,12 +384,17 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
   const frame = wd.construction === "frame";
   const paw = wd.pawlacz_mm && wd.pawlacz_mm > 50 ? wd.pawlacz_mm / 1000 : 0;
 
+  // Segmentowa: każdy segment to osobny, gotowy korpus z plecami (2 boki + góra + dno), skręcany z sąsiednim;
+  // pawlacz to osobne nadstawki — kolejna góra i dno na każdym segmencie.
+  const modular = wd.construction === "modular";
+  const tops = paw ? 4 : 2;
   // Wnętrze (wspólne dla szkieletu i skrzynkowej): przegrody, cokół, półka pawlacza, półki, szuflady.
-  let board = (n - 1) * H * d + W * 0.1 + (paw ? W * d : 0);
-  let edge = (n - 1) * H + (paw ? W : 0);
-  // Skrzynia (tylko skrzynkowa): 2 boki + wieniec górny i dolny — duże formatki liczone niemal dokładnie.
-  const boxBoard = frame ? 0 : 2 * H * d + 2 * W * d;
-  const boxEdge = frame ? 0 : 2 * H + 2 * W;
+  let board = (modular ? 0 : (n - 1) * H * d + (paw ? W * d : 0)) + W * 0.1;
+  let edge = modular ? 0 : (n - 1) * H + (paw ? W : 0);
+  // Skrzynia: skrzynkowa = 2 boki + wieniec górny i dolny; segmentowa = to samo na każdy segment
+  // (+ góra i dno nadstawek). Duże formatki liczone niemal dokładnie.
+  const boxBoard = frame ? 0 : modular ? 2 * n * H * d + tops * W * d : 2 * H * d + 2 * W * d;
+  const boxEdge = frame ? 0 : modular ? 2 * n * H + tops * W : 2 * H + 2 * W;
   let drawers = 0, frontM2 = 0, hardware = 0, handles = 0;
   for (const sec of wd.sections) {
     const sw = sec.width_mm ? sec.width_mm / 1000 : Math.max(W - fixed, 0) / Math.max(free, 1);
@@ -354,7 +408,8 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
       if (z.kind === "drawers") {
         const c = z.count ?? 3;
         drawers += c;
-        board += c * (Math.max(sw - 0.075, 0) * 0.47 + Math.max(sw - 0.087, 0) * 0.14);
+        // Skrzynka: dno + przód i tył + 2 boki (wys. 140, gł. 500).
+        board += c * (Math.max(sw - 0.075, 0) * 0.47 + 2 * Math.max(sw - 0.087, 0) * 0.14 + 2 * 0.5 * 0.14);
         edge += c * sw;
         // Czoła szuflad w szafie — z płyty, także za drzwiami przesuwnymi.
         frontM2 += sw * (z.height_mm ? z.height_mm / 1000 : c * 0.2);
@@ -362,7 +417,8 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
       }
     }
   }
-  hardware += drawers * r.drawer_set;
+  hardware += drawers * r.wardrobe_drawer_runner;
+  hardware += ledCost(r, ledPlan(wd.led_mm, wd.led_wm));
 
   const doorN = Math.max(wd.door_count, 0);
   const doorH = H - paw;
