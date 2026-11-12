@@ -22,7 +22,8 @@ struct CabinetRates {
     var slideLagunaMb = 163.0
     var slideGtvDoor = 125.0
     var slideGtvMb = 104.0
-    /// Szafy mają własny, mały zapas płyty i oklejania — kuchenne 60% / 120% zawyżały cenę.
+    /// Zapas na skrzynię szafy skrzynkowej (2 boki + wieńce) — kuchenne 60% / 120% zawyżały cenę.
+    /// Wnętrze, czyli cały szkielet, zostaje na kuchennych (ta cena zgadzała się z wyceną Zimex).
     var wardrobeBoardExtraPct = 15.0
     var wardrobeEdgeExtraPct = 25.0
     var railMb = 25.0
@@ -115,10 +116,12 @@ struct WardrobePrice {
         let frame = wd.isFrame
         let paw = wd.hasPawlacz ? (wd.pawlaczMm ?? 0) / 1000 : 0
 
-        // Pionowe: boki (poza szkieletem we wnęce) + przegrody; poziome: wieńce, cokół, półka pawlacza.
-        let uprights = n - 1 + (frame ? 0 : 2)
-        var board = uprights * H * d + (frame ? 0 : 2 * W * d) + W * 0.1 + (paw > 0 ? W * d : 0)
-        var edge = uprights * H + (frame ? 0 : 2 * W) + (paw > 0 ? W : 0)
+        // Wnętrze (wspólne dla szkieletu i skrzynkowej): przegrody, cokół, półka pawlacza, półki, szuflady.
+        var board = (n - 1) * H * d + W * 0.1 + (paw > 0 ? W * d : 0)
+        var edge = (n - 1) * H + (paw > 0 ? W : 0)
+        // Skrzynia (tylko skrzynkowa): 2 boki + wieniec górny i dolny.
+        let boxBoard = frame ? 0 : 2 * H * d + 2 * W * d
+        let boxEdge = frame ? 0 : 2 * H + 2 * W
         var drawers = 0.0, frontM2 = 0.0, hardware = 0.0, handles = 0.0
         for sec in wd.sections {
             let sw: Double = sec.widthMm.map { $0 / 1000 } ?? max(W - fixed, 0) / max(free, 1)
@@ -171,10 +174,10 @@ struct WardrobePrice {
         }
         hardware += handles * r.handle
 
-        let boardM2 = board * (1 + r.wardrobeBoardExtraPct / 100)
+        let boardM2 = board * (1 + r.boardExtraPct / 100) + boxBoard * (1 + r.wardrobeBoardExtraPct / 100)
         let hdf = wd.hasBack ? W * H * r.hdfM2 : 0
         let sum = boardM2 * r.boardM2 + boardM2 * r.cutMbPerM2 * r.cutMb
-            + edge * (1 + r.wardrobeEdgeExtraPct / 100) * r.edgeMb + hdf + fronts + hardware
+            + (edge * (1 + r.edgeExtraPct / 100) + boxEdge * (1 + r.wardrobeEdgeExtraPct / 100)) * r.edgeMb + hdf + fronts + hardware
         return WardrobePrice(cost: sum * (1 + r.overheadPct / 100), slideHardware: slideCost, marginPct: marginPct)
     }
 

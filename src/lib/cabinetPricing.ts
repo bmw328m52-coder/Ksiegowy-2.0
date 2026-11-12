@@ -331,10 +331,12 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
   const frame = wd.construction === "frame";
   const paw = wd.pawlacz_mm && wd.pawlacz_mm > 50 ? wd.pawlacz_mm / 1000 : 0;
 
-  // Pionowe: boki (poza szkieletem we wnęce) + przegrody; poziome: wieniec górny / dolny, cokół, półka pawlacza.
-  const uprights = n - 1 + (frame ? 0 : 2);
-  let board = uprights * H * d + (frame ? 0 : 2 * W * d) + W * 0.1 + (paw ? W * d : 0);
-  let edge = uprights * H + (frame ? 0 : 2 * W) + (paw ? W : 0);
+  // Wnętrze (wspólne dla szkieletu i skrzynkowej): przegrody, cokół, półka pawlacza, półki, szuflady.
+  let board = (n - 1) * H * d + W * 0.1 + (paw ? W * d : 0);
+  let edge = (n - 1) * H + (paw ? W : 0);
+  // Skrzynia (tylko skrzynkowa): 2 boki + wieniec górny i dolny — duże formatki liczone niemal dokładnie.
+  const boxBoard = frame ? 0 : 2 * H * d + 2 * W * d;
+  const boxEdge = frame ? 0 : 2 * H + 2 * W;
   let drawers = 0, frontM2 = 0, hardware = 0, handles = 0;
   for (const sec of wd.sections) {
     const sw = sec.width_mm ? sec.width_mm / 1000 : Math.max(W - fixed, 0) / Math.max(free, 1);
@@ -378,11 +380,14 @@ export function wardrobeCost(wd: WardrobeLike, r: Rates, slide: SlideSystem): Co
   }
   hardware += handles * r.handle;
 
-  const boardM2 = board * (1 + r.wardrobe_board_extra_pct / 100);
+  // Wnętrze na zapasach kuchennych — cena szkieletu zgadzała się Arturowi z wyceną Zimex (2026-11-12).
+  // Skrzynkowa = szkielet + skrzynia z małym zapasem „szafowym" (+ plecy HDF); kuchenne zapasy
+  // na bokach i wieńcach zawyżały cenę.
+  const boardM2 = board * (1 + r.board_extra_pct / 100) + boxBoard * (1 + r.wardrobe_board_extra_pct / 100);
   const p: CostParts = {
     board: boardM2 * r.board_m2,
     cutting: boardM2 * r.cut_mb_per_m2 * r.cut_mb,
-    edging: edge * (1 + r.wardrobe_edge_extra_pct / 100) * r.edge_mb,
+    edging: (edge * (1 + r.edge_extra_pct / 100) + boxEdge * (1 + r.wardrobe_edge_extra_pct / 100)) * r.edge_mb,
     hdf: wd.construction === "box" || frame ? 0 : W * H * r.hdf_m2,
     fronts: frontsCost,
     hardware,
