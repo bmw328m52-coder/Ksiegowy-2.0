@@ -81,9 +81,14 @@ final class Laser: NSObject, ObservableObject {
 
     /// Powrót do aplikacji: niepołączony dalmierz łączymy od nowa (żądanie sprzed uśpienia bywa martwe).
     func wake() {
+        guard slept else { return }
+        slept = false
         guard wanted, central != nil, state != .connected else { return }
         reconnect()
     }
+
+    /// Aplikacja była w tle (iPad uśpiony / inna aplikacja).
+    var slept = false
 
     func forget() {
         wanted = false
@@ -327,6 +332,7 @@ struct LaserButton: View {
         .sheet(isPresented: $diagnostics) { LaserLogView() }
         .onAppear { laser.start() }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .background { laser.slept = true }
             if phase == .active { laser.wake() }
         }
     }
