@@ -17,28 +17,31 @@ export default function GlobalError({
   return (
     <main className="flex flex-1 flex-col px-4 py-10">
       <div className="w-full max-w-md mx-auto text-center space-y-5">
-        <div className="mx-auto w-12 h-12 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-700 text-xl">
+        <div className="mx-auto w-12 h-12 rounded-full bg-[var(--warn-soft)] border border-[var(--warn)] flex items-center justify-center text-[var(--warn)] text-xl">
           !
         </div>
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold">Coś poszło nie tak</h1>
-          <p className="text-sm text-zinc-500">
-            Spróbuj ponownie. Jeśli błąd się powtarza — odśwież stronę.
+          <h1 className="text-lg font-semibold">Nie udało się wczytać tej strony</h1>
+          <p className="text-sm text-[var(--muted)]">
+            Najczęściej to chwilowy problem z połączeniem lub z bazą danych. Spróbuj ponownie za moment.
+          </p>
+          <p className="text-sm text-[var(--muted)]">
+            Jeśli właśnie coś zapisywałeś, sprawdź przed ponowną próbą, czy zmiana jest widoczna, żeby nie zapisać jej dwa razy.
           </p>
         </div>
         {error.digest && (
-          <p className="text-[11px] text-zinc-400">Kod: {error.digest}</p>
+          <p className="text-[12px] text-[var(--muted)]">Kod: {error.digest}</p>
         )}
         <div className="flex gap-2 justify-center pt-2">
           <button
             onClick={reset}
-            className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80"
+            className="rounded-lg bg-[var(--accent)] text-[var(--btn-fg)] px-5 min-h-11 py-2 text-sm font-semibold active:opacity-80 inline-flex items-center justify-center"
           >
             Spróbuj ponownie
           </button>
           <Link
             href="/"
-            className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 active:bg-zinc-50"
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-5 min-h-11 py-2 text-sm text-[var(--foreground)] inline-flex items-center justify-center"
           >
             Strona główna
           </Link>

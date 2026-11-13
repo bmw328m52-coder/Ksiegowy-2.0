@@ -58,7 +58,7 @@ export default async function ModulyCalculatorPage() {
           </p>
           <Link
             href="/calculator/moduly/settings"
-            className="text-[11px] text-[#a06f3f] underline-offset-2 hover:underline shrink-0"
+            className="text-[13px] text-[#a06f3f] underline underline-offset-2 min-h-11 inline-flex items-center shrink-0"
           >
             Ustawienia cen
           </Link>

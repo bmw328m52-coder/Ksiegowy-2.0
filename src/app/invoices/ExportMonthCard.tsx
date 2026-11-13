@@ -62,12 +62,12 @@ export default function ExportMonthCard() {
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-3 mb-3 space-y-2">
-      <p className="text-xs font-medium text-zinc-700">Eksport dla księgowej</p>
+      <p className="text-sm font-semibold text-zinc-700">Eksport dla księgowej</p>
       <div className="flex gap-2">
         <select
           value={month}
           onChange={(e) => setMonth(Number(e.target.value))}
-          className="flex-1 rounded-md border border-zinc-300 bg-white text-sm px-2 py-2"
+          className="flex-1 rounded-md border border-zinc-300 bg-white text-sm px-2 min-h-[44px]"
           aria-label="Miesiąc"
         >
           {MONTHS_PL.map((m, i) => (
@@ -79,7 +79,7 @@ export default function ExportMonthCard() {
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
-          className="rounded-md border border-zinc-300 bg-white text-sm px-2 py-2"
+          className="rounded-md border border-zinc-300 bg-white text-sm px-2 min-h-[44px]"
           aria-label="Rok"
         >
           {years.map((y) => (
@@ -93,11 +93,11 @@ export default function ExportMonthCard() {
         type="button"
         onClick={handleDownload}
         disabled={busy}
-        className="w-full rounded-md bg-accent text-white text-sm py-2 font-medium active:opacity-80 disabled:opacity-50"
+        className="w-full rounded-md bg-[var(--accent)] text-[var(--background)] text-sm py-2 font-medium min-h-[44px] active:opacity-80 disabled:opacity-50"
       >
         {busy ? "Generuję ZIP..." : "Pobierz ZIP (CSV + zdjęcia)"}
       </button>
-      <p className="text-[11px] text-zinc-500">
+      <p className="text-[13px] text-zinc-500">
         ZIP zawiera CSV z fakturami + folder ze zdjęciami/PDF-ami z wybranego miesiąca.
       </p>
     </section>

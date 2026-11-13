@@ -60,12 +60,11 @@ export default async function NewJobPage({
           <div className="flex flex-col gap-3">
             <Link
               href={`/jobs/new?clientId=${client.id}&mode=now${typeParam}`}
-              className="block rounded-2xl border border-[#ededea] bg-white p-5 hover:border-[#a06f3f] active:bg-[#f6f6f5] transition-colors"
+              className="block rounded-2xl border border-[#ededea] bg-white p-5 hover:border-[#a06f3f] active:bg-[var(--surface-2)] transition-colors"
             >
               <div className="flex items-start gap-3">
                 <span
-                  className="inline-flex w-11 h-11 rounded-xl items-center justify-center text-white shrink-0"
-                  style={{ background: "linear-gradient(160deg, #a06f3f, #7d5530)" }}
+                  className="inline-flex w-11 h-11 rounded-xl items-center justify-center text-[var(--btn-fg)] bg-[var(--accent)] shrink-0"
                   aria-hidden
                 >
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -86,7 +85,7 @@ export default async function NewJobPage({
 
             <Link
               href={`/jobs/new?clientId=${client.id}&mode=scheduled${typeParam}`}
-              className="block rounded-2xl border border-[#ededea] bg-white p-5 hover:border-[#a06f3f] active:bg-[#f6f6f5] transition-colors"
+              className="block rounded-2xl border border-[#ededea] bg-white p-5 hover:border-[#a06f3f] active:bg-[var(--surface-2)] transition-colors"
             >
               <div className="flex items-start gap-3">
                 <span

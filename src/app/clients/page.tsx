@@ -43,26 +43,26 @@ export default async function ClientsPage({
       </header>
 
       {all.length > 0 && (
-        <form method="GET" action="/clients" className="flex gap-2">
+        <form method="GET" action="/clients" role="search" className="premium-search flex gap-2">
           <input
             type="search"
             name="q"
             defaultValue={q}
             placeholder="Szukaj: nazwa, NIP, telefon, e-mail"
             autoComplete="off"
-            className="flex-1 rounded-xl border border-[#ededea] bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a06f3f]/25"
+            className="flex-1 rounded-xl border border-[#8a8677] bg-[var(--background)] px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a06f3f]/25"
           />
           {q ? (
             <Link
               href="/clients"
-              className="rounded-xl border border-[#ededea] bg-white px-3.5 py-2.5 text-sm text-[#6f6c66] active:bg-[#f6f6f5]"
+              className="inline-flex items-center min-h-12 rounded-xl border border-[#8a8677] bg-[var(--background)] px-4 text-sm text-[var(--muted)] active:bg-[var(--surface-2)]"
             >
               Wyczyść
             </Link>
           ) : (
             <button
               type="submit"
-              className="rounded-xl bg-[#1f1d1b] text-white px-4 py-2.5 text-sm font-semibold active:opacity-80"
+              className="rounded-xl border px-4 text-sm font-semibold active:opacity-80"
             >
               Szukaj
             </button>
@@ -94,7 +94,7 @@ export default async function ClientsPage({
               <li key={c.id}>
                 <Link
                   href={`/clients/${c.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-[#ededea] bg-white p-3.5 shadow-[0_1px_2px_rgba(40,38,36,0.04)] active:bg-[#f6f6f5] hover:border-[#d8d7d3] hover:shadow-[0_2px_8px_rgba(40,38,36,0.06)] transition-all"
+                  className="flex items-center gap-3 rounded-2xl border border-[#ededea] bg-white p-3.5 shadow-[0_1px_2px_rgba(40,38,36,0.04)] active:bg-[var(--surface-2)] hover:border-[var(--border)] hover:shadow-[0_2px_8px_rgba(40,38,36,0.06)] transition-all"
                 >
                   <span
                     className="inline-flex w-11 h-11 rounded-full items-center justify-center text-[14px] font-bold shrink-0"
@@ -104,8 +104,8 @@ export default async function ClientsPage({
                     {clientInitials(c.name)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[14px] text-[#1f1d1b] truncate">{c.name}</p>
-                    <p className="text-[11px] text-[#8d8a85] truncate mt-0.5">
+                    <p className="font-semibold text-[15px] leading-snug text-[var(--foreground)] line-clamp-2 break-words">{c.name}</p>
+                    <p className="text-xs text-[var(--muted)] truncate mt-0.5">
                       {[c.nip && `NIP ${c.nip}`, c.phone].filter(Boolean).join(" · ") ||
                         (c.type === "company" ? "Firma" : "Osoba prywatna")}
                     </p>

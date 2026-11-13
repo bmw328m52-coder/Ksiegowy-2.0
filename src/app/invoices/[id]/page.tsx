@@ -94,7 +94,7 @@ export default async function InvoiceDetailPage({
           back={{ href: "/invoices" }}
           action={
             <span
-              className={`text-[10px] px-2 py-0.5 rounded-full ${badgeCls(invoice.ocr_status)}`}
+              className={`text-[12px] px-2 py-0.5 rounded-full ${badgeCls(invoice.ocr_status)}`}
             >
               {OCR_STATUS_LABELS[invoice.ocr_status]}
             </span>
@@ -106,7 +106,7 @@ export default async function InvoiceDetailPage({
             <p className="text-sm font-semibold text-emerald-900">
               ✓ Faktura zapisana
             </p>
-            <p className="text-xs text-emerald-800">
+            <p className="text-[13px] text-emerald-800">
               {invoice.ocr_status === "failed"
                 ? "OCR nie zadziałał — uzupełnij dane ręcznie poniżej."
                 : "Sprawdź dane poniżej. Jeśli masz kolejne — skanuj dalej."}
@@ -114,7 +114,7 @@ export default async function InvoiceDetailPage({
             <div className="flex gap-2">
               <Link
                 href="/invoices/new"
-                className="flex-1 rounded-md bg-accent text-white text-sm py-2 text-center font-medium active:opacity-80"
+                className="flex-1 rounded-md bg-[var(--accent)] text-[var(--background)] text-sm text-center font-medium min-h-[44px] flex items-center justify-center active:opacity-80"
               >
                 + Skanuj kolejną
               </Link>
@@ -122,7 +122,7 @@ export default async function InvoiceDetailPage({
                 href={`/invoices/${invoice.id}`}
                 replace
                 scroll={false}
-                className="flex-1 rounded-md bg-white border border-emerald-200 text-emerald-900 text-sm py-2 text-center font-medium active:bg-emerald-100"
+                className="flex-1 rounded-md bg-white border border-emerald-200 text-emerald-900 text-sm text-center font-medium min-h-[44px] flex items-center justify-center active:bg-emerald-100"
               >
                 OK
               </Link>
@@ -131,7 +131,7 @@ export default async function InvoiceDetailPage({
         )}
 
         {invoice.ocr_status === "failed" && (
-          <p className="mb-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <p className="mb-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
             Nie udało się odczytać faktury automatycznie. Wpisz dane ręcznie poniżej.
           </p>
         )}
@@ -149,14 +149,14 @@ export default async function InvoiceDetailPage({
                     className="block rounded-md bg-white border border-amber-200 px-2 py-1.5 active:bg-amber-100"
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-xs font-medium text-zinc-900 truncate">
+                      <span className="text-[13px] font-medium text-zinc-900 truncate">
                         {d.supplier_name ?? "—"} · {d.invoice_number ?? "bez nr"}
                       </span>
-                      <span className="text-xs tabular-nums text-zinc-700 shrink-0">
+                      <span className="text-[13px] tabular-nums text-zinc-700 shrink-0">
                         {fmtPLN(d.amount_gross)}
                       </span>
                     </div>
-                    <p className="text-[10px] text-amber-800">
+                    <p className="text-[12px] text-amber-800">
                       {fmtDate(d.issue_date)} ·{" "}
                       {d.reason === "nip_number"
                         ? "ten sam NIP + numer"
@@ -166,7 +166,7 @@ export default async function InvoiceDetailPage({
                 </li>
               ))}
             </ul>
-            <p className="text-[11px] text-amber-800">
+            <p className="text-[12px] text-amber-800">
               Sprawdź czy to rzeczywiście ta sama faktura. Jeśli tak — usuń jedną z kopii.
             </p>
           </section>
@@ -183,12 +183,12 @@ export default async function InvoiceDetailPage({
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 active:bg-zinc-50"
               >
-                <div className="w-10 h-12 rounded bg-[#282624] flex items-center justify-center text-white text-[10px] font-bold">
+                <div className="w-10 h-12 rounded bg-[#282624] flex items-center justify-center text-white text-[12px] font-bold">
                   KSeF
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Faktura z KSeF (XML)</p>
-                  <p className="text-[11px] text-zinc-500 truncate tabular-nums">{invoice.ksef_number}</p>
+                  <p className="text-[12px] text-zinc-500 truncate tabular-nums">{invoice.ksef_number}</p>
                 </div>
               </a>
             ) : (
@@ -198,12 +198,12 @@ export default async function InvoiceDetailPage({
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 active:bg-zinc-50"
               >
-                <div className="w-10 h-12 rounded bg-red-50 border border-red-200 flex items-center justify-center text-red-700 text-xs font-bold">
+                <div className="w-10 h-12 rounded bg-red-50 border border-red-200 flex items-center justify-center text-red-700 text-[13px] font-bold">
                   PDF
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Otwórz PDF faktury</p>
-                  <p className="text-xs text-zinc-500 truncate">{invoice.file_path.split("/").pop()}</p>
+                  <p className="text-[13px] text-zinc-500 truncate">{invoice.file_path.split("/").pop()}</p>
                 </div>
               </a>
             )}
@@ -217,9 +217,9 @@ export default async function InvoiceDetailPage({
             type="submit"
             className={`w-full flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition-colors active:opacity-90 ${
               invoice.payment_status === "paid"
-                ? "border-[#cfe3d4] bg-[#eef6f0]"
+                ? "border-[var(--border)] bg-[var(--ok-soft)]"
                 : overdue
-                  ? "border-[#e6c4b9] bg-[#f4e0d9]"
+                  ? "border-[var(--border)] bg-[#f4e0d9]"
                   : "border-zinc-200 bg-white"
             }`}
           >
@@ -227,7 +227,7 @@ export default async function InvoiceDetailPage({
               <span className="block text-sm font-medium">
                 {invoice.payment_status === "paid" ? "✓ Zapłacona" : overdue ? "Niezapłacona — po terminie" : "Niezapłacona"}
               </span>
-              <span className="block text-[11px] text-zinc-500">
+              <span className="block text-[12px] text-zinc-500">
                 {invoice.payment_status === "paid"
                   ? invoice.paid_date
                     ? `zapłacono ${fmtDate(invoice.paid_date)} · kliknij, żeby cofnąć`
@@ -237,7 +237,7 @@ export default async function InvoiceDetailPage({
                     : "kliknij, gdy zapłacisz"}
               </span>
             </span>
-            <span className="shrink-0 text-xs font-semibold text-[#a06f3f]">
+            <span className="shrink-0 text-[13px] font-semibold text-[#a06f3f]">
               {invoice.payment_status === "paid" ? "Cofnij" : "Oznacz zapłaconą"}
             </span>
           </button>
@@ -249,12 +249,12 @@ export default async function InvoiceDetailPage({
           <button
             type="submit"
             className={`w-full flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left ${
-              invoice.funded_by_grant ? "border-[#a06f3f] bg-[#fbf6ee]" : "border-zinc-200 bg-white"
+              invoice.funded_by_grant ? "border-[#a06f3f] bg-[var(--accent-soft)]" : "border-zinc-200 bg-white"
             }`}
           >
             <span className="min-w-0">
               <span className="block text-sm font-medium">Zakup z dotacji (PUP)</span>
-              <span className="block text-[11px] text-zinc-500">
+              <span className="block text-[12px] text-zinc-500">
                 {invoice.funded_by_grant
                   ? "Wchodzi w koszty (obniża PIT) · VAT do zwrotu do PUP"
                   : "Zaznacz, jeśli opłacone z dotacji"}
@@ -284,13 +284,13 @@ export default async function InvoiceDetailPage({
             <h2 className="text-sm font-semibold text-zinc-700">
               Pozycje kosztów ({costLines.length})
             </h2>
-            <span className="text-xs text-zinc-500">
+            <span className="text-[13px] text-zinc-500">
               Suma: <span className="font-medium text-zinc-900">{fmtPLN(totalLines.gross)}</span>
             </span>
           </div>
 
           {costLines.length === 0 ? (
-            <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+            <p className="text-[13px] text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
               Brak pozycji. {invoice.ocr_status === "done" ? "Claude nie wykrył pozycji — uzupełnij dane faktury." : ""}
             </p>
           ) : (
@@ -319,7 +319,7 @@ export default async function InvoiceDetailPage({
           )}
 
           {jobOptions.length === 0 && costLines.length > 0 && (
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-[13px] text-zinc-500">
               Brak zleceń — żeby przypisać koszt do zlecenia,{" "}
               <Link href="/jobs" className="underline">dodaj zlecenie</Link>.
             </p>
@@ -330,7 +330,7 @@ export default async function InvoiceDetailPage({
           <section className="mb-6">
             <div className="flex items-baseline justify-between mb-2">
               <h2 className="text-sm font-semibold text-zinc-700">Odliczenie VAT</h2>
-              <span className="text-xs text-zinc-500">
+              <span className="text-[13px] text-zinc-500">
                 Do odliczenia:{" "}
                 <span className="font-medium text-zinc-900">{fmtPLN(deductibleVat)}</span>
               </span>
@@ -344,7 +344,7 @@ export default async function InvoiceDetailPage({
                     <input type="hidden" name="vat_deduction" value={v} />
                     <button
                       type="submit"
-                      className={`w-full text-xs py-2 rounded-md font-medium transition-colors ${
+                      className={`w-full text-[13px] min-h-[44px] rounded-md font-medium transition-colors ${
                         active
                           ? "bg-[#a06f3f] text-white"
                           : "bg-zinc-100 text-zinc-600 active:bg-zinc-200"
@@ -356,7 +356,7 @@ export default async function InvoiceDetailPage({
                 );
               })}
             </div>
-            <p className="mt-2 text-[11px] text-zinc-500">
+            <p className="mt-2 text-[12px] text-zinc-500">
               {currentDeduction === null
                 ? "Pozycje mają różne odliczenia — kliknij, by ujednolicić."
                 : "Ile VAT-u z tej faktury realnie odliczasz. Paliwo/samochód zwykle 50%."}
@@ -367,7 +367,7 @@ export default async function InvoiceDetailPage({
         <form action={deleteThisInvoice}>
           <ConfirmSubmitButton
             message="Na pewno usunąć tę fakturę? Plik i wszystkie pozycje kosztowe zostaną usunięte."
-            className="w-full rounded-lg border border-red-200 text-red-700 py-2.5 text-sm font-medium active:bg-red-50"
+            className="w-full rounded-lg border border-red-200 text-red-700 min-h-[48px] text-sm font-medium active:bg-red-50"
           >
             Usuń fakturę
           </ConfirmSubmitButton>

@@ -12,7 +12,7 @@ import { deleteCatalogAction } from "./actions";
 const NO_CAT = "Bez kategorii";
 
 const controlCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
+  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 min-h-[44px] text-sm focus:outline-none focus:border-accent w-full";
 
 export default function MaterialsBrowser({ items }: { items: MaterialCatalogItem[] }) {
   const [query, setQuery] = useState("");
@@ -83,7 +83,7 @@ export default function MaterialsBrowser({ items }: { items: MaterialCatalogItem
         <div className="flex flex-col gap-5 mt-4">
           {grouped.map(([cat, list]) => (
             <section key={cat}>
-              <h2 className="text-xs uppercase tracking-wide font-semibold text-zinc-500 mb-2">
+              <h2 className="text-[13px] uppercase tracking-wide font-semibold text-zinc-500 mb-2">
                 {cat} <span className="text-zinc-400 normal-case">· {list.length}</span>
               </h2>
               <ul className="flex flex-col gap-2">
@@ -100,23 +100,23 @@ export default function MaterialsBrowser({ items }: { items: MaterialCatalogItem
                           <p className="font-medium break-words" title={it.name}>
                             {it.name}
                           </p>
-                          <span className="shrink-0 text-[10px] uppercase tracking-wide text-zinc-500 bg-zinc-100 rounded px-1.5 py-0.5 mt-0.5">
+                          <span className="shrink-0 text-[12px] uppercase tracking-wide text-zinc-500 bg-zinc-100 rounded px-1.5 py-0.5 mt-0.5">
                             {supplier}
                           </span>
                         </div>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-[13px] text-zinc-500">
                           {it.unit}
                           {it.default_price_gross !== null &&
-                            ` • ${fmtPLN(it.default_price_gross)}/${it.unit}`}
+                            ` • ${fmtPLN(it.default_price_gross)} brutto/${it.unit}`}
                         </p>
                         {it.notes && (
-                          <p className="text-xs text-zinc-500 mt-0.5">{it.notes}</p>
+                          <p className="text-[13px] text-zinc-500 mt-0.5">{it.notes}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <Link
                           href={`/materials/${it.id}/edit`}
-                          className="text-xs text-zinc-600 px-2 py-1 rounded-md active:bg-zinc-50"
+                          className="text-[13px] text-zinc-600 px-3 min-h-[44px] inline-flex items-center rounded-md active:bg-zinc-50"
                         >
                           Edytuj
                         </Link>
@@ -124,7 +124,7 @@ export default function MaterialsBrowser({ items }: { items: MaterialCatalogItem
                           <ConfirmSubmitButton
                             message={`Usunąć "${it.name}" z katalogu?`}
                             formNoValidate
-                            className="text-xs text-red-600 px-2 py-1 rounded-md active:bg-red-50"
+                            className="text-[13px] text-red-600 px-3 min-h-[44px] inline-flex items-center rounded-md active:bg-red-50"
                           >
                             Usuń
                           </ConfirmSubmitButton>

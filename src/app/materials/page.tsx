@@ -16,8 +16,15 @@ export default async function MaterialsPage() {
       <PageHeader title="Cennik" back={{ href: "/wiecej" }} />
 
       <AddCatalogForm />
-      <ImportMercuryButton />
-      <ImportZimexButton />
+      <details className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]">
+        <summary className="px-4 min-h-[48px] flex items-center text-sm font-semibold text-[var(--accent)] cursor-pointer select-none">
+          Import cenników dostawców (Mercury, Zimex)
+        </summary>
+        <div className="flex flex-col gap-3 p-3 pt-0">
+          <ImportMercuryButton />
+          <ImportZimexButton />
+        </div>
+      </details>
 
       <Card href="/auto-wycena" className="flex items-center gap-3">
         <span className="inline-flex w-10 h-10 rounded-xl items-center justify-center shrink-0 bg-[#f1e5d2] text-[#a06f3f]">

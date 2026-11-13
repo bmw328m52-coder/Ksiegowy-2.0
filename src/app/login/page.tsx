@@ -22,10 +22,10 @@ export default async function LoginPage({
         />
         <div className="text-center">
           <h1 className="text-xl font-semibold">LUVIANO app</h1>
-          <p className="text-sm text-zinc-500">Zaloguj się, aby kontynuować.</p>
+          <p className="text-sm text-[var(--muted)]">Zaloguj się, aby kontynuować.</p>
         </div>
         {error === "link" && (
-          <p className="w-full text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 text-center">
+          <p className="w-full text-sm text-[var(--warn)] bg-[var(--warn-soft)] border border-[var(--warn)] rounded-md px-3 py-2 text-center">
             Link wygasł lub jest nieprawidłowy. Poproś o nowy link do zmiany hasła.
           </p>
         )}

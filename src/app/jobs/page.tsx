@@ -15,7 +15,8 @@ import {
   type PipelineGroup,
 } from "@/lib/jobStatusView";
 import { isJobOverdue } from "@/lib/jobStatus";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, fmtPLN } from "@/lib/format";
+import { Money } from "@/components/Money";
 import { avatarTone, clientInitials } from "@/lib/avatar";
 import {
   PageContainer,
@@ -97,6 +98,10 @@ export default async function JobsPage({
   const visible = searched
     .filter((j) => matches(j, filter))
     .sort((a, b) => {
+      // Zaległe zlecenia zawsze na górze (jak na ekranie głównym), dalej kolejność etapów.
+      const oa = isJobOverdue(a, todayIso);
+      const ob = isJobOverdue(b, todayIso);
+      if (oa !== ob) return oa ? -1 : 1;
       const sa = JOB_STATUS_WORKFLOW.indexOf(a.status);
       const sb = JOB_STATUS_WORKFLOW.indexOf(b.status);
       if (sa !== sb) return sa - sb;
@@ -152,7 +157,7 @@ export default async function JobsPage({
       <SegmentedNav items={segments} activeKey={filter} />
 
       {all.length > 0 && (
-        <form method="GET" action="/jobs" className="flex gap-2">
+        <form method="GET" action="/jobs" role="search" className="premium-search flex gap-2">
           {filter !== "active" && <input type="hidden" name="f" value={filter} />}
           <input
             type="search"
@@ -160,19 +165,19 @@ export default async function JobsPage({
             defaultValue={q}
             placeholder="Szukaj: tytuł lub klient"
             autoComplete="off"
-            className="flex-1 rounded-xl border border-[#ededea] bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a06f3f]/25"
+            className="flex-1 rounded-xl border border-[#8a8677] bg-[var(--background)] px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a06f3f]/25"
           />
           {q ? (
             <Link
               href={withQ(filter)}
-              className="rounded-xl border border-[#ededea] bg-white px-3.5 py-2.5 text-sm text-[#6f6c66] active:bg-[#f6f6f5]"
+              className="inline-flex items-center min-h-12 rounded-xl border border-[#8a8677] bg-[var(--background)] px-4 text-sm text-[var(--muted)] active:bg-[var(--surface-2)]"
             >
               Wyczyść
             </Link>
           ) : (
             <button
               type="submit"
-              className="rounded-xl bg-[#1f1d1b] text-white px-4 py-2.5 text-sm font-semibold active:opacity-80"
+              className="rounded-xl border px-4 text-sm font-semibold active:opacity-80"
             >
               Szukaj
             </button>
@@ -261,7 +266,8 @@ function JobItem({
   job: Awaited<ReturnType<typeof listJobs>>[number];
   overdue: boolean;
 }) {
-  const dateStr = fmtDate(job.due_date ?? job.start_date);
+  const rawDate = job.due_date ?? job.start_date;
+  const dateStr = rawDate ? fmtDate(rawDate) : "";
   const stageIdx = JOB_STATUS_WORKFLOW.indexOf(job.status);
   const tone = avatarTone(job.client_name);
   const accent = STAGE_ACCENT[job.status];
@@ -274,7 +280,7 @@ function JobItem({
     <li>
       <Link
         href={href}
-        className="flex items-start gap-3 rounded-2xl border border-[#ededea] bg-white p-3.5 pl-3 active:bg-[#f6f6f5] hover:border-[#d8d7d3] hover:shadow-[0_2px_8px_rgba(40,38,36,0.06)] transition-all border-l-4 shadow-[0_1px_2px_rgba(40,38,36,0.04)]"
+        className="flex items-start gap-3 rounded-2xl border border-[#ededea] bg-white p-3.5 pl-3 active:bg-[var(--surface-2)] hover:border-[var(--border)] hover:shadow-[0_2px_8px_rgba(40,38,36,0.06)] transition-all border-l-4 shadow-[0_1px_2px_rgba(40,38,36,0.04)]"
         style={{ borderLeftColor: accent }}
       >
         <span
@@ -285,11 +291,17 @@ function JobItem({
           {clientInitials(job.client_name)}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold truncate text-[14px] text-[#1f1d1b]">{job.title}</p>
-          <p className="text-[11px] text-[#8d8a85] truncate mt-0.5">
+          <p className="font-semibold line-clamp-2 break-words text-[15px] leading-snug text-[var(--foreground)]">{job.title}</p>
+          <p className="text-xs text-[var(--muted)] truncate mt-0.5">
             {job.client_name}
-            {dateStr && ` · ${dateStr}`}
+            {dateStr && ` · termin ${dateStr}`}
           </p>
+          {Number(job.amount_gross) > 0 && (
+            <p className="text-xs text-[var(--foreground)] mt-0.5 tabular-nums">
+              <Money>{fmtPLN(job.amount_gross)}</Money>
+              <span className="text-[var(--muted)]"> brutto</span>
+            </p>
+          )}
           {showProgress && (
             <div className="flex items-center gap-1.5 mt-2">
               <div className="flex items-center gap-[3px]" aria-hidden>
@@ -297,11 +309,11 @@ function JobItem({
                   <span
                     key={i}
                     className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: i < completedStages ? accent : "#ece6d8" }}
+                    style={{ backgroundColor: i < completedStages ? accent : "var(--border)" }}
                   />
                 ))}
               </div>
-              <span className="text-[10px] text-[#8d8a85] tabular-nums">
+              <span className="text-xs text-[var(--muted)] tabular-nums">
                 {completedStages}/{totalStages}
               </span>
             </div>

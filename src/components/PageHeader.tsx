@@ -17,14 +17,14 @@ export default function PageHeader({
           <Link
             href={back.href}
             aria-label="Wstecz"
-            className="rounded-md p-2 -ml-2 hover:bg-[#efeae2] active:bg-[#ededea] transition-colors"
+            className="rounded-md p-3 -ml-3 hover:bg-[#efeae2] active:bg-[#ededea] transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
         )}
-        <h1 className="text-xl font-semibold tracking-tight truncate">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight line-clamp-2 break-words">{title}</h1>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <PrivateModeToggle />

@@ -93,7 +93,7 @@ export default function InvoiceSection({
               onChange={(e) => setNumber(e.target.value)}
               placeholder="FV/05/2026"
               required
-              className="h-[42px] px-3 rounded-lg border border-[#ededea] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
+              className="h-11 px-3 rounded-lg border border-[#ededea] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -106,7 +106,7 @@ export default function InvoiceSection({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               max={today}
-              className="h-[42px] px-3 rounded-lg border border-[#ededea] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
+              className="h-11 px-3 rounded-lg border border-[#ededea] bg-white text-sm focus:outline-2 focus:outline-[#a06f3f]"
             />
           </label>
         </div>
@@ -114,7 +114,7 @@ export default function InvoiceSection({
         <button
           type="submit"
           disabled={pending || !number.trim()}
-          className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors disabled:opacity-50"
+          className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-3 min-h-11 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors disabled:opacity-50"
         >
           <span>{pending ? "Zapisuję…" : "Oznacz fakturę"}</span>
           <span aria-hidden>✓</span>

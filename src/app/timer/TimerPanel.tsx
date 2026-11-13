@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   startTimerAction,
@@ -34,11 +35,11 @@ const zl = (v: number) => `${Math.round(v).toLocaleString("pl-PL")} zł`;
 
 // Kolor stawki względem docelowej: zielony ≥ cel, bursztynowy ≥ 80% celu, czerwony niżej.
 function rateTone(rate: number | null, target: number): string {
-  if (rate === null) return "text-zinc-400";
-  if (target <= 0) return "text-zinc-700";
-  if (rate >= target) return "text-emerald-600";
-  if (rate >= target * 0.8) return "text-amber-600";
-  return "text-red-600";
+  if (rate === null) return "text-[var(--muted)]";
+  if (target <= 0) return "text-[var(--foreground)]";
+  if (rate >= target) return "text-[var(--ok)]";
+  if (rate >= target * 0.8) return "text-[var(--accent)]";
+  return "text-[var(--warn)]";
 }
 
 type JobWithClient = Job & { client_name: string };
@@ -160,7 +161,7 @@ export default function TimerPanel({
   };
 
   const selectCls =
-    "w-full rounded-md border border-zinc-300 bg-white text-zinc-900 px-3 py-2 text-sm focus:outline-none focus:border-accent";
+    "w-full min-h-12 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] px-3 py-2 text-base focus:outline-none focus:border-[var(--accent)] disabled:opacity-60";
 
   return (
     <div className="flex flex-col gap-4">
@@ -186,7 +187,7 @@ export default function TimerPanel({
         <h2 className="text-sm font-semibold text-zinc-700">Wybierz pomiar</h2>
 
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-zinc-600">Klient</span>
+          <span className="text-[13px] font-medium text-[var(--muted)]">Klient</span>
           <select
             value={clientId}
             onChange={(e) => {
@@ -205,7 +206,7 @@ export default function TimerPanel({
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-zinc-600">Pomiar</span>
+          <span className="text-[13px] font-medium text-[var(--muted)]">Pomiar</span>
           <select
             value={jobId}
             onChange={(e) => setJobId(e.target.value)}
@@ -224,7 +225,7 @@ export default function TimerPanel({
         </label>
 
         <div>
-          <p className="text-xs text-zinc-500 mb-2">Faza pracy</p>
+          <p className="text-[13px] font-medium text-[var(--muted)] mb-2">Faza pracy — dotknij, aby włączyć licznik</p>
           <div className="grid grid-cols-2 gap-2">
             {PHASE_ORDER.map((phase) => {
               const isThis = active && jobId === active.job_id && active.phase === phase;
@@ -234,10 +235,11 @@ export default function TimerPanel({
                   type="button"
                   disabled={pending || !jobId}
                   onClick={() => (isThis ? handleStop() : handleStart(phase))}
-                  className={`rounded-lg border py-2.5 px-3 text-sm flex items-center justify-center font-medium active:opacity-70 disabled:opacity-50 ${
+                  aria-pressed={!!isThis}
+                  className={`rounded-lg border min-h-12 py-2.5 px-3 text-[15px] flex items-center justify-center font-semibold active:opacity-70 disabled:opacity-60 ${
                     isThis
-                      ? "bg-emerald-600 text-white border-emerald-700"
-                      : "bg-white text-zinc-800 border-zinc-300"
+                      ? "bg-[var(--ok-soft)] text-[var(--ok)] border-[var(--ok)]"
+                      : "bg-[var(--surface-2)] text-[var(--foreground)] border-[var(--border)]"
                   }`}
                 >
                   {WORK_PHASE_LABELS[phase]}
@@ -245,10 +247,22 @@ export default function TimerPanel({
               );
             })}
           </div>
+          {!jobId && clients.length === 0 && (
+            <p className="mt-2 text-[13px] text-[var(--muted)]">
+              Nie ma jeszcze żadnego zlecenia, do którego można liczyć czas.{" "}
+              <Link href="/jobs/new" className="font-semibold text-[var(--accent)] underline underline-offset-2">
+                Dodaj zlecenie
+              </Link>
+              , a potem wróć tutaj.
+            </p>
+          )}
+          {!jobId && clients.length > 0 && (
+            <p className="mt-2 text-[13px] text-[var(--muted)]">Najpierw wybierz klienta i pomiar — wtedy fazy staną się aktywne.</p>
+          )}
         </div>
 
         {error && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <p role="alert" className="text-[13px] text-[var(--warn)] bg-[var(--warn-soft)] border border-[var(--warn)] rounded-md px-3 py-2">
             {error}
           </p>
         )}
@@ -272,12 +286,12 @@ export default function TimerPanel({
               >
                 na rękę {fmtRate(hourlyRate(summary.grandNet, summary.grandTotal))}
               </span>
-              <span className="block text-[11px] tabular-nums text-zinc-500">
+              <span className="block text-[12px] tabular-nums text-[var(--muted)]">
                 przed kosztami firmy i podatkiem: {fmtRate(hourlyRate(summary.grandMargin, summary.grandTotal))}
               </span>
             </div>
           </div>
-          <p className="text-[11px] text-zinc-400 mb-3">
+          <p className="text-[12px] text-[var(--muted)] mb-3">
             Na rękę = marża zlecenia (przychód − materiały) ÷ godziny, minus koszty firmy, ZUS i podatek. Cel:{" "}
             {Math.round(targetRate)} zł/h.
             <br />
@@ -293,9 +307,9 @@ export default function TimerPanel({
               const cRate = hourlyRate(c.margin, c.total);
               const cNet = hourlyRate(c.net, c.total);
               return (
-                <li key={c.name} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <li key={c.name} className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="font-semibold text-sm text-zinc-900 truncate">{c.name}</span>
+                    <span className="font-semibold text-sm text-[var(--foreground)] min-w-0 break-words">{c.name}</span>
                     <span className="flex items-baseline gap-2 shrink-0">
                       <span className="text-sm font-semibold tabular-nums text-accent">
                         {fmtDuration(c.total)}
@@ -305,7 +319,7 @@ export default function TimerPanel({
                       </span>
                     </span>
                   </div>
-                  <p className="text-right text-[11px] tabular-nums text-zinc-500">
+                  <p className="text-right text-[12px] tabular-nums text-[var(--muted)]">
                     przed kosztami firmy i podatkiem: {fmtRate(cRate)}
                   </p>
                   <ul className="mt-1 flex flex-col gap-0.5">
@@ -316,7 +330,7 @@ export default function TimerPanel({
                           key={j.id}
                           className="flex items-baseline justify-between gap-2 text-xs text-zinc-600"
                         >
-                          <span className="truncate">{j.title}</span>
+                          <span className="min-w-0 break-words">{j.title}</span>
                           <span className="flex items-baseline gap-2 shrink-0">
                             <span className="tabular-nums">{fmtDuration(j.minutes)}</span>
                             <span className={`tabular-nums font-medium ${rateTone(jRate, targetRate)}`}>
@@ -341,28 +355,28 @@ export default function TimerPanel({
             {recent.map(({ entry, job }) => (
               <li
                 key={entry.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5 text-xs"
+                className="flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-2)] pl-3 pr-1 py-1.5 text-[13px]"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">
+                  <p className="font-medium break-words">
                     {job ? `${job.client_name} — ${job.title}` : "(usunięty pomiar)"}
                   </p>
-                  <p className="text-zinc-500 truncate">
+                  <p className="text-[var(--muted)]">
                     {WORK_PHASE_LABELS[entry.phase]} · {fmtDate(entry.started_at)}
                     {entry.source === "manual" && (
-                      <span className="ml-1 text-amber-700">[ręcznie]</span>
+                      <span className="ml-1 text-[var(--accent)]">[ręcznie]</span>
                     )}
                   </p>
                 </div>
                 <span className="tabular-nums shrink-0">
-                  {fmtDuration(entry.duration_minutes ?? 0)}
+                  {entry.ended_at ? fmtDuration(entry.duration_minutes ?? 0) : "trwa"}
                 </span>
                 <button
                   type="button"
                   onClick={() => handleDelete(entry)}
                   disabled={pending}
-                  className="text-red-600 hover:underline disabled:opacity-50 shrink-0"
-                  aria-label="Usuń"
+                  className="text-[var(--warn)] hover:underline disabled:opacity-50 shrink-0 min-h-11 min-w-11 inline-flex items-center justify-center"
+                  aria-label="Usuń wpis czasu"
                 >
                   ✕
                 </button>
@@ -415,25 +429,25 @@ function ActiveBanner({
   const liveRate = netRate(grossRate, taxed, overhead);
 
   return (
-    <div className="rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-3 flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-wide text-emerald-700 font-semibold">
+    <div className="rounded-xl bg-[var(--ok-soft)] border border-[var(--ok)] px-4 py-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+      <div className="min-w-0 flex-1 basis-56">
+        <p className="text-[12px] uppercase tracking-wide text-[var(--ok)] font-semibold">
           ● Trwa: {WORK_PHASE_LABELS[entry.phase]}
         </p>
-        <p className="text-2xl font-bold tabular-nums text-emerald-900">
+        <p className="text-4xl font-bold tabular-nums text-[var(--foreground)]">
           {pad(h)}:{pad(m)}:{pad(s)}
         </p>
-        <p className="text-xs text-emerald-800 truncate mt-0.5">{jobLabel}</p>
+        <p className="text-[13px] text-[var(--foreground)] mt-0.5 break-words">{jobLabel}</p>
         {liveRate !== null && (
           <p className="mt-1 text-sm font-bold tabular-nums">
             <span className={rateTone(liveRate, targetRate)}>≈ {fmtRate(liveRate)} na rękę</span>
-            <span className="ml-1.5 text-[11px] font-normal text-emerald-700/70">
+            <span className="ml-1.5 text-[12px] font-normal text-[var(--muted)]">
               cel {Math.round(targetRate)} zł/h
             </span>
           </p>
         )}
         {liveRate !== null && (
-          <p className="text-[11px] tabular-nums text-emerald-800/80">
+          <p className="text-[12px] tabular-nums text-[var(--muted)]">
             przed kosztami firmy i podatkiem: {fmtRate(grossRate)}
           </p>
         )}
@@ -442,7 +456,7 @@ function ActiveBanner({
         type="button"
         onClick={onStop}
         disabled={pending}
-        className="rounded-lg bg-red-600 text-white py-2 px-4 text-sm font-medium active:opacity-80 disabled:opacity-50 shrink-0"
+        className="rounded-lg bg-[var(--warn)] text-[var(--btn-fg)] min-h-12 min-w-28 py-2 px-6 text-base font-bold active:opacity-80 disabled:opacity-50 shrink-0 max-sm:w-full"
       >
         Stop
       </button>
@@ -500,7 +514,7 @@ function EmergencyManualEntry({ jobId }: { jobId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-sm text-zinc-600 underline-offset-2 hover:underline self-start"
+        className="text-sm text-[var(--muted)] underline underline-offset-2 hover:text-[var(--foreground)] self-start min-h-11 text-left"
       >
         + Wpisz czas ręcznie (zapomniałeś włączyć?)
       </button>
@@ -508,16 +522,16 @@ function EmergencyManualEntry({ jobId }: { jobId: string }) {
   }
 
   const inputCls =
-    "mt-0.5 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm focus:outline-none focus:border-accent";
+    "mt-0.5 w-full min-h-11 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] px-2.5 py-1.5 text-base focus:outline-none focus:border-[var(--accent)]";
 
   return (
     <div className="space-y-2 border-t border-zinc-100 pt-3">
-      <p className="text-xs text-zinc-600">
+      <p className="text-[13px] text-[var(--muted)]">
         Awaryjny wpis — dopisze czas do wybranego wyżej pomiaru.
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs">
-          <span className="text-zinc-600">Faza</span>
+        <label className="text-[13px]">
+          <span className="text-[var(--muted)]">Faza</span>
           <select
             value={phase}
             onChange={(e) => setPhase(e.target.value as WorkPhase)}
@@ -530,14 +544,14 @@ function EmergencyManualEntry({ jobId }: { jobId: string }) {
             ))}
           </select>
         </label>
-        <label className="text-xs">
-          <span className="text-zinc-600">Data</span>
+        <label className="text-[13px]">
+          <span className="text-[var(--muted)]">Data</span>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
         </label>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs">
-          <span className="text-zinc-600">Godziny</span>
+        <label className="text-[13px]">
+          <span className="text-[var(--muted)]">Godziny</span>
           <input
             type="number"
             min="0"
@@ -549,8 +563,8 @@ function EmergencyManualEntry({ jobId }: { jobId: string }) {
             className={inputCls}
           />
         </label>
-        <label className="text-xs">
-          <span className="text-zinc-600">Minuty</span>
+        <label className="text-[13px]">
+          <span className="text-[var(--muted)]">Minuty</span>
           <input
             type="number"
             min="0"
@@ -569,10 +583,10 @@ function EmergencyManualEntry({ jobId }: { jobId: string }) {
         placeholder="Notatka (opcjonalnie)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm focus:outline-none focus:border-accent"
+        className="w-full min-h-11 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] px-2.5 py-1.5 text-base focus:outline-none focus:border-[var(--accent)]"
       />
       {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1">
+        <p role="alert" className="text-[13px] text-[var(--warn)] bg-[var(--warn-soft)] border border-[var(--warn)] rounded-md px-2.5 py-1.5">
           {error}
         </p>
       )}
@@ -581,7 +595,7 @@ function EmergencyManualEntry({ jobId }: { jobId: string }) {
           type="button"
           onClick={submit}
           disabled={pending}
-          className="flex-1 rounded-md bg-accent text-white py-2 text-sm font-medium active:opacity-80 disabled:opacity-50"
+          className="flex-1 rounded-lg bg-[var(--accent)] text-[var(--btn-fg)] min-h-12 py-2 text-[15px] font-semibold active:opacity-80 disabled:opacity-50"
         >
           {pending ? "Zapisuję…" : "Dodaj wpis"}
         </button>
@@ -591,7 +605,7 @@ function EmergencyManualEntry({ jobId }: { jobId: string }) {
             reset();
             setOpen(false);
           }}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
+          className="rounded-lg border border-[var(--border)] min-h-12 px-4 py-2 text-[15px]"
         >
           Anuluj
         </button>

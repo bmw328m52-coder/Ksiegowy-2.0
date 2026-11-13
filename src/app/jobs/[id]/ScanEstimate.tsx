@@ -29,7 +29,7 @@ const KINDS = Object.keys(CAB_KIND_LABELS) as CabKind[];
 const MANUAL_KINDS = KINDS.filter((k) => k !== "skip");
 
 const SELECT =
-  "rounded-lg border border-[#e3e2de] bg-white px-2 py-1.5 text-[13px] text-[#1f1d1b] focus:border-[#a06f3f] focus:outline-none";
+  "rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-[13px] text-[#1f1d1b] focus:border-[var(--accent)] focus:outline-none";
 const NUM = `${SELECT} w-20 text-right tabular-nums`;
 
 const num = (s: string) => {
@@ -94,7 +94,7 @@ export default function ScanEstimate({
     });
 
   return (
-    <div className="rounded-xl border border-[#e2c79c] bg-[linear-gradient(160deg,#fbf1dd_0%,#fff8e9_100%)] p-3">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--accent-soft)] p-3">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 text-left">
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-semibold uppercase tracking-wide text-[#a06f3f]">Przybliżona cena</div>
@@ -128,12 +128,12 @@ export default function ScanEstimate({
                   const item = c.kind === "skip" ? null : est.items.find((it) => it.cab === c.cab);
                   return (
                     <li key={c.id} className="flex items-center gap-2 text-[13px]">
-                      <span className={`min-w-0 flex-1 ${c.kind === "skip" ? "text-[#a3a09a]" : "text-[#1f1d1b]"}`}>
+                      <span className={`min-w-0 flex-1 ${c.kind === "skip" ? "text-[var(--muted)]" : "text-[#1f1d1b]"}`}>
                         {SCAN_OBJECT_LABELS[c.category] ?? c.category}{" "}
                         <span className="tabular-nums text-[#6f6c66]">
                           {Math.round(c.cab.w)} × {Math.round(c.cab.h)}
                         </span>
-                        {!c.planned && <span className="ml-1 text-[10px] text-[#a3a09a]">wykryte w pomieszczeniu</span>}
+                        {!c.planned && <span className="ml-1 text-[10px] text-[var(--muted)]">wykryte w pomieszczeniu</span>}
                       </span>
                       <select
                         value={c.kind}
@@ -168,7 +168,7 @@ export default function ScanEstimate({
                         <span className="tabular-nums text-[#6f6c66]">
                           {Math.round(wd.width_mm)} × {Math.round(wd.height_mm)}
                         </span>{" "}
-                        <span className="text-[11px] text-[#8b8882]">
+                        <span className="text-[11px] text-[var(--muted)]">
                           {wd.doors === "sliding"
                             ? `drzwi przesuwne ×${wd.door_count} — okucia ${fmtPLN(item?.slide ?? 0)}`
                             : wd.doors === "hinged"
@@ -226,7 +226,7 @@ export default function ScanEstimate({
                     <button
                       type="button"
                       onClick={() => update({ manual: choice.manual.filter((_, j) => j !== i) })}
-                      className="px-1 text-[18px] leading-none text-[#b3b0a9] hover:text-[#b8523a]"
+                      className="px-1 text-[18px] leading-none text-[var(--muted)] hover:text-[#b8523a]"
                       aria-label="Usuń szafkę"
                     >
                       ×
@@ -282,7 +282,7 @@ export default function ScanEstimate({
                 type="button"
                 onClick={() => setMargin(p)}
                 className={`rounded-lg border px-2 py-1.5 text-[12px] tabular-nums ${
-                  est.margin_pct === p ? "border-[#a06f3f] bg-[#a06f3f] text-white" : "border-[#e3e2de] bg-white text-[#1f1d1b]"
+                  est.margin_pct === p ? "border-[#a06f3f] bg-[#a06f3f] text-white" : "border-[var(--border)] bg-white text-[#1f1d1b]"
                 }`}
               >
                 {p}%
@@ -304,7 +304,7 @@ export default function ScanEstimate({
                 {rates.extras.map((e) => (
                   <li key={e.key} className="flex items-center gap-2 text-[13px]">
                     <span className="min-w-0 flex-1">
-                      {e.name} <span className="text-[11px] text-[#8b8882]">{fmtPLN(e.price)}/{e.unit}</span>
+                      {e.name} <span className="text-[11px] text-[var(--muted)]">{fmtPLN(e.price)}/{e.unit}</span>
                     </span>
                     <input
                       inputMode="decimal"
@@ -330,7 +330,7 @@ export default function ScanEstimate({
           )}
 
           {hasAnything && (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 rounded-lg bg-white/70 p-2.5 text-[12px] sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 rounded-lg bg-[var(--surface-2)] p-2.5 text-[12px] sm:grid-cols-3">
               {(Object.keys(COST_PART_LABELS) as (keyof CostParts)[])
                 .filter((k) => est.parts[k] > 0)
                 .map((k) => (
@@ -371,7 +371,7 @@ export default function ScanEstimate({
               {pending ? "Zapisuję…" : "Zapisz"}
             </Button>
           </div>
-          <p className="text-[11px] text-[#8b8882]">
+          <p className="text-[11px] text-[var(--muted)]">
             Szacunek do rozmowy z klientem — bez sprzętu AGD, zlewu i baterii; drzwi przesuwne z wypełnieniem z płyty (lustro / szkło osobno). Dokładną cenę daje wycena zlecenia.
           </p>
         </div>

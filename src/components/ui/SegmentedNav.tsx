@@ -40,7 +40,7 @@ export default function SegmentedNav({
               href={it.href}
               aria-current={active ? "page" : undefined}
               className={[
-                "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors",
+                "shrink-0 inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors",
                 active
                   ? "bg-[#1f1d1b] text-white"
                   : "bg-white border border-[#ededea] text-[#6f6c66] hover:border-[#d8d7d3] hover:text-[#1f1d1b]",

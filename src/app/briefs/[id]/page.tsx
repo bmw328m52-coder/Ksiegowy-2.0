@@ -115,7 +115,7 @@ export default async function BriefDetailPage({
           <ConfirmSubmitButton
             message="Utworzyć zlecenie z tego briefu? Tytuł, typ projektu i wstępna kwota zostaną przeniesione, brief otrzyma status 'Zlecenie utworzone'."
             formNoValidate
-            className="w-full rounded-xl text-white bg-[linear-gradient(160deg,#a06f3f,#7d5530)] shadow-[0_6px_14px_rgba(160,111,63,.22)] py-3 font-semibold active:brightness-95"
+            className="w-full rounded-xl text-[var(--btn-fg)] bg-[var(--accent)] py-3 font-semibold active:brightness-95"
           >
             Utwórz zlecenie z briefu
           </ConfirmSubmitButton>
@@ -124,7 +124,7 @@ export default async function BriefDetailPage({
         linkedJob && (
           <Link
             href={`/jobs/${linkedJob.id}`}
-            className="w-full inline-flex justify-center rounded-xl border border-[#ededea] bg-white text-[#1f1d1b] py-3 text-sm font-semibold active:bg-[#f6f6f5]"
+            className="w-full inline-flex justify-center rounded-xl border border-[#ededea] bg-white text-[#1f1d1b] py-3 text-sm font-semibold active:bg-[var(--surface-2)]"
           >
             Otwórz powiązane zlecenie
           </Link>

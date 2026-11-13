@@ -21,6 +21,7 @@ import ActiveTimerHomeCard from "@/components/ActiveTimerHomeCard";
 import { Money } from "@/components/Money";
 import UserAvatarMenu from "@/components/UserAvatarMenu";
 import PrivateModeToggle from "@/components/PrivateModeToggle";
+import SearchBox from "@/components/SearchBox";
 import { Badge, PageContainer, SectionHeading, StatCard } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -31,11 +32,21 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [dash, active, jobs] = await Promise.all([
-    getDashboardData().catch(() => null),
+  // Awaria odczytu nie może wyglądać jak „brak danych” — pokazujemy ostrzeżenie zamiast pustych liczb.
+  const [dashRes, active, jobsRes] = await Promise.all([
+    getDashboardData().then(
+      (value) => ({ ok: true as const, value }),
+      () => ({ ok: false as const, value: null }),
+    ),
     getActiveTimer().catch(() => null),
-    listJobs().catch(() => [] as Awaited<ReturnType<typeof listJobs>>),
+    listJobs().then(
+      (value) => ({ ok: true as const, value }),
+      () => ({ ok: false as const, value: [] as Awaited<ReturnType<typeof listJobs>> }),
+    ),
   ]);
+  const dash = dashRes.value;
+  const jobs = jobsRes.value;
+  const loadFailed = !dashRes.ok || !jobsRes.ok;
   const activeJob = active ? await getJobMeta(active.job_id).catch(() => null) : null;
 
   const today = new Intl.DateTimeFormat("pl-PL", {
@@ -143,16 +154,18 @@ export default async function Home() {
     : false;
 
   return (
-    <PageContainer width="wide">
+    <PageContainer width="wide" className="premium-home">
       {/* Nagłówek */}
-      <header className="flex items-start justify-between gap-3 pt-1">
+      <header className="premium-greeting flex items-start justify-between gap-3 pt-1">
         <div className="min-w-0">
           <p className="text-[12px] text-[#8d8a85] capitalize">{today}</p>
           <h1 className="mt-0.5 text-[22px] sm:text-[26px] font-bold text-[#1f1d1b] leading-tight tracking-tight">
             Witaj, {firstName}
           </h1>
           <p className="mt-1 text-[12px] text-[#6f6c66]">
-            {skrzynka.active > 0 ? (
+            {loadFailed ? (
+              <span className="font-semibold text-[var(--warn)]">Nie udało się wczytać zleceń</span>
+            ) : skrzynka.active > 0 ? (
               <span className="font-semibold text-[#1f1d1b]">
                 {skrzynka.active} aktywnych zleceń
               </span>
@@ -180,6 +193,15 @@ export default async function Home() {
         </div>
       </header>
 
+      {loadFailed && (
+        <p
+          role="alert"
+          className="rounded-xl border border-[var(--warn)] bg-[var(--warn-soft)] px-4 py-3 text-sm text-[var(--warn)]"
+        >
+          Nie udało się wczytać danych z bazy, więc to, co widzisz poniżej, może być niepełne. Odśwież stronę za chwilę.
+        </p>
+      )}
+
       {/* Logo tylko na telefonie */}
       <div className="flex flex-col items-center gap-1 -mt-1 md:hidden">
         <Image
@@ -192,6 +214,8 @@ export default async function Home() {
         />
       </div>
 
+      <SearchBox />
+
       {/* Aktywny timer */}
       {active && activeJob && (
         <ActiveTimerHomeCard
@@ -203,15 +227,16 @@ export default async function Home() {
       )}
 
       {/* Skróty — to, po co najczęściej się wchodzi */}
-      <nav aria-label="Skróty" className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <QuickAction href="/jobs/new" label="Nowe zlecenie" hint="klient + tytuł" icon={<PlusIcon />} primary />
+      <nav aria-label="Skróty" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5">
+        <QuickAction href="/calculator" label="Nowa wycena" hint="cena i kwota na rękę" icon={<CalcIcon />} primary />
+        <QuickAction href="/jobs/new" label="Nowe zlecenie" hint="klient + tytuł" icon={<PlusIcon />} />
+        <QuickAction href="/briefs/new" label="Nowy pomiar" hint="brief i wymiary" icon={<CabinetIcon />} />
+        <QuickAction href="/clients/new" label="Dodaj klienta" hint="dane kontaktowe" icon={<PlusIcon />} />
         <QuickAction href="/timer" label="Licznik czasu" hint="start / stop pracy" icon={<TimerIcon />} />
-        <QuickAction href="/calculator" label="Kalkulator" hint="wycena na czysto" icon={<CalcIcon />} />
-        <QuickAction href="/cennik-szafek" label="Cennik szafek" hint="stawki i marża" icon={<CabinetIcon />} />
       </nav>
 
       {/* Główna siatka: zlecenia w toku + terminy */}
-      <div className="grid gap-5 xl:[grid-template-columns:minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:[grid-template-columns:minmax(0,3fr)_minmax(0,2fr)]">
         <section>
           <SectionHeading action={{ href: "/jobs", label: "Wszystkie zlecenia" }}>
             Zlecenia w toku
@@ -395,7 +420,7 @@ function JobRow({
   return (
     <Link
       href={`/jobs/${job.id}`}
-      className="flex items-center gap-3 px-3.5 py-3 active:bg-[#f6f6f5] hover:bg-[#faf9f8] transition-colors first:rounded-t-2xl last:rounded-b-2xl"
+      className="premium-job-row flex items-center gap-3 px-3.5 py-3 active:bg-[#f6f6f5] hover:bg-[#faf9f8] transition-colors first:rounded-t-2xl last:rounded-b-2xl"
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -451,7 +476,8 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-2xl border border-[#ededea] bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(40,38,36,0.04)] transition-colors hover:border-[#d8d7d3] active:bg-[#f6f6f5]"
+      data-primary={primary}
+      className="premium-quick-action"
     >
       <span
         aria-hidden
@@ -636,3 +662,4 @@ function DeadlineIcon() {
     </svg>
   );
 }
+

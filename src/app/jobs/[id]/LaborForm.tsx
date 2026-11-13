@@ -9,7 +9,7 @@ import { fmtDate, fmtDuration, fmtPLN } from "@/lib/format";
 type Entry = { id: string; date: string; minutes: number; phase: WorkPhase; notes: string | null };
 
 const inputCls =
-  "rounded-lg border border-zinc-300 bg-white text-zinc-900 px-3 py-2.5 text-base focus:outline-none focus:border-accent w-full";
+  "rounded-lg border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] px-3 py-2.5 text-base focus:outline-none focus:border-[var(--accent)] w-full";
 
 export default function LaborForm({
   jobId,
@@ -85,7 +85,7 @@ export default function LaborForm({
           <button
             type="submit"
             disabled={adding}
-            className="rounded-lg text-white text-[14px] font-semibold px-4 bg-[linear-gradient(160deg,#a06f3f,#7d5530)] disabled:opacity-50"
+            className="rounded-lg text-[var(--btn-fg)] text-[14px] font-semibold px-4 bg-[var(--accent)] disabled:opacity-50"
           >
             {adding ? "…" : "Dodaj"}
           </button>
@@ -133,7 +133,7 @@ export default function LaborForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-white border border-[#ededea] text-[14px] font-semibold px-4 py-2.5 active:bg-[#f6f6f5] disabled:opacity-50"
+          className="rounded-lg bg-white border border-[#ededea] text-[14px] font-semibold px-4 py-2.5 active:bg-[var(--surface-2)] disabled:opacity-50"
         >
           Zapisz
         </button>

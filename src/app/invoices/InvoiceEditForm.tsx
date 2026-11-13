@@ -37,13 +37,13 @@ export default function InvoiceEditForm({ invoice }: { invoice: Invoice }) {
         </Field>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Netto">
+        <Field label="Netto (zł)">
           <input name="amount_net" inputMode="decimal" defaultValue={invoice.amount_net ?? ""} className={inputCls} />
         </Field>
         <Field label="VAT (zł)">
           <input name="amount_vat" inputMode="decimal" defaultValue={invoice.amount_vat ?? ""} className={inputCls} />
         </Field>
-        <Field label="Brutto">
+        <Field label="Brutto (zł)">
           <input name="amount_gross" inputMode="decimal" defaultValue={invoice.amount_gross ?? ""} className={inputCls} />
         </Field>
       </div>
@@ -69,7 +69,7 @@ export default function InvoiceEditForm({ invoice }: { invoice: Invoice }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-accent text-white py-2.5 font-medium active:opacity-80 disabled:opacity-50"
+        className="rounded-lg bg-[var(--accent)] text-[var(--background)] min-h-[48px] font-medium active:opacity-80 disabled:opacity-50"
       >
         {pending ? "Zapisuję..." : "Zapisz dane faktury"}
       </button>
@@ -78,7 +78,7 @@ export default function InvoiceEditForm({ invoice }: { invoice: Invoice }) {
 }
 
 const inputCls =
-  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2.5 text-sm focus:outline-none focus:border-accent w-full";
+  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 min-h-[44px] text-sm focus:outline-none focus:border-accent w-full";
 
 function Field({
   label,
@@ -89,7 +89,7 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
+      <span className="text-[13px] font-medium text-zinc-600">{label}</span>
       {children}
     </label>
   );

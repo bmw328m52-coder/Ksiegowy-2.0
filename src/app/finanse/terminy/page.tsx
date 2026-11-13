@@ -92,7 +92,7 @@ export default async function TerminyPage() {
 
         <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
               Podatkowe · liczone automatycznie
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">Bieżący okres</h2>
@@ -107,9 +107,9 @@ export default async function TerminyPage() {
                   <CatDot category={t.category} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-[#1f1d1b]">{t.label}</p>
-                    <p className="text-[11px] text-[#8d8a85]">{t.periodLabel}</p>
+                    <p className="text-[13px] text-[#8d8a85]">{t.periodLabel}</p>
                     {t.hint && (
-                      <p className="text-[11px] font-medium text-[#a06f3f]">{t.hint}</p>
+                      <p className="text-[13px] font-medium text-[#a06f3f]">{t.hint}</p>
                     )}
                   </div>
                 </div>
@@ -122,7 +122,7 @@ export default async function TerminyPage() {
         <AddDeadlineForm today={today} />
 
         <section className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
+          <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
             Własne terminy {open.length > 0 && `(${open.length})`}
           </p>
           {open.length === 0 ? (
@@ -136,7 +136,7 @@ export default async function TerminyPage() {
 
         {done.length > 0 && (
           <section className="space-y-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
+            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
               Wykonane ({done.length})
             </p>
             {done.map((d) => (
@@ -163,10 +163,10 @@ function DeadlineCard({ d }: { d: Deadline }) {
         <button
           type="submit"
           aria-label={d.done ? "Cofnij" : "Oznacz wykonane"}
-          className={`w-6 h-6 rounded-md border flex items-center justify-center text-xs ${
+          className={`w-11 h-11 rounded-lg border-2 flex items-center justify-center text-base ${
             d.done
-              ? "bg-[#3a6b4d] border-[#3a6b4d] text-white"
-              : "border-[#cfc7b8] text-transparent active:bg-[#f0f0ee]"
+              ? "bg-[var(--ok)] border-[var(--ok)] text-[var(--background)]"
+              : "border-[var(--border)] text-transparent active:bg-[var(--surface-2)]"
           }`}
         >
           ✓
@@ -176,11 +176,11 @@ function DeadlineCard({ d }: { d: Deadline }) {
         <p className={`text-sm font-medium text-[#1f1d1b] ${d.done ? "line-through" : ""}`}>
           {d.title}
         </p>
-        <p className="text-[11px] text-[#8d8a85] flex items-center gap-1.5">
+        <p className="text-[13px] text-[#8d8a85] flex items-center gap-1.5">
           <CatDot category={d.category} />
           {DEADLINE_CATEGORY_LABELS[d.category]} · {fmtDate(due)}
         </p>
-        {d.note && <p className="text-[11px] text-[#6f6c66] mt-0.5">{d.note}</p>}
+        {d.note && <p className="text-[13px] text-[#6f6c66] mt-0.5">{d.note}</p>}
       </div>
       {!d.done && <DuePill due={due} />}
       <form action={deleteDeadlineAction}>
@@ -188,7 +188,7 @@ function DeadlineCard({ d }: { d: Deadline }) {
         <button
           type="submit"
           aria-label="Usuń"
-          className="text-[#c9c0b1] hover:text-[#b8523a] p-1"
+          className="text-[var(--muted)] hover:text-[var(--warn)] w-11 h-11 flex items-center justify-center"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
@@ -202,26 +202,26 @@ function DeadlineCard({ d }: { d: Deadline }) {
 function AddDeadlineForm({ today }: { today: string }) {
   return (
     <details className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
-      <summary className="px-4 py-3 text-sm font-semibold text-[#a06f3f] cursor-pointer select-none">
+      <summary className="px-4 min-h-[48px] flex items-center text-sm font-semibold text-[#a06f3f] cursor-pointer select-none">
         + Dodaj własny termin
       </summary>
       <form action={createDeadlineAction} className="px-4 pb-4 space-y-3">
         <div>
-          <label className="text-[11px] text-[#8d8a85]">Nazwa</label>
+          <label className="text-[13px] text-[#8d8a85]">Nazwa</label>
           <input
             name="title"
             required
             placeholder="np. Składka zdrowotna, przegląd auta"
-            className="w-full rounded-md border border-zinc-300 bg-white text-sm px-3 py-2 mt-0.5"
+            className="w-full rounded-md border border-zinc-300 bg-white text-sm px-3 min-h-[44px] mt-0.5"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[11px] text-[#8d8a85]">Kategoria</label>
+            <label className="text-[13px] text-[#8d8a85]">Kategoria</label>
             <select
               name="category"
               defaultValue="inne"
-              className="w-full rounded-md border border-zinc-300 bg-white text-sm px-2 py-2 mt-0.5"
+              className="w-full rounded-md border border-zinc-300 bg-white text-sm px-2 min-h-[44px] mt-0.5"
             >
               {DEADLINE_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -231,26 +231,26 @@ function AddDeadlineForm({ today }: { today: string }) {
             </select>
           </div>
           <div>
-            <label className="text-[11px] text-[#8d8a85]">Data</label>
+            <label className="text-[13px] text-[#8d8a85]">Data</label>
             <input
               type="date"
               name="due_date"
               required
               defaultValue={today}
-              className="w-full rounded-md border border-zinc-300 bg-white text-sm px-2 py-2 mt-0.5"
+              className="w-full rounded-md border border-zinc-300 bg-white text-sm px-2 min-h-[44px] mt-0.5"
             />
           </div>
         </div>
         <div>
-          <label className="text-[11px] text-[#8d8a85]">Notatka (opcjonalnie)</label>
+          <label className="text-[13px] text-[#8d8a85]">Notatka (opcjonalnie)</label>
           <input
             name="note"
-            className="w-full rounded-md border border-zinc-300 bg-white text-sm px-3 py-2 mt-0.5"
+            className="w-full rounded-md border border-zinc-300 bg-white text-sm px-3 min-h-[44px] mt-0.5"
           />
         </div>
         <button
           type="submit"
-          className="w-full rounded-md bg-accent text-white text-sm py-2 font-medium active:opacity-80"
+          className="w-full rounded-md bg-[var(--accent)] text-[var(--background)] text-sm py-2 font-medium min-h-[44px] active:opacity-80"
         >
           Zapisz termin
         </button>
@@ -273,19 +273,19 @@ function DuePill({ due }: { due: Date }) {
   const overdue = days < 0;
   const urgent = days >= 0 && days <= 7;
   const cls = overdue
-    ? "bg-[#f4e0d9] text-[#b8523a] border-[#e6c4b9]"
+    ? "bg-[var(--warn-soft)] text-[var(--warn)] border-[var(--warn)]"
     : urgent
-      ? "bg-[#f1e5d2] text-[#7d5530] border-[#e3d4b6]"
-      : "bg-[#f6f6f5] text-[#8d8a85] border-[#ededea]";
+      ? "bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]"
+      : "bg-[var(--surface-2)] text-[#8d8a85] border-[#ededea]";
   const suffix = overdue
-    ? `${Math.abs(days)} dni po`
+    ? `${Math.abs(days)} dni po terminie`
     : days === 0
       ? "dziś"
       : days === 1
         ? "jutro"
         : `za ${days} dni`;
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${cls} whitespace-nowrap shrink-0`}>
+    <span className={`text-[12px] px-2 py-0.5 rounded-full border ${cls} whitespace-nowrap shrink-0`}>
       {suffix}
     </span>
   );

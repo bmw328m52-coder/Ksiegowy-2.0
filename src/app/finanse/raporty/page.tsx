@@ -19,7 +19,7 @@ export default async function RaportyPage() {
 
         <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
               Raport miesięczny
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">
@@ -35,16 +35,16 @@ export default async function RaportyPage() {
               </>
             )}
             <ReportRow label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
-            <div className="h-px bg-[#eeeeed] my-1" />
+            <div className="h-px bg-[var(--surface-2)] my-1" />
             <ReportRow
               label="Wynik miesiąca"
               value={fmtPLN(d.month.profit)}
               tone={d.month.profit >= 0 ? "gold" : "negative"}
               bold
             />
-            <div className="h-px bg-[#eeeeed] my-1" />
-            <ReportRow label="Należności (do zapłaty przez klientów)" value={fmtPLN(d.pendingRevenueGross)} sub />
-            <ReportRow label="Zaliczki otwarte" value={fmtPLN(d.openDepositsTotal)} sub />
+            <div className="h-px bg-[var(--surface-2)] my-1" />
+            <ReportRow label="Należności brutto (do zapłaty przez klientów)" value={fmtPLN(d.pendingRevenueGross)} sub />
+            <ReportRow label="Zaliczki otwarte brutto" value={fmtPLN(d.openDepositsTotal)} sub />
             {d.vat &&
               (d.vat.vatToReclaim > 0 ? (
                 <ReportRow
@@ -57,19 +57,19 @@ export default async function RaportyPage() {
                 <ReportRow label={`VAT do zapłaty (${d.vat.label})`} value={fmtPLN(d.vat.vatToPay)} sub />
               ))}
             <ReportRow label="Zaliczka PIT (miesiąc)" value={fmtPLN(d.pit.pitMonth)} sub />
-            <p className="text-[11px] text-[#8d8a85] pt-1 leading-relaxed">
-              PIT, VAT i ZUS liczone tylko z przychodu z faktur. „Bez faktury" to symulacja — poza podatkiem.
+            <p className="text-[12px] text-[#8d8a85] pt-1 leading-relaxed">
+              PIT, VAT i ZUS liczone tylko z przychodu z faktur. „Bez faktury” to symulacja — poza podatkiem.
             </p>
           </div>
 
           {d.costsByCategoryMonth.length > 0 && (
             <div className="px-4 pb-4">
-              <p className="text-[10px] font-semibold text-[#8d8a85] uppercase tracking-wide mb-2">
+              <p className="text-[12px] font-semibold text-[#8d8a85] uppercase tracking-wide mb-2">
                 Koszty wg kategorii
               </p>
               <ul className="space-y-1.5">
                 {d.costsByCategoryMonth.map((r) => (
-                  <li key={r.category} className="flex items-center justify-between gap-2 text-xs">
+                  <li key={r.category} className="flex items-center justify-between gap-2 text-[13px]">
                     <span className="flex items-center gap-1.5 text-[#3a3633] capitalize">
                       <span
                         className="w-2 h-2 rounded-full"
@@ -89,14 +89,14 @@ export default async function RaportyPage() {
         </section>
 
         <section className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
+          <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
             Paczka dokumentów (dla ING / księgowej)
           </p>
           <ExportMonthCard />
         </section>
 
         <section className="rounded-2xl border border-[#ededea] bg-white p-4">
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-2">
+          <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-2">
             Rok {d.year}
           </p>
           <ReportRow label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />

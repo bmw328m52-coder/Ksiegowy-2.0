@@ -80,7 +80,7 @@ export default async function MarginSection({
       </div>
 
       {!hasInvoices ? (
-        <div className="rounded-lg bg-[#f6f6f5] px-3 py-2.5 text-xs text-[#6f6c66]">
+        <div className="rounded-lg bg-[var(--surface-2)] px-3 py-2.5 text-xs text-[#6f6c66]">
           Brak przypiętych faktur. Wejdź w{" "}
           <Link href="/invoices" className="font-semibold text-[#a06f3f] underline-offset-2 hover:underline">
             Faktury
@@ -96,7 +96,7 @@ export default async function MarginSection({
             return (
               <li key={key}>
                 <details className="group rounded-lg border border-[#ededea]">
-                  <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-3 py-2.5 active:bg-[#f6f6f5]">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-3 py-2.5 active:bg-[var(--surface-2)]">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[#1f1d1b] truncate">
                         {head?.supplier_name ?? (head ? "Faktura" : "Koszty bez faktury")}
@@ -192,7 +192,7 @@ export default async function MarginSection({
               </span>
             </div>
           ) : (
-            <p className="text-[11px] text-[#b08968]">
+            <p className="text-[11px] text-[var(--accent)]">
               Wartość zlecenia = 0 —{" "}
               <Link href={`/jobs/${job.id}/edit`} className="font-semibold text-[#a06f3f] underline-offset-2 hover:underline">
                 ustaw kwotę
@@ -214,15 +214,15 @@ export default async function MarginSection({
       )}
 
       {/* Moja wycena — na boku, do porównania */}
-      <details className="group mt-3 rounded-lg bg-[#f6f6f5]">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs text-[#6f6c66]">
+      <details className="group mt-3 rounded-lg bg-[var(--surface-2)]">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 min-h-11 text-sm text-[#6f6c66]">
           <span>
             Szacunek z wyceny
             {m.materialCount > 0 && (
               <span className="ml-1 tabular-nums">· materiały {fmtPLN(m.materialCostGross)} brutto</span>
             )}
           </span>
-          <span className="text-[#b3b0aa] group-open:rotate-180 transition-transform">▾</span>
+          <span className="text-[var(--muted)] group-open:rotate-180 transition-transform">▾</span>
         </summary>
         <div className="px-3 pb-3 space-y-1.5 text-xs">
           <div className="flex justify-between">
@@ -268,7 +268,7 @@ function MarginBadge({ pct }: { pct: number }) {
         pct >= 20
           ? "bg-[#e3efe5] text-[#3a6b4d]"
           : pct >= 0
-            ? "bg-[#faf5e9] text-[#a18653]"
+            ? "bg-[#faf5e9] text-[var(--accent)]"
             : "bg-red-100 text-red-700"
       }`}
     >

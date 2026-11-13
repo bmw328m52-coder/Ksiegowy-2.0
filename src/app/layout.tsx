@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "./premium.css";
+import AppAppearance from "@/components/AppAppearance";
 import BottomNav from "@/components/BottomNav";
 import Sidebar from "@/components/Sidebar";
 import ActiveTimerBar from "@/components/ActiveTimerBar";
@@ -59,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="pl" translate="no" className={`notranslate h-full antialiased ${inter.variable}`}>
       <body className="min-h-full text-[#1f1d1b] pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 bg-[#f2f2f1]">
-        <PrivateModeProvider>
+        <AppAppearance><PrivateModeProvider>
           <div className="flex flex-col min-h-full md:max-w-[1500px] md:mx-auto md:p-[18px] md:grid md:gap-[18px] md:items-start md:[grid-template-columns:auto_minmax(0,1fr)]">
             <Suspense fallback={null}>
               <Sidebar />
@@ -72,8 +74,9 @@ export default function RootLayout({
           <ActiveTimerBar />
           <BottomNav />
           <ServiceWorkerRegistrar />
-        </PrivateModeProvider>
+        </PrivateModeProvider></AppAppearance>
       </body>
     </html>
   );
 }
+

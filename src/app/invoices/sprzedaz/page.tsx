@@ -64,7 +64,7 @@ export default async function SalesInvoicesPage() {
         />
       ) : (
         <>
-          <p className="text-xs text-[#6f6c66] -mt-1">
+          <p className="text-[13px] text-[#6f6c66] -mt-1">
             Z tych faktur liczy się PIT i VAT należny. Przypięcie do zlecenia oznacza je jako „z fakturą” i
             liczy rentowność.
             {unlinked > 0 ? ` Do przypisania: ${unlinked}.` : ""}

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import AttentionPanel from "@/components/AttentionPanel";
 import { getFinanceAttention, getMonthEstimatedCost } from "@/lib/dao/finance";
 import { getDashboardData, MONTH_NAMES_PL } from "@/lib/dao/dashboard";
 import { fmtPLN } from "@/lib/format";
-import { PageContainer, SectionHeading, StatCard, Card } from "@/components/ui";
+import { PageContainer, SectionHeading, StatCard } from "@/components/ui";
+import { AttentionList, FinCard } from "./fin-ui";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Finanse" };
@@ -128,18 +128,18 @@ export default async function FinansePage() {
         </p>
       </header>
 
-      <AttentionPanel items={attention} />
+      <AttentionList items={attention} />
 
       {/* Bieżący miesiąc */}
       <section>
         <SectionHeading action={{ href: "/dashboard", label: "Pełny bilans" }}>
           Bieżący miesiąc
         </SectionHeading>
-        <div className="grid grid-cols-3 gap-2.5">
-          <StatCard label="Przychód" value={fmtPLN(d.month.revenueNet)} tone="neutral" money />
-          <StatCard label="Koszt (faktury)" value={fmtPLN(d.month.costsNet)} tone="info" money hint="z faktur kosztowych" />
+        <div className="grid grid-cols-1 min-[560px]:grid-cols-3 md:max-[999px]:grid-cols-1 gap-2.5">
+          <StatCard label="Przychód netto" value={fmtPLN(d.month.revenueNet)} tone="neutral" money />
+          <StatCard label="Koszt netto (faktury)" value={fmtPLN(d.month.costsNet)} tone="info" money hint="z faktur kosztowych" />
           <StatCard
-            label="Wynik ks."
+            label="Wynik księgowy"
             value={fmtPLN(d.month.profit)}
             tone={d.month.profit >= 0 ? "ok" : "warn"}
             money
@@ -148,9 +148,9 @@ export default async function FinansePage() {
 
         {/* Rozbicie przychodu: z wystawionej faktury vs bez faktury (sprzedaż paragonowa/bez FV). */}
         {d.monthRevenueSplit && (
-          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+          <div className="mt-2.5 grid grid-cols-1 min-[480px]:grid-cols-2 md:max-[999px]:grid-cols-1 gap-2.5">
             <StatCard
-              label="Przychód z faktur"
+              label="Przychód netto z faktur"
               value={fmtPLN(d.monthRevenueSplit.invoicedNet)}
               tone="info"
               money
@@ -161,7 +161,7 @@ export default async function FinansePage() {
               }
             />
             <StatCard
-              label="Przychód bez faktury"
+              label="Przychód netto bez FV"
               value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)}
               tone="accent"
               money
@@ -175,9 +175,9 @@ export default async function FinansePage() {
         )}
 
         {/* Szacunek z wyceny — realny koszt materiałów, gdy nie podpinasz faktur kosztowych. */}
-        <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+        <div className="mt-2.5 grid grid-cols-1 min-[480px]:grid-cols-2 md:max-[999px]:grid-cols-1 gap-2.5">
           <StatCard
-            label="Koszt (wycena)"
+            label="Koszt netto (wycena)"
             value={fmtPLN(est.estCostNet)}
             tone="accent"
             money
@@ -193,12 +193,12 @@ export default async function FinansePage() {
         </div>
 
         {(d.pendingRevenueGross > 0 || d.openDepositsTotal > 0) && (
-          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+          <div className="mt-2.5 grid grid-cols-1 min-[480px]:grid-cols-2 md:max-[999px]:grid-cols-1 gap-2.5">
             {d.pendingRevenueGross > 0 && (
-              <StatCard label="Należności" value={fmtPLN(d.pendingRevenueGross)} tone="warn" money href="/invoices" />
+              <StatCard label="Należności brutto" value={fmtPLN(d.pendingRevenueGross)} tone="warn" money href="/invoices" />
             )}
             {d.openDepositsTotal > 0 && (
-              <StatCard label="Zaliczki otwarte" value={fmtPLN(d.openDepositsTotal)} tone="info" money />
+              <StatCard label="Zaliczki otwarte brutto" value={fmtPLN(d.openDepositsTotal)} tone="info" money />
             )}
           </div>
         )}
@@ -212,7 +212,7 @@ export default async function FinansePage() {
             <Link
               key={t.href}
               href={t.href}
-              className="group rounded-2xl border border-[#ededea] bg-white p-4 flex items-center gap-3 shadow-[0_1px_2px_rgba(40,38,36,0.04)] transition-all active:scale-[0.98] active:bg-[#f6f6f5] hover:border-[#d8d7d3] hover:shadow-[0_2px_8px_rgba(40,38,36,0.08)]"
+              className="group rounded-2xl border border-[#ededea] bg-white p-4 flex items-center gap-3 transition-colors min-h-[72px] active:bg-[var(--surface-2)] hover:border-[var(--accent)]"
             >
               <span className={`inline-flex items-center justify-center w-11 h-11 rounded-xl shrink-0 ${TONE_BOX[t.tone]}`}>
                 {t.icon}
@@ -223,18 +223,18 @@ export default async function FinansePage() {
                 </span>
                 <span className="text-[12px] text-[#6f6c66] truncate">{t.desc}</span>
               </span>
-              <span className="ml-auto text-[#c9c7c2] group-hover:text-[#a06f3f] transition-colors">→</span>
+              <span className="ml-auto text-[#c9c7c2] group-hover:text-[var(--accent)] transition-colors">→</span>
             </Link>
           ))}
         </div>
       </section>
 
-      <Card tone="muted" className="text-center">
-        <p className="text-[12px] text-[#6f6c66] leading-relaxed">
-          <b className="text-[#4a4843]">LUVIANO</b> = kontrola i analiza.{" "}
-          <b className="text-[#4a4843]">ING Księgowość</b> = prawda księgowa (KPiR, VAT, JPK, ZUS).
+      <FinCard tone="muted" className="text-center">
+        <p className="text-[13px] text-[var(--muted)] leading-relaxed">
+          <b className="text-[var(--foreground)]">LUVIANO</b> = kontrola i analiza.{" "}
+          <b className="text-[var(--foreground)]">ING Księgowość</b> = prawda księgowa (KPiR, VAT, JPK, ZUS).
         </p>
-      </Card>
+      </FinCard>
     </PageContainer>
   );
 }

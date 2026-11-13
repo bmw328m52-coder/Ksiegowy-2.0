@@ -27,7 +27,17 @@ export function fmtDate(value: string | Date | null | undefined): string {
 
 export function parseAmount(input: string | null | undefined): number | null {
   if (!input) return null;
-  const cleaned = input.replace(/\s/g, "").replace(",", ".");
+  let cleaned = input.replace(/\s/g, "");
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+  if (lastComma !== -1 && lastDot !== -1) {
+    // Oba znaki naraz („1.234,56” lub „1,234.56”): ostatni jest separatorem dziesiętnym, drugi tysięcy.
+    const decimal = lastComma > lastDot ? "," : ".";
+    const thousands = decimal === "," ? "." : ",";
+    cleaned = cleaned.split(thousands).join("").replace(decimal, ".");
+  } else {
+    cleaned = cleaned.replace(",", ".");
+  }
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 }

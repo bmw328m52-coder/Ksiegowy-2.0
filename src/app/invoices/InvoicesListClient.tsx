@@ -77,7 +77,7 @@ export default function InvoicesListClient({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Szukaj dostawcy lub numeru…"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-9 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className="w-full rounded-lg border border-zinc-300 bg-white px-10 min-h-[48px] text-base placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-accent/30"
           aria-label="Szukaj faktur"
         />
         <SearchIcon />
@@ -86,7 +86,7 @@ export default function InvoicesListClient({
             type="button"
             onClick={() => setQ("")}
             aria-label="Wyczyść"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 active:scale-95"
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-zinc-700 active:scale-95"
           >
             <ClearIcon />
           </button>
@@ -97,7 +97,7 @@ export default function InvoicesListClient({
         <button
           type="button"
           onClick={() => setShowAssigned((v) => !v)}
-          className="w-full rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 active:bg-zinc-50"
+          className="w-full rounded-lg border border-dashed border-zinc-300 bg-white px-3 min-h-[44px] text-[13px] text-zinc-600 active:bg-zinc-50"
         >
           {showAssigned
             ? `Schowaj ogarnięte (${hiddenLabel})`
@@ -106,7 +106,7 @@ export default function InvoicesListClient({
       )}
 
       {q && (
-        <p className="text-xs text-zinc-500">
+        <p className="text-[13px] text-zinc-500">
           Pasuje {filtered.length} z {invoices.length}
         </p>
       )}
@@ -134,34 +134,34 @@ export default function InvoicesListClient({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium truncate">{inv.supplier_name ?? "—"}</p>
-                          <p className="text-xs text-zinc-500 truncate">
+                          <p className="font-medium line-clamp-2 break-words">{inv.supplier_name ?? "— brak nazwy dostawcy —"}</p>
+                          <p className="text-[13px] text-zinc-500 break-words">
                             {inv.invoice_number ?? "bez numeru"} • {fmtDate(inv.issue_date)}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="font-medium text-sm">{fmtPLN(inv.amount_gross)}</span>
+                          <span className="font-medium text-sm tabular-nums whitespace-nowrap" title="Kwota brutto">{fmtPLN(inv.amount_gross)} <span className="text-[12px] font-normal text-zinc-500">brutto</span></span>
                           <StatusBadge status={inv.ocr_status} />
                         </div>
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-1.5">
                         <div className="flex flex-wrap gap-1 min-w-0">
                           {isOverdueUnpaid(inv, today) && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f4e0d9] text-[#7a2f1e] font-medium">
+                            <span className="text-[12px] px-1.5 py-0.5 rounded bg-[var(--warn-soft)] text-[var(--warn)] font-medium">
                               po terminie
                             </span>
                           )}
                           {(categoriesMap[inv.id] ?? []).map((c) => (
                             <span
                               key={c}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700"
+                              className="text-[12px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-700"
                             >
                               {c}
                             </span>
                           ))}
                         </div>
                         <span
-                          className={`shrink-0 text-xs text-zinc-400 transition-transform ${openId === inv.id ? "rotate-180" : ""}`}
+                          className={`shrink-0 text-[13px] text-zinc-400 transition-transform ${openId === inv.id ? "rotate-180" : ""}`}
                           aria-hidden
                         >
                           ▾
@@ -198,14 +198,14 @@ function Thumbnail({ src, mime }: { src: string | null; mime: string | null }) {
   }
   if (mime === "application/xml") {
     return (
-      <div className="w-12 h-12 rounded-md bg-[#282624] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+      <div className="w-12 h-12 rounded-md bg-[#282624] flex items-center justify-center text-white text-[12px] font-bold shrink-0">
         KSeF
       </div>
     );
   }
   if (mime === "application/pdf") {
     return (
-      <div className="w-12 h-12 rounded-md bg-red-50 border border-red-200 flex items-center justify-center text-red-700 text-[10px] font-bold shrink-0">
+      <div className="w-12 h-12 rounded-md bg-red-50 border border-red-200 flex items-center justify-center text-red-700 text-[12px] font-bold shrink-0">
         PDF
       </div>
     );
@@ -229,7 +229,7 @@ function StatusBadge({ status }: { status: keyof typeof OCR_STATUS_LABELS }) {
     manual: "bg-amber-50 text-amber-700",
   };
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full ${cls[status] ?? cls.pending}`}>
+    <span className={`text-[12px] px-2 py-0.5 rounded-full ${cls[status] ?? cls.pending}`}>
       {OCR_STATUS_LABELS[status]}
     </span>
   );
@@ -286,7 +286,7 @@ function InvoicePreview({
   const overdue = isOverdueUnpaid(inv, today);
   const jobs = [...new Set(lines.map((l) => l.job_title ?? "koszt ogólny"))];
   return (
-    <div className="border-t border-zinc-100 bg-zinc-50/60 px-3 py-2.5 text-xs space-y-2">
+    <div className="border-t border-zinc-100 bg-zinc-50/60 px-3 py-2.5 text-[13px] space-y-2">
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-zinc-600">
         {inv.amount_net != null && (
           <span>
@@ -320,7 +320,7 @@ function InvoicePreview({
       )}
       <Link
         href={`/invoices/${inv.id}`}
-        className="flex items-center justify-center rounded-lg bg-[#a06f3f] py-2 text-xs font-semibold text-white active:opacity-90"
+        className="flex items-center justify-center rounded-lg bg-[#a06f3f] min-h-[44px] text-sm font-semibold text-white active:opacity-90"
       >
         Otwórz fakturę →
       </Link>

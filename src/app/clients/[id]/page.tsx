@@ -241,7 +241,7 @@ export default async function ClientDetailPage({
                       <div className="min-w-0">
                         <p className="font-semibold text-[14px] text-[#1f1d1b] truncate">{j.title}</p>
                         <p className="text-[11px] text-[#8d8a85] mt-0.5">
-                          {fmtPLN(j.amount_gross)} · {fmtDate(j.due_date ?? j.start_date)}
+                          {fmtPLN(j.amount_gross)}{(j.due_date ?? j.start_date) ? ` · termin ${fmtDate(j.due_date ?? j.start_date)}` : ""}
                         </p>
                       </div>
                       <Badge tone={jobStatusTone(status)}>{jobStatusLabel(status)}</Badge>
@@ -260,7 +260,7 @@ export default async function ClientDetailPage({
                           <span className="text-[#8d8a85] tabular-nums">· {m.marginPct.toFixed(0)}%</span>
                         )}
                         {!m.fromInvoices && (
-                          <span className="text-[10px] text-[#b3b0aa]">(koszt z wyceny)</span>
+                          <span className="text-[10px] text-[var(--muted)]">(koszt z wyceny)</span>
                         )}
                       </div>
                     )}
@@ -312,7 +312,7 @@ export default async function ClientDetailPage({
                   {m.invoice_id && (
                     <Link
                       href={`/invoices/${m.invoice_id}`}
-                      className="text-[11px] text-[#a06f3f] underline-offset-2 hover:underline mt-1.5 inline-block"
+                      className="text-xs text-[#a06f3f] underline-offset-2 hover:underline inline-flex items-center min-h-11"
                     >
                       Zobacz fakturę →
                     </Link>

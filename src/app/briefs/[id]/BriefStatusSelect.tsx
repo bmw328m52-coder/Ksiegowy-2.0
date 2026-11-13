@@ -31,7 +31,7 @@ export default function BriefStatusSelect({
             await setBriefStatusAction(briefId, fd);
           });
         }}
-        className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm disabled:opacity-60"
+        className="rounded-md border border-zinc-300 bg-white px-3 py-2.5 min-h-11 text-sm disabled:opacity-60"
       >
         {QUOTE_BRIEF_STATUSES.map((s) => (
           <option key={s} value={s}>

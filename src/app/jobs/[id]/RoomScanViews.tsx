@@ -8,7 +8,7 @@ import RoomScanPlan from "./RoomScanPlan";
 // three.js ładujemy dopiero po kliknięciu „3D" — nie obciąża strony zlecenia.
 const RoomScan3D = dynamic(() => import("./RoomScan3D"), {
   ssr: false,
-  loading: () => <div className="h-[420px] w-full animate-pulse rounded-lg bg-[#f4f2ee]" />,
+  loading: () => <div className="h-[420px] w-full animate-pulse rounded-lg bg-[var(--surface-2)]" />,
 });
 
 export default function RoomScanViews({ id, data, name }: { id: string; data: ScanData; name: string }) {

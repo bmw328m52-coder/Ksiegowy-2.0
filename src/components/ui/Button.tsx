@@ -16,8 +16,8 @@ const VARIANT: Record<Variant, string> = {
 };
 
 const SIZE: Record<Size, string> = {
-  sm: "text-[13px] px-3 py-1.5 gap-1.5 rounded-lg",
-  md: "text-[14px] px-4 py-2.5 gap-2 rounded-xl",
+  sm: "min-h-11 text-[13px] px-3 py-1.5 gap-1.5 rounded-lg",
+  md: "min-h-11 text-[14px] px-4 py-2.5 gap-2 rounded-xl",
 };
 
 const BASE =

@@ -372,7 +372,7 @@ export default function ServiceCalculatorForm({
             <button
               type="button"
               onClick={() => setExtras((prev) => prev.filter((_, i) => i !== idx))}
-              className="h-[42px] w-9 shrink-0 rounded-lg border border-zinc-200 text-zinc-500 active:bg-zinc-50"
+              className="h-12 w-11 shrink-0 rounded-lg border border-zinc-200 text-zinc-500 active:bg-zinc-50"
               aria-label="Usuń"
             >
               ×
@@ -382,7 +382,7 @@ export default function ServiceCalculatorForm({
         <button
           type="button"
           onClick={() => setExtras((prev) => [...prev, makeLine()])}
-          className="w-full rounded-lg border border-dashed border-zinc-300 text-sm py-2 text-zinc-600 active:bg-zinc-50"
+          className="min-h-11 w-full rounded-lg border border-dashed border-zinc-300 text-sm py-2 text-zinc-600 active:bg-zinc-50"
         >
           + Dodaj pozycję
         </button>
@@ -469,20 +469,25 @@ export default function ServiceCalculatorForm({
       <style jsx>{`
         .input {
           width: 100%;
-          height: 42px;
+          height: 48px;
           padding: 0 12px;
           border-radius: 0.5rem;
-          border: 1px solid #e4e4e7;
-          background: white;
+          border: 1px solid #8a8677;
+          background: var(--background);
           font-size: 16px;
+          color: var(--foreground);
         }
         .input:focus {
-          outline: 2px solid #1f1d1b;
-          outline-offset: 1px;
+          outline: 3px solid var(--accent);
+          outline-offset: 2px;
+        }
+        .input::placeholder {
+          color: var(--muted);
+          opacity: 0.8;
         }
         .input:disabled {
-          background: #f4f4f5;
-          color: #71717a;
+          background: var(--surface-2);
+          color: var(--muted);
         }
       `}</style>
     </div>
@@ -545,7 +550,7 @@ function ZusPreset({
     <button
       type="button"
       onClick={() => onPick(amount.toFixed(2))}
-      className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-600 active:bg-zinc-50"
+      className="min-h-11 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 active:bg-zinc-50"
     >
       {label}: {fmtPLN(amount)}
     </button>

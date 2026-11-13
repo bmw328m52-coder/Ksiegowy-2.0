@@ -47,7 +47,7 @@ export default function UploadForm() {
           type="button"
           disabled={pending || source === "file"}
           onClick={() => setCameraOpen(true)}
-          className={`rounded-xl bg-accent text-white p-6 flex flex-col items-center gap-2 active:opacity-80 ${
+          className={`rounded-xl bg-[var(--accent)] text-[var(--background)] p-6 flex flex-col items-center gap-2 active:opacity-80 ${
             pending ? "opacity-50 pointer-events-none" : ""
           }`}
         >
@@ -88,7 +88,7 @@ export default function UploadForm() {
           <div className="rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-2 text-sm">
             <span className="text-emerald-700 font-medium">✓ Gotowe: </span>
             <span className="font-medium break-all">{fileName}</span>
-            <p className="text-xs text-emerald-700 mt-1">
+            <p className="text-[13px] text-emerald-700 mt-1">
               Kliknij niżej &quot;Wgraj i odczytaj&quot;, żeby przetworzyć fakturę.
             </p>
           </div>
@@ -103,13 +103,13 @@ export default function UploadForm() {
         <button
           type="submit"
           disabled={pending || !fileName}
-          className="rounded-lg bg-accent text-white py-3 font-medium active:opacity-80 disabled:opacity-50"
+          className="rounded-lg bg-[var(--accent)] text-[var(--background)] py-3 font-medium active:opacity-80 disabled:opacity-50"
         >
           {pending ? "Analizuję fakturę..." : "Wgraj i odczytaj"}
         </button>
 
         {pending && (
-          <p className="text-xs text-zinc-500 text-center">
+          <p className="text-[13px] text-zinc-500 text-center">
             Claude AI rozpoznaje dane z faktury — to może potrwać 5–20 sekund.
           </p>
         )}

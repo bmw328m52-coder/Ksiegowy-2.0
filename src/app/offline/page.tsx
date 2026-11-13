@@ -19,13 +19,13 @@ export default function OfflinePage() {
           <button
             type="button"
             onClick={() => location.reload()}
-            className="rounded-lg bg-accent text-white py-2 text-sm font-medium active:opacity-80"
+            className="rounded-lg bg-accent text-white min-h-11 py-2 text-sm font-semibold active:opacity-80 inline-flex items-center justify-center"
           >
             Spróbuj ponownie
           </button>
           <Link
             href="/"
-            className="rounded-lg border border-zinc-300 py-2 text-sm font-medium text-[#1f1d1b]"
+            className="rounded-lg border border-zinc-300 min-h-11 py-2 text-sm font-medium text-[#1f1d1b] inline-flex items-center justify-center"
           >
             Strona główna
           </Link>

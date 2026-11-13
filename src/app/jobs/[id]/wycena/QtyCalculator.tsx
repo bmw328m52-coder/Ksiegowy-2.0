@@ -56,7 +56,7 @@ export default function QtyCalculator({
           className={`w-20 rounded-md border px-2 py-1 text-right text-sm tabular-nums focus:outline-none ${
             error
               ? "border-red-300 bg-red-50"
-              : "border-zinc-300 bg-white focus:border-accent"
+              : "border-zinc-300 bg-white focus:border-[var(--accent)]"
           } disabled:opacity-60`}
         />
         <span className="text-xs text-zinc-500 shrink-0">{unit}</span>

@@ -14,13 +14,14 @@ const ts = require("typescript");
 const libDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "lib");
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "luviano-calc-"));
 fs.writeFileSync(path.join(outDir, "package.json"), '{"type":"commonjs"}');
-for (const name of ["tax", "zus", "profitability"]) {
+for (const name of ["tax", "zus", "profitability", "format"]) {
   const src = fs.readFileSync(path.join(libDir, `${name}.ts`), "utf8");
   const js = ts.transpileModule(src, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   fs.writeFileSync(path.join(outDir, `${name}.js`), js);
 }
+const { parseAmount } = require(path.join(outDir, "format.js"));
 const { calcJobProfit, requiredPriceGross, rateStatus, requiredHourlyRate, planVsActual } = require(
   path.join(outDir, "profitability.js"),
 );
@@ -159,4 +160,24 @@ test("plan a wykonanie: brak godzin i faktur po zakończeniu → wartości z pla
   near(r.actual.netCash, r.planned.netCash);
   const cheaper = planVsActual(plan, { amountGross: base.amountGross - 2000, hours: 0, costsGross: 0, finished: true });
   near(r.planned.netCash - cheaper.actual.netCash, (2000 / 1.08) * 0.79);
+});
+
+test("parseAmount: dotychczasowe poprawne zapisy bez zmian", () => {
+  assert.equal(parseAmount("12300"), 12300);
+  assert.equal(parseAmount("12300,50"), 12300.5);
+  assert.equal(parseAmount("12300.5"), 12300.5);
+  assert.equal(parseAmount("12 300"), 12300);
+  assert.equal(parseAmount("-500"), -500);
+  assert.equal(parseAmount("1.234"), 1.234);
+});
+
+test("parseAmount: oba separatory naraz i zapisy błędne", () => {
+  assert.equal(parseAmount("1.234,56"), 1234.56);
+  assert.equal(parseAmount("1 234,56"), 1234.56);
+  assert.equal(parseAmount("1,234.56"), 1234.56);
+  assert.equal(parseAmount("1.234.567,89"), 1234567.89);
+  assert.equal(parseAmount("12abc"), null);
+  assert.equal(parseAmount("###"), null);
+  assert.equal(parseAmount(""), null);
+  assert.equal(parseAmount(null), null);
 });

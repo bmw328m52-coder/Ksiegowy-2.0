@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useSyncExternalStore } from "react";
+import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
 import type { CalcResult, TaxForm } from "@/lib/tax";
 import {
   calcJobProfit,
@@ -112,7 +112,7 @@ const STATUS_TONE: Record<
     box: "border-emerald-300 bg-emerald-50",
     label: "text-emerald-700",
     value: "text-emerald-900",
-    sub: "text-emerald-700/80",
+    sub: "text-emerald-800",
     text: "Cel osiągnięty",
   },
   minimum: {
@@ -464,7 +464,17 @@ export default function CalculatorForm({
     discountCalc && hours > 0 ? rateStatus(discountCalc.ratePerHour, targetRate, minRate) : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    // Pion i telefon: jedna kolumna. Szeroki ekran (iPad poziomo, ≥ xl): formularz po lewej,
+    // wynik przyklejony po prawej — zmiana pól od razu widać w wycenie.
+    <div className="premium-calc-layout flex flex-col gap-5">
+      <StickyResultBar
+        cash={netCashAfterReserves}
+        price={amount}
+        rate={ratePerHour}
+        hasRate={hours > 0 && amount > 0}
+      />
+      <div className="flex min-w-0 flex-col gap-5">
+      <Step n={1} title="Zlecenie i kwota" hint="tryb rozliczenia, szablon, cena dla klienta" open={true}>
       <Section title="Szablony">
         <div className="flex gap-2">
           <select
@@ -558,9 +568,10 @@ export default function CalculatorForm({
           />
         </div>
         {!withInvoice && isVatPayer && (
-          <label className="flex items-center gap-2 text-xs text-zinc-700 select-none mt-1">
+          <label className="flex items-center gap-2 text-xs text-zinc-700 select-none min-h-11 mt-1">
             <input
               type="checkbox"
+              className="h-5 w-5 shrink-0 accent-[#a06f3f]"
               checked={deductCostsVat}
               onChange={(e) => setDeductCostsVat(e.target.checked)}
             />
@@ -579,7 +590,9 @@ export default function CalculatorForm({
             onChange={(e) => setAmountStr(e.target.value)}
             placeholder="np. 12300"
             className="input"
+            aria-invalid={numberProblem(amountStr) !== null}
           />
+          <NumberHint value={amountStr} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Stawka VAT (%)">
@@ -596,9 +609,10 @@ export default function CalculatorForm({
             </select>
           </Field>
           <Field label="VAT-owiec">
-            <label className="flex items-center gap-2 h-[42px] px-3 rounded-lg border border-zinc-200 bg-white">
+            <label className="flex items-center gap-2 h-11 px-3 rounded-lg border border-zinc-200 bg-white">
               <input
                 type="checkbox"
+              className="h-5 w-5 shrink-0 accent-[#a06f3f]"
                 checked={isVatPayer}
                 onChange={(e) => setIsVatPayer(e.target.checked)}
               />
@@ -607,7 +621,9 @@ export default function CalculatorForm({
           </Field>
         </div>
       </Section>
+      </Step>
 
+      <Step n={2} title="Koszty i czas" hint="materiały, koszty, godziny pracy, cel zarobku" open={true}>
       <Section title="Koszty">
         <Field label="Zlecenie (opcjonalnie)">
           <select value={jobId} onChange={(e) => onJobChange(e.target.value)} className="input">
@@ -618,7 +634,7 @@ export default function CalculatorForm({
               </option>
             ))}
           </select>
-          <p className="text-[11px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-600 mt-1">
             Po wyborze zlecenia koszty uzupełnią się automatycznie: z faktur kosztowych, a gdy ich brak — z pozycji wyceny. Możesz je nadpisać.
           </p>
         </Field>
@@ -698,7 +714,7 @@ export default function CalculatorForm({
                 Anuluj
               </button>
             </div>
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-xs text-zinc-600">
               Zlecenie trafi na etap „Do wyceny”. Kwotę i plan zapisze przycisk „Przenieś wycenę do
               zlecenia” na dole.
             </p>
@@ -713,7 +729,9 @@ export default function CalculatorForm({
               placeholder={useBom ? "z pozycji BOM" : "np. 5535"}
               className="input"
               disabled={useBom}
+              aria-invalid={!useBom && numberProblem(costsGrossStr) !== null}
             />
+            {!useBom && <NumberHint value={costsGrossStr} />}
           </Field>
           <Field label="VAT kosztów (%)">
             <select
@@ -730,7 +748,7 @@ export default function CalculatorForm({
           </Field>
         </div>
         {costsGross > 0 && (
-          <p className="text-[11px] text-zinc-500 -mt-1">
+          <p className="text-xs text-zinc-600 -mt-1">
             Netto: <span className="tabular-nums font-medium">{fmtPLN(extraCosts)}</span>
             {isVatPayer && (
               <>
@@ -751,8 +769,8 @@ export default function CalculatorForm({
           />
           {plannedCosts > 0 && costsGross > 0 && (
             <span
-              className={`text-[11px] ${
-                costsGross > plannedCosts + 0.005 ? "text-red-600" : "text-zinc-500"
+              className={`text-xs ${
+                costsGross > plannedCosts + 0.005 ? "text-red-600" : "text-zinc-600"
               }`}
             >
               Rzeczywiste względem planu: {costsGross >= plannedCosts ? "+" : "−"}
@@ -762,9 +780,10 @@ export default function CalculatorForm({
           )}
         </Field>
 
-        <label className="flex items-center gap-2 text-xs text-zinc-700 select-none mt-1">
+        <label className="flex items-center gap-2 text-xs text-zinc-700 select-none min-h-11 mt-1">
           <input
             type="checkbox"
+              className="h-5 w-5 shrink-0 accent-[#a06f3f]"
             checked={useBom}
             onChange={(e) => {
               const v = e.target.checked;
@@ -812,7 +831,7 @@ export default function CalculatorForm({
                       prev.length === 1 ? [makeBomLine()] : prev.filter((_, i) => i !== idx)
                     )
                   }
-                  className="h-[42px] w-9 shrink-0 rounded-lg border border-zinc-200 text-zinc-500 active:bg-zinc-50"
+                  className="h-11 w-11 shrink-0 rounded-lg border border-zinc-200 text-zinc-600 active:bg-zinc-50"
                   aria-label="Usuń pozycję"
                 >
                   ×
@@ -832,92 +851,9 @@ export default function CalculatorForm({
               + Dodaj pozycję
             </button>
             <div className="flex items-center justify-between pt-2 border-t border-zinc-100 text-xs">
-              <span className="text-zinc-500">Suma BOM (brutto)</span>
+              <span className="text-zinc-600">Suma BOM (brutto)</span>
               <span className="tabular-nums font-semibold">{fmtPLN(bomTotal)}</span>
             </div>
-          </div>
-        )}
-      </Section>
-
-      <Section title="Podatek dochodowy">
-        <Field label="Forma opodatkowania">
-          <div className="grid grid-cols-2 gap-2">
-            <RadioCard
-              checked={taxForm === "skala"}
-              onChange={() => setTaxForm("skala")}
-              label="Skala"
-              hint="12% / 32%"
-            />
-            <RadioCard
-              checked={taxForm === "liniowy"}
-              onChange={() => setTaxForm("liniowy")}
-              label="Liniowy"
-              hint="19%"
-            />
-          </div>
-        </Field>
-        <Field label="Sposób liczenia PIT">
-          <div className="grid grid-cols-2 gap-2">
-            <RadioCard
-              checked={!pitFlat}
-              onChange={() => setPitFlat(false)}
-              label="Z kwotą wolną"
-              hint={taxForm === "skala" ? "30k wolne, próg 120k" : "Liniowy bez kwoty wolnej"}
-            />
-            <RadioCard
-              checked={pitFlat}
-              onChange={() => setPitFlat(true)}
-              label="Bezpiecznie"
-              hint={taxForm === "skala" ? "12% od 0 zł" : "19% od 0 zł"}
-            />
-          </div>
-        </Field>
-        {taxForm === "skala" && !pitFlat && (
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <span>Dochód roczny dotychczas:</span>
-              <span className="font-medium tabular-nums text-zinc-900">
-                {fmtPLN(parseAmount(yearIncomeStr) ?? 0)}
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-500">
-              {yearIncomeOverride
-                ? "Wartość ręczna."
-                : defaultYearIncome > 0
-                  ? "Pobrano automatycznie z dashboardu (YTD)."
-                  : "Brak danych w bazie — wpisz ręcznie, jeśli chcesz."}
-            </p>
-            {!yearIncomeOverride ? (
-              <button
-                type="button"
-                onClick={() => setYearIncomeOverride(true)}
-                className="text-[11px] text-zinc-700 underline-offset-2 hover:underline"
-              >
-                Nadpisz ręcznie
-              </button>
-            ) : (
-              <div className="flex gap-2 items-center">
-                <input
-                  inputMode="decimal"
-                  value={yearIncomeStr}
-                  onChange={(e) => setYearIncomeStr(e.target.value)}
-                  placeholder="0"
-                  className="input flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setYearIncomeOverride(false);
-                    setYearIncomeStr(
-                      defaultYearIncome > 0 ? defaultYearIncome.toFixed(2) : ""
-                    );
-                  }}
-                  className="text-[11px] text-zinc-600 underline-offset-2 hover:underline"
-                >
-                  Reset
-                </button>
-              </div>
-            )}
           </div>
         )}
       </Section>
@@ -931,6 +867,7 @@ export default function CalculatorForm({
               onChange={(e) => setHoursStr(e.target.value)}
               placeholder={timeUnit === "dni" ? "np. 5" : "np. 40"}
               className="input flex-1"
+              aria-invalid={numberProblem(hoursStr) !== null}
             />
             <div className="flex shrink-0 rounded-lg border border-zinc-200 bg-white p-0.5">
               {(["h", "dni"] as const).map((u) => (
@@ -948,10 +885,11 @@ export default function CalculatorForm({
             </div>
           </div>
           {timeUnit === "dni" && timeValue > 0 && (
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-xs text-zinc-600">
               = {hours} h ({HOURS_PER_DAY} h / dzień)
             </span>
           )}
+        <NumberHint value={hoursStr} />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
@@ -974,7 +912,7 @@ export default function CalculatorForm({
             />
           </Field>
         </div>
-        <p className="text-[11px] text-zinc-500 -mt-1">
+        <p className="text-xs text-zinc-600 -mt-1">
           {fmtPLN(monthlyTarget)} ÷ {hoursPerMonth} h ={" "}
           <span className="font-medium tabular-nums text-zinc-700">{fmtRate(rateFromGoal)}</span> na rękę ·
           wykorzystanie {Math.round((hoursPerMonth / AVAILABLE_HOURS_MONTH) * 100)}% z{" "}
@@ -1023,24 +961,26 @@ export default function CalculatorForm({
 
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-zinc-600">Rezerwa wolnego (odejmowana od stawki)</span>
-          <label className="flex items-center gap-2 text-sm text-zinc-700 select-none">
+          <label className="flex items-center gap-2 text-sm text-zinc-700 select-none min-h-11">
             <input
               type="checkbox"
+              className="h-5 w-5 shrink-0 accent-[#a06f3f]"
               checked={reserveVacation}
               onChange={(e) => setReserveVacation(e.target.checked)}
             />
             <span>Urlop (26 dni × 8 h / rok)</span>
           </label>
-          <label className="flex items-center gap-2 text-sm text-zinc-700 select-none">
+          <label className="flex items-center gap-2 text-sm text-zinc-700 select-none min-h-11">
             <input
               type="checkbox"
+              className="h-5 w-5 shrink-0 accent-[#a06f3f]"
               checked={reserveSick}
               onChange={(e) => setReserveSick(e.target.checked)}
             />
             <span>L4 (10 dni × 8 h / rok)</span>
           </label>
           {(reserveVacation || reserveSick) && hoursPerMonth < AVAILABLE_HOURS_MONTH && (
-            <span className="text-[11px] text-amber-700">
+            <span className="text-xs text-amber-700">
               Uwaga na podwójne liczenie: godziny płatne ({hoursPerMonth} z {AVAILABLE_HOURS_MONTH})
               już zakładają przestoje. Zaznacz rezerwę tylko wtedy, gdy urlopu i L4 w nich nie ma.
             </span>
@@ -1055,7 +995,7 @@ export default function CalculatorForm({
             placeholder="0"
             className="input"
           />
-          <span className="text-[11px] text-zinc-500">
+          <span className="text-xs text-zinc-600">
             Dziś: {zusPhaseLabel}. W kwocie jest zdrowotna minimalna ({fmtPLN(healthMinMonthly)}/mies.).
             {withInvoice &&
               ` Gdy ${taxForm === "liniowy" ? "4,9%" : "9%"} dochodu ze zlecenia wychodzi więcej, różnica dolicza się sama.`}
@@ -1070,7 +1010,7 @@ export default function CalculatorForm({
             className="input"
           />
           {rentMonthly > 0 && (
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-xs text-zinc-600">
               ≈ {fmtPLN(rentMonthly / hoursPerMonth)} / h · {fmtPLN((rentMonthly / hoursPerMonth) * HOURS_PER_DAY)} / dzień
               {hours > 0 && <> · na to zlecenie: <span className="font-medium tabular-nums">{fmtPLN(rentForJob)}</span></>}
             </span>
@@ -1082,7 +1022,7 @@ export default function CalculatorForm({
           <ZusPreset label="Pełny" amount={ZUS_SOCIAL_FULL_2026 + healthMinMonthly} onPick={setZusStr} />
         </div>
         {!withInvoice && (
-          <p className="text-[11px] text-zinc-500 -mt-1">
+          <p className="text-xs text-zinc-600 -mt-1">
             ZUS i zdrowotną płacisz co miesiąc niezależnie od faktury, więc doliczamy ich część
             proporcjonalną do godzin także tutaj.
           </p>
@@ -1115,7 +1055,95 @@ export default function CalculatorForm({
           />
         )}
       </Section>
+      </Step>
 
+      <Step n={3} title="Podatki i ustawienia" hint="forma opodatkowania, PIT" open={false}>
+      <Section title="Podatek dochodowy">
+        <Field label="Forma opodatkowania">
+          <div className="grid grid-cols-2 gap-2">
+            <RadioCard
+              checked={taxForm === "skala"}
+              onChange={() => setTaxForm("skala")}
+              label="Skala"
+              hint="12% / 32%"
+            />
+            <RadioCard
+              checked={taxForm === "liniowy"}
+              onChange={() => setTaxForm("liniowy")}
+              label="Liniowy"
+              hint="19%"
+            />
+          </div>
+        </Field>
+        <Field label="Sposób liczenia PIT">
+          <div className="grid grid-cols-2 gap-2">
+            <RadioCard
+              checked={!pitFlat}
+              onChange={() => setPitFlat(false)}
+              label="Z kwotą wolną"
+              hint={taxForm === "skala" ? "30k wolne, próg 120k" : "Liniowy bez kwoty wolnej"}
+            />
+            <RadioCard
+              checked={pitFlat}
+              onChange={() => setPitFlat(true)}
+              label="Bezpiecznie"
+              hint={taxForm === "skala" ? "12% od 0 zł" : "19% od 0 zł"}
+            />
+          </div>
+        </Field>
+        {taxForm === "skala" && !pitFlat && (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span>Dochód roczny dotychczas:</span>
+              <span className="font-medium tabular-nums text-zinc-900">
+                {fmtPLN(parseAmount(yearIncomeStr) ?? 0)}
+              </span>
+            </div>
+            <p className="text-xs text-zinc-600">
+              {yearIncomeOverride
+                ? "Wartość ręczna."
+                : defaultYearIncome > 0
+                  ? "Pobrano automatycznie z dashboardu (YTD)."
+                  : "Brak danych w bazie — wpisz ręcznie, jeśli chcesz."}
+            </p>
+            {!yearIncomeOverride ? (
+              <button
+                type="button"
+                onClick={() => setYearIncomeOverride(true)}
+                className="text-xs text-zinc-700 underline-offset-2 hover:underline"
+              >
+                Nadpisz ręcznie
+              </button>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <input
+                  inputMode="decimal"
+                  value={yearIncomeStr}
+                  onChange={(e) => setYearIncomeStr(e.target.value)}
+                  placeholder="0"
+                  className="input flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setYearIncomeOverride(false);
+                    setYearIncomeStr(
+                      defaultYearIncome > 0 ? defaultYearIncome.toFixed(2) : ""
+                    );
+                  }}
+                  className="text-xs text-zinc-600 underline-offset-2 hover:underline"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </Section>
+      </Step>
+      </div>
+
+      <div id="wynik" tabIndex={-1} className="premium-calc-results flex min-w-0 scroll-mt-4 flex-col gap-5">
       <ResultPanel
         result={result}
         amountGross={amount}
@@ -1132,6 +1160,8 @@ export default function CalculatorForm({
         netCashFinal={netCashAfterReserves}
         hours={hours}
         fixedMonthly={zusMonthly + rentMonthly}
+        ratePerHour={ratePerHour}
+        hasRate={hours > 0 && amount > 0}
       />
 
       {amount > 0 && (
@@ -1157,7 +1187,7 @@ export default function CalculatorForm({
                 </span>
               </p>
             ) : (
-              <p className="text-[11px] text-zinc-500 mt-0.5">
+              <p className="text-xs text-zinc-600 mt-0.5">
                 Podaj czas pracy, żeby zobaczyć stawkę, cenę zalecaną i minimalną.
               </p>
             )}
@@ -1321,7 +1351,7 @@ export default function CalculatorForm({
           {applyError && (
             <p className="text-xs text-red-600">{applyError}</p>
           )}
-          <div className="text-[11px] text-[#8d8a85] space-y-0.5">
+          <div className="text-xs text-[#6f6c66] space-y-0.5">
             <div className="flex justify-between"><span>Kwota zlecenia</span><span className="tabular-nums text-[#3a3633] font-medium">{fmtPLN(amount)}</span></div>
             <div className="flex justify-between"><span>Koszty</span><span className="tabular-nums">{fmtPLN(costsGross)}</span></div>
             {zusForJob > 0 && <div className="flex justify-between"><span>ZUS (część zlecenia)</span><span className="tabular-nums">{fmtPLN(zusForJob)}</span></div>}
@@ -1329,7 +1359,7 @@ export default function CalculatorForm({
             {reserveAmount > 0 && <div className="flex justify-between"><span>Rezerwa urlop/L4</span><span className="tabular-nums">{fmtPLN(reserveAmount)}</span></div>}
             <div className="flex justify-between pt-0.5 border-t border-[#f0efec]"><span>Zysk na czysto</span><span className="tabular-nums text-[#3a6b4d] font-semibold">{fmtPLN(netCashAfterReserves)}</span></div>
           </div>
-          <p className="text-[10px] text-[#b3b0aa]">
+          <p className="text-xs text-[#6f6c66]">
             Ta wycena (kwota, koszty, ZUS, warsztat, urlop, zysk) pojawi się na karcie zlecenia 1:1.
             Razem z nią zapisuje się plan:{" "}
             {hours > 0 ? `${hours} h` : "bez godzin — wpisz czas pracy"}, materiały{" "}
@@ -1337,7 +1367,7 @@ export default function CalculatorForm({
             porówna go potem z licznikiem i fakturami.
           </p>
           {selectedJob?.plan_saved_at && (
-            <p className="text-[10px] text-[#a18653]">
+            <p className="text-xs text-[#7d5530]">
               To zlecenie ma już plan z {fmtDate(selectedJob.plan_saved_at)} — jest wczytany powyżej.
               Przeniesienie zastąpi go obecnymi danymi.
             </p>
@@ -1345,15 +1375,20 @@ export default function CalculatorForm({
         </div>
       )}
 
-      <p className="text-[11px] text-zinc-500 text-center">
+      <p className="text-xs text-zinc-600 text-center">
         To prognoza, nie porada podatkowa: PIT, ZUS i zdrowotna liczone wg stawek 2026 dla tego
         jednego zlecenia. Rozliczenie roczne może wyjść inaczej — skonsultuj z księgową.
       </p>
+      </div>
+
+      <a href="#wynik" className="premium-jump">
+        Do wyniku ↓
+      </a>
 
       <style jsx>{`
         .input {
           width: 100%;
-          height: 42px;
+          height: 44px;
           padding: 0 12px;
           border-radius: 0.5rem;
           border: 1px solid #e4e4e7;
@@ -1369,12 +1404,109 @@ export default function CalculatorForm({
   );
 }
 
+/** Cienki pasek z najważniejszymi liczbami; pojawia się, gdy karta wyniku (#wynik) wyjdzie poza ekran. */
+function StickyResultBar({
+  cash,
+  price,
+  rate,
+  hasRate,
+}: {
+  cash: number;
+  price: number;
+  rate: number;
+  hasRate: boolean;
+}) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const el = document.getElementById("wynik");
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setShow(!e.isIntersecting), { threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <a
+      href="#wynik"
+      aria-label={`Wynik: na czysto ${fmtPLN(cash)}, cena dla klienta ${fmtPLN(price)}${hasRate ? `, stawka ${fmtPLN(rate)} na godzinę` : ""}. Przejdź do wyniku`}
+      className="premium-bar"
+      data-show={show}
+      tabIndex={show ? 0 : -1}
+    >
+      <span className="premium-bar-item">
+        <span className="premium-bar-label">Na czysto</span>
+        <span className="premium-bar-value">{fmtPLN(cash)}</span>
+      </span>
+      <span className="premium-bar-item">
+        <span className="premium-bar-label">Cena dla klienta</span>
+        <span className="premium-bar-value">{fmtPLN(price)}</span>
+      </span>
+      <span className="premium-bar-item">
+        <span className="premium-bar-label">Stawka</span>
+        <span className="premium-bar-value">{hasRate ? `${fmtPLN(rate)}/h` : "—"}</span>
+      </span>
+    </a>
+  );
+}
+
+/** Zwraca opis problemu z wpisaną liczbą albo null, gdy pole jest puste lub poprawne. */
+function numberProblem(value: string): string | null {
+  if (value.trim() === "") return null;
+  const n = parseAmount(value);
+  if (n === null) return "To nie wygląda na liczbę — wpisz np. 12300 lub 12300,50.";
+  if (n < 0) return "Wartość nie może być ujemna.";
+  return null;
+}
+
+function NumberHint({ value }: { value: string }) {
+  const msg = numberProblem(value);
+  if (!msg) return null;
+  return (
+    <p role="alert" className="text-xs font-medium text-[var(--warn)]">
+      {msg}
+    </p>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-zinc-700">{title}</h2>
+    <section className="premium-calc-sub flex flex-col gap-3">
+      <h3 className="text-sm font-semibold text-zinc-700">{title}</h3>
       {children}
     </section>
+  );
+}
+
+/** Numerowany, rozwijany krok formularza. Zawartość zostaje w DOM także po zwinięciu, więc wpisane wartości i obliczenia się nie zmieniają. */
+function Step({
+  n,
+  title,
+  hint,
+  open,
+  children,
+}: {
+  n: number;
+  title: string;
+  hint: string;
+  open: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details open={open} className="premium-calc-section premium-step group">
+      <summary className="premium-step-summary">
+        <span className="premium-step-badge" aria-hidden>
+          {String(n).padStart(2, "0")}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold text-zinc-800">
+            <span className="sr-only">Krok {n}: </span>
+            {title}
+          </span>
+          <span className="block text-xs text-zinc-600">{hint}</span>
+        </span>
+        <span aria-hidden className="premium-step-chevron">▾</span>
+      </summary>
+      <div className="mt-5 flex flex-col gap-5">{children}</div>
+    </details>
   );
 }
 
@@ -1400,7 +1532,7 @@ function ZusPreset({
     <button
       type="button"
       onClick={() => onPick(amount.toFixed(2))}
-      className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] text-zinc-600 active:bg-zinc-50"
+      className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 active:bg-zinc-50"
     >
       {label}: {fmtPLN(amount)}
     </button>
@@ -1420,7 +1552,7 @@ function RateChip({
     <button
       type="button"
       onClick={onPick}
-      className={`rounded-md border px-2.5 py-1.5 text-xs tabular-nums ${
+      className={`rounded-lg border px-3 py-2 text-xs tabular-nums ${
         active
           ? "border-[#a06f3f] bg-[#a06f3f] text-white font-medium"
           : "border-zinc-200 bg-white text-zinc-600 active:bg-zinc-50"
@@ -1503,25 +1635,25 @@ function HourlyRatePanel({
         <p className={`text-3xl font-bold tabular-nums mt-1 ${tone.value}`}>
           {fmtPLN(ratePerHour)}
         </p>
-        <p className={`text-[11px] mt-1 ${tone.sub}`}>
+        <p className={`text-xs mt-1 ${tone.sub}`}>
           {hours} h · {reserveActive ? `${tagBase}, po rezerwie ${reserveLabel}` : tagBase}
         </p>
         {status && (
-          <p className={`text-[11px] mt-0.5 font-medium ${tone.label}`}>
+          <p className={`text-xs mt-0.5 font-medium ${tone.label}`}>
             {tone.text} · cel {fmtRate(targetRate)} · minimum {fmtRate(minRate)}
           </p>
         )}
         {/* Ta sama stawka przeliczona na miesiąc: pełne 160 h i godziny płatne z ustawień. */}
         <div className={`mt-3 pt-3 border-t border-black/10 grid grid-cols-2 gap-3 ${tone.value}`}>
           <div>
-            <p className={`text-[11px] ${tone.sub}`}>Miesięcznie przy {AVAILABLE_HOURS_MONTH} h</p>
+            <p className={`text-xs ${tone.sub}`}>Miesięcznie przy {AVAILABLE_HOURS_MONTH} h</p>
             <p className="text-lg font-semibold tabular-nums">
               {fmtPLN(ratePerHour * AVAILABLE_HOURS_MONTH)}
             </p>
           </div>
           {hoursPerMonth !== AVAILABLE_HOURS_MONTH && (
             <div>
-              <p className={`text-[11px] ${tone.sub}`}>przy {hoursPerMonth} h płatnych</p>
+              <p className={`text-xs ${tone.sub}`}>przy {hoursPerMonth} h płatnych</p>
               <p className="text-lg font-semibold tabular-nums">{fmtPLN(ratePerHour * hoursPerMonth)}</p>
             </div>
           )}
@@ -1531,7 +1663,7 @@ function HourlyRatePanel({
       <details className="rounded-xl border border-zinc-200 bg-white overflow-hidden group">
         <summary className="flex items-center justify-between px-4 py-3 text-sm text-zinc-700 cursor-pointer select-none active:bg-zinc-50 list-none">
           <span className="font-medium">Pokaż rozliczenie godzinowe</span>
-          <span className="text-xs text-zinc-400 group-open:rotate-180 transition-transform">▾</span>
+          <span className="text-xs text-zinc-600 group-open:rotate-180 transition-transform">▾</span>
         </summary>
         <div className="border-t border-zinc-100">
           {withInvoice ? (
@@ -1601,12 +1733,15 @@ function RadioCard({
     <button
       type="button"
       onClick={onChange}
-      className={`rounded-lg border p-3 text-left active:bg-zinc-50 ${
-        checked ? "border-accent bg-zinc-50" : "border-zinc-200 bg-white"
+      aria-pressed={checked}
+      className={`rounded-lg border p-3 text-left transition-colors ${
+        checked
+          ? "border-[var(--accent)] bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]"
+          : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
       }`}
     >
       <div className="text-sm font-medium">{label}</div>
-      <div className="text-[11px] text-zinc-500">{hint}</div>
+      <div className="text-xs text-zinc-600">{hint}</div>
     </button>
   );
 }
@@ -1627,6 +1762,8 @@ function ResultPanel({
   netCashFinal,
   hours,
   fixedMonthly,
+  ratePerHour,
+  hasRate,
 }: {
   result: CalcResult;
   amountGross: number;
@@ -1643,6 +1780,8 @@ function ResultPanel({
   netCashFinal: number;
   hours: number;
   fixedMonthly: number;
+  ratePerHour: number;
+  hasRate: boolean;
 }) {
   const { revenueNet, revenueVat, profit, vatToPay, pitDelta, netCash } = result;
   const taxTotal = vatToPay + pitDelta;
@@ -1665,14 +1804,14 @@ function ResultPanel({
           {fmtPLN(displayCash)}
         </p>
         {!withInvoice && !hasDeductions && (
-          <p className="text-[11px] text-emerald-700/80 mt-1">
+          <p className="text-xs text-emerald-800 mt-1">
             {recovered
               ? "kwota − koszty + zwrot VAT · brak PIT"
               : "kwota − koszty · brak VAT i PIT"}
           </p>
         )}
         {hasDeductions && (
-          <div className="mt-2 pt-2 border-t border-emerald-200/70 space-y-0.5 text-[11px] text-emerald-800/90">
+          <div className="mt-2 pt-2 border-t border-emerald-200/70 space-y-0.5 text-xs text-emerald-800/90">
             <div className="flex items-baseline justify-between">
               <span>{withInvoice ? "Po VAT i PIT" : "Kwota − koszty"}</span>
               <span className="tabular-nums">{fmtPLN(cashBeforeZus)}</span>
@@ -1697,11 +1836,31 @@ function ResultPanel({
             )}
           </div>
         )}
+        {empty && (
+          <p className="text-sm text-emerald-800 mt-2">
+            Wpisz kwotę zlecenia, koszty i czas pracy — tutaj zobaczysz cenę dla klienta, kwotę na rękę i stawkę godzinową.
+          </p>
+        )}
         {zusNeedsHours && (
-          <p className="text-[11px] text-amber-700 mt-1.5">
+          <p className="text-xs text-amber-700 mt-1.5">
             Podaj „Czas pracy nad zleceniem”, aby rozłożyć na zlecenie koszty stałe: ZUS, minimalną zdrowotną i warsztat.
           </p>
         )}
+      </div>
+
+      <div className="premium-kpis grid grid-cols-2 gap-3" aria-label="Cena dla klienta i stawka godzinowa">
+        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Cena dla klienta</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900 break-words">{fmtPLN(amountGross)}</p>
+          <p className="text-xs text-zinc-600">brutto, z VAT</p>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Stawka na rękę</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900 break-words">
+            {hasRate ? `${fmtPLN(ratePerHour)} / h` : "— zł / h"}
+          </p>
+          <p className="text-xs text-zinc-600">{hasRate ? `przy ${hours} h pracy` : "podaj czas pracy"}</p>
+        </div>
       </div>
 
       {withInvoice && (
@@ -1733,7 +1892,7 @@ function ResultPanel({
         <details className="rounded-xl border border-zinc-200 bg-white overflow-hidden group">
           <summary className="flex items-center justify-between px-4 py-3 text-sm text-zinc-700 cursor-pointer select-none active:bg-zinc-50 list-none">
             <span className="font-medium">Pokaż szczegóły wyliczenia</span>
-            <span className="text-xs text-zinc-400 group-open:rotate-180 transition-transform">▾</span>
+            <span className="text-xs text-zinc-600 group-open:rotate-180 transition-transform">▾</span>
           </summary>
           <div className="border-t border-zinc-100">
             {withInvoice ? (
@@ -1806,7 +1965,7 @@ function ResultPanel({
 
 function GroupHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 bg-zinc-50 border-b border-zinc-100">
+    <div className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-zinc-600 bg-zinc-50 border-b border-zinc-100">
       {children}
     </div>
   );
@@ -1834,7 +1993,7 @@ function Row({
     <div
       className={`flex items-center justify-between gap-3 px-4 py-3 border-b last:border-b-0 border-zinc-100 ${bg}`}
     >
-      <span className={`text-sm ${sub ? "text-zinc-500" : "text-zinc-700"}`}>{label}</span>
+      <span className={`text-sm ${sub ? "text-zinc-600" : "text-zinc-700"}`}>{label}</span>
       <span
         className={`tabular-nums ${
           highlight
@@ -1853,3 +2012,4 @@ function Row({
     </div>
   );
 }
+

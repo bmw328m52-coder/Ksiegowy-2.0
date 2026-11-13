@@ -94,7 +94,7 @@ function SlotRow({
         {pending ? (
           <span className="text-[11px] text-zinc-400">zapisuję…</span>
         ) : saved ? (
-          <span className="text-[11px] text-emerald-600">zapisano ✓</span>
+          <span className="text-[11px] text-[var(--ok)]">zapisano ✓</span>
         ) : null}
       </div>
       <select

@@ -29,7 +29,7 @@ export default function ScanStatusCard({ jobId, scans }: { jobId: string; scans:
         </div>
         <a
           href={skanerUrl(jobId)}
-          className="shrink-0 rounded-lg text-white text-[13px] font-semibold px-3 py-1.5 bg-[linear-gradient(160deg,#a06f3f,#7d5530)]"
+          className="shrink-0 min-h-11 inline-flex items-center rounded-lg text-[var(--btn-fg)] text-sm font-semibold px-3 py-1.5 bg-[var(--accent)]"
         >
           {latest ? "Edytuj w Skanerze" : "Skanuj iPadem"}
         </a>
@@ -39,14 +39,14 @@ export default function ScanStatusCard({ jobId, scans }: { jobId: string; scans:
         <>
           <div>
             <div className="flex items-baseline justify-between text-xs">
-              <span className={complete ? "text-[#3a6b4d] font-medium" : "text-[#b0702a] font-medium"}>
+              <span className={complete ? "text-[#3a6b4d] font-medium" : "text-[var(--accent)] font-medium"}>
                 {complete ? "✓ Pomiar kompletny" : `Lista kontrolna: brakuje ${missing.length}`}
               </span>
               <span className="tabular-nums text-[#8d8a85]">
                 {done}/{items.length}
               </span>
             </div>
-            <div className="mt-1 h-1.5 rounded-full bg-[#f0efec] overflow-hidden">
+            <div className="mt-1 h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
               <div
                 className={`h-full ${complete ? "bg-[#3a6b4d]" : "bg-[#d99a4e]"}`}
                 style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }}
@@ -58,7 +58,7 @@ export default function ScanStatusCard({ jobId, scans }: { jobId: string; scans:
               {missing.slice(0, 8).map((i) => (
                 <li key={i.id} className="flex items-baseline justify-between gap-2 text-xs">
                   <span className="text-[#1f1d1b]">
-                    <span className="text-[#d99a4e]">○</span> {i.title}
+                    <span className="text-[var(--accent)]">○</span> {i.title}
                   </span>
                   <span className="text-[#8d8a85] text-right">{i.detail}</span>
                 </li>

@@ -5,6 +5,7 @@ import { saveSettings } from "./actions";
 import { getUserSettings, DEFAULT_SETTINGS } from "@/lib/dao/user_settings";
 import { getKsefStatus } from "@/lib/dao/ksef";
 import KsefSettings from "./ksef/KsefSettings";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ustawienia" };
@@ -56,8 +57,10 @@ export default async function SettingsPage({
     <PageContainer width="narrow">
       <PageHeader title="Ustawienia" back={{ href: "/wiecej" }} />
 
+      <ThemeToggle />
+
       {sp.saved === "1" && (
-        <p className="rounded-xl bg-[#e3efe5] border border-[#cfe4d4] text-[#3a6b4d] text-sm px-3.5 py-2.5 font-medium">
+        <p role="status" className="rounded-xl bg-[var(--ok-soft)] border border-[var(--ok)] text-[var(--ok)] text-sm px-3.5 py-2.5 font-medium">
           Zapisano ustawienia.
         </p>
       )}

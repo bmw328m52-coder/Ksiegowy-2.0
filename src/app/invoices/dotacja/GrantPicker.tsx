@@ -53,13 +53,13 @@ export default function GrantPicker({ rows }: { rows: GrantRow[] }) {
 
   return (
     <>
-      <div className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 py-2 bg-[#f2f2f1]">
-        <div className="rounded-2xl border border-[#e2c79c] bg-[linear-gradient(160deg,#fbf1dd_0%,#fff8e9_100%)] p-3.5">
+      <div className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 py-2 bg-[var(--background)]">
+        <div className="rounded-2xl border border-[var(--accent)] bg-[var(--accent-soft)] p-3.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-xs font-medium text-[#6f6c66]">Zaznaczone: {totals.c}</span>
+            <span className="text-[13px] font-medium text-[#6f6c66]">Zaznaczone: {totals.c} · razem brutto</span>
             <span className="text-lg font-semibold text-[#1f1d1b] tabular-nums">{fmtPLN(totals.g)}</span>
           </div>
-          <div className="flex justify-between text-[11px] text-[#6f6c66] tabular-nums">
+          <div className="flex justify-between text-[13px] text-[#6f6c66] tabular-nums">
             <span>netto {fmtPLN(totals.n)}</span>
             <span>VAT {fmtPLN(totals.v)}</span>
           </div>
@@ -71,7 +71,7 @@ export default function GrantPicker({ rows }: { rows: GrantRow[] }) {
                   setMsg({});
                   setSelected((prev) => new Set([...prev, ...rows.filter((r) => r.suggested).map((r) => r.id)]));
                 }}
-                className="flex-1 rounded-lg bg-white border border-[#ededea] text-[13px] font-semibold py-2 active:bg-[#f6f6f5]"
+                className="flex-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[13px] font-semibold min-h-[44px] active:bg-[var(--surface-2)]"
               >
                 Zaznacz sprzęt ({suggestedCount})
               </button>
@@ -80,13 +80,13 @@ export default function GrantPicker({ rows }: { rows: GrantRow[] }) {
               type="button"
               onClick={save}
               disabled={pending}
-              className="flex-1 rounded-lg text-white text-[13px] font-semibold py-2 bg-[linear-gradient(160deg,#a06f3f,#7d5530)] disabled:opacity-60"
+              className="flex-1 rounded-lg text-[var(--background)] text-[13px] font-semibold min-h-[44px] bg-[var(--accent)] disabled:opacity-60"
             >
               {pending ? "Zapisuję…" : "Zapisz"}
             </button>
           </div>
-          {msg.ok && <p className="text-xs text-[#3a6b4d] mt-2">{msg.ok}</p>}
-          {msg.error && <p className="text-xs text-red-700 mt-2">{msg.error}</p>}
+          {msg.ok && <p role="status" className="text-[13px] text-[#3a6b4d] mt-2">{msg.ok}</p>}
+          {msg.error && <p role="alert" className="text-[13px] text-red-700 mt-2">{msg.error}</p>}
         </div>
       </div>
 
@@ -97,25 +97,25 @@ export default function GrantPicker({ rows }: { rows: GrantRow[] }) {
             <li key={r.id}>
               <label
                 className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer ${
-                  on ? "border-[#a06f3f] bg-[#fbf6ee]" : "border-[#ededea] bg-white"
+                  on ? "border-[#a06f3f] bg-[var(--accent-soft)]" : "border-[var(--border)] bg-[var(--surface)]"
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={on}
                   onChange={() => toggle(r.id)}
-                  className="mt-1 h-5 w-5 shrink-0 accent-[#a06f3f]"
+                  className="mt-1 h-5 w-5 shrink-0 accent-[var(--accent)]"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-sm font-medium truncate">{r.supplier}</p>
-                    <span className="text-sm font-medium tabular-nums shrink-0">{fmtPLN(r.gross)}</span>
+                    <p className="text-sm font-medium break-words">{r.supplier}</p>
+                    <span className="text-sm font-medium tabular-nums shrink-0">{fmtPLN(r.gross)} <span className="text-[12px] font-normal text-zinc-500">brutto</span></span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 truncate">
+                  <p className="text-[13px] text-zinc-500 break-words">
                     {r.number ?? "bez numeru"} · {fmtDate(r.date)}
-                    {r.suggested && !on ? " · sprzęt?" : ""}
+                    {r.suggested && !on ? " · wygląda na sprzęt" : ""}
                   </p>
-                  {r.summary && <p className="text-xs text-zinc-600 truncate mt-0.5">{r.summary}</p>}
+                  {r.summary && <p className="text-[13px] text-zinc-600 break-words mt-0.5">{r.summary}</p>}
                 </div>
               </label>
             </li>

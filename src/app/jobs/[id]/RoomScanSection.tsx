@@ -65,7 +65,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
 
             <ScanEstimate scanId={scan.id} jobId={jobId} objects={objects} rates={rates} initial={parseChoice(scan.estimate)} wardrobes={scan.data.wardrobes ?? []} />
 
-            <div className="grid grid-cols-4 gap-2 rounded-lg bg-[#f6f5f2] p-2 text-center">
+            <div className="grid grid-cols-4 gap-2 rounded-lg bg-[var(--surface-2)] p-2 text-center">
               {[
                 [`${n2(stats.areaM2)} m²`, "Podłoga"],
                 [`${n2(stats.wallAreaM2)} m²`, "Ściany"],
@@ -80,7 +80,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
             </div>
 
             {scan.data.notes?.trim() && (
-              <div className="rounded-lg border border-[#ededea] bg-[#fbfaf7] p-3">
+              <div className="rounded-lg border border-[#ededea] bg-[var(--surface-2)] p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-[#a06f3f]">Notatki z pomiaru</div>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800">{scan.data.notes}</p>
               </div>
@@ -162,7 +162,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
               const doors =
                 wd.doors === "none" ? "bez drzwi" : `drzwi ${wd.doors === "sliding" ? "przesuwne" : "uchylne"} ×${wd.door_count}`;
               return (
-                <div key={wd.id} className="rounded-lg border border-[#ededea] bg-[#fbfaf7] p-3 text-xs">
+                <div key={wd.id} className="rounded-lg border border-[#ededea] bg-[var(--surface-2)] p-3 text-xs">
                   <div className="font-semibold text-zinc-800">
                     Szafa — ściana {wi >= 0 ? wallLetter(wi) : "?"} · {Math.round(wd.width_mm)} × {Math.round(wd.height_mm)} ×{" "}
                     {Math.round(wd.depth_mm)} mm
@@ -237,7 +237,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                             <td className="py-1 pr-3">
                               <span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ background: k.color }} />
                               {k.label}
-                              {f.access && <span className="ml-1.5 text-[10px] font-bold text-[#ed801a]">DOSTĘP</span>}
+                              {f.access && <span className="ml-1.5 text-[10px] font-bold text-[var(--accent)]">DOSTĘP</span>}
                               {f.note && <div className="text-[11px] text-zinc-500">{f.note}</div>}
                             </td>
                             <td className="py-1 pr-3 font-semibold">{wi >= 0 ? wallLetter(wi) : "—"}</td>
@@ -296,7 +296,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                                   ) : (
                                     <span
                                       key={p}
-                                      className="flex h-16 w-16 items-center justify-center rounded-md bg-[#f6f5f2] text-[10px] text-zinc-400"
+                                      className="flex h-16 w-16 items-center justify-center rounded-md bg-[var(--surface-2)] text-[10px] text-zinc-400"
                                     >
                                       brak
                                     </span>

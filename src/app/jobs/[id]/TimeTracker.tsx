@@ -161,7 +161,7 @@ function SummaryCard({
   phaseSums: Record<WorkPhase, number>;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-4">
+    <div className="rounded-xl border border-zinc-200 bg-[var(--surface-2)] p-4">
       <div className="flex items-baseline justify-between mb-3">
         <p className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500">
           Łącznie

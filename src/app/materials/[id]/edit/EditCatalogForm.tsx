@@ -7,7 +7,7 @@ import { UNITS, isUnit } from "@/lib/units";
 import { SUPPLIERS } from "@/lib/suppliers";
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
+  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 min-h-[44px] text-sm focus:outline-none focus:border-accent w-full";
 
 type Action = (prev: { error?: string }, formData: FormData) => Promise<{ error?: string }>;
 
@@ -83,7 +83,7 @@ export default function EditCatalogForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-accent text-white py-3 font-medium disabled:opacity-50"
+        className="rounded-lg bg-[var(--accent)] text-[var(--background)] min-h-[48px] font-medium disabled:opacity-50"
       >
         {pending ? "Zapisuję..." : "Zapisz zmiany"}
       </button>
@@ -102,9 +102,9 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-zinc-600">
+      <span className="text-[13px] font-medium text-zinc-600">
         {label}
-        {required && <span className="text-red-500"> *</span>}
+        {required && <span className="text-red-600"> *</span>}
       </span>
       {children}
     </label>

@@ -23,8 +23,7 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
     <div className="flex flex-col gap-3">
       <Link
         href="/clients/new?next=job"
-        className="flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(160,111,63,.25)]"
-        style={{ background: "linear-gradient(160deg, #a06f3f, #7d5530)" }}
+        className="flex items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-[14px] font-bold text-[var(--btn-fg)] bg-[var(--accent)]"
       >
         <span className="flex items-center gap-2">
           <span className="text-[18px] leading-none">+</span>
@@ -39,7 +38,7 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Szukaj istniejącego klienta…"
-          className="w-full rounded-xl border border-[#ededea] bg-white pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="w-full rounded-xl border border-[#ededea] bg-white pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-[var(--accent)]"
           autoFocus
         />
         <span aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8d8a85]">
@@ -51,7 +50,7 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#d8d7d3] bg-white/60 px-4 py-6 text-center">
+        <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] px-4 py-6 text-center">
           <p className="text-[13px] font-medium text-[#6f6c66]">
             {q ? "Brak wyników" : "Nie masz jeszcze klientów"}
           </p>
@@ -68,7 +67,7 @@ export default function ClientPicker({ clients }: { clients: ClientLite[] }) {
                 <button
                   type="button"
                   onClick={() => router.push(`/jobs/new?clientId=${c.id}`)}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-[#f6f6f5] hover:bg-[#f6f6f5]"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-[var(--surface-2)] hover:bg-[var(--surface-2)]"
                 >
                   <span
                     className="inline-flex w-9 h-9 rounded-full items-center justify-center text-[13px] font-bold shrink-0"

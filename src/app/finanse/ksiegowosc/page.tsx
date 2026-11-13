@@ -59,12 +59,12 @@ export default async function KsiegowoscPage({
         <PageHeader title="Księgowość ING" back={{ href: "/finanse" }} />
 
         <section className="rounded-2xl border border-[#ededea] bg-white p-4">
-          <p className="text-[11px] text-[#6f6c66]">
+          <p className="text-[13px] text-[#6f6c66]">
             <span className="font-semibold text-[#1f1d1b]">ING = prawda księgowa.</span> Tu tylko
             pilnujesz, co jeszcze trzeba tam wprowadzić i eksportujesz paczkę dokumentów.
           </p>
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-sm text-[#6f6c66]">Do wprowadzenia ({pendingCount})</span>
+            <span className="text-sm text-[#6f6c66]">Do wprowadzenia ({pendingCount}) · suma brutto</span>
             <Money className="text-base font-semibold tabular-nums text-[#a06f3f]">
               {fmtPLN(pendingSum)}
             </Money>
@@ -88,21 +88,21 @@ export default async function KsiegowoscPage({
               >
                 <div className="flex items-start justify-between gap-3">
                   <Link href={`/invoices/${inv.id}`} className="min-w-0">
-                    <p className="text-sm font-semibold text-[#1f1d1b] truncate">
+                    <p className="text-sm font-semibold text-[#1f1d1b] break-words">
                       {inv.supplier_name ?? "Dokument bez sprzedawcy"}
                     </p>
-                    <p className="text-[11px] text-[#8d8a85] mt-0.5 truncate">
+                    <p className="text-[13px] text-[#8d8a85] mt-0.5 break-words">
                       {inv.invoice_number ?? "—"} · {fmtDate(inv.issue_date)}
                     </p>
                   </Link>
-                  <Money className="text-sm font-semibold tabular-nums text-[#1f1d1b] shrink-0">
+                  <div className="shrink-0 text-right"><Money className="text-sm font-semibold tabular-nums text-[#1f1d1b]">
                     {fmtPLN(inv.amount_gross)}
-                  </Money>
+                  </Money><p className="text-[12px] text-[#8d8a85]">brutto</p></div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[inv.accounting_status]}`}
+                    className={`text-[12px] px-2.5 py-1 rounded-full font-medium ${STATUS_PILL[inv.accounting_status]}`}
                   >
                     {ACCOUNTING_STATUS_LABELS[inv.accounting_status]}
                   </span>
@@ -121,7 +121,7 @@ export default async function KsiegowoscPage({
 
 function StatusStepper({ id, current }: { id: string; current: AccountingStatus }) {
   return (
-    <div className="grid grid-cols-4 gap-1">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5" role="group" aria-label="Status księgowy">
       {ACCOUNTING_STATUS_ORDER.map((s) => {
         const active = s === current;
         return (
@@ -130,13 +130,13 @@ function StatusStepper({ id, current }: { id: string; current: AccountingStatus 
             <input type="hidden" name="status" value={s} />
             <button
               type="submit"
-              className={`w-full text-[10px] py-1.5 rounded-md font-medium transition-colors ${
+              className={`w-full text-[13px] min-h-[44px] px-1 rounded-lg font-medium transition-colors ${
                 active
                   ? "bg-[#a06f3f] text-white"
-                  : "bg-[#f0f0ee] text-[#6f6c66] active:bg-[#ece7de]"
+                  : "bg-[#f0f0ee] text-[#6f6c66] active:bg-[var(--surface-2)]"
               }`}
             >
-              {ACCOUNTING_STATUS_LABELS[s].split(" ")[0]}
+              {ACCOUNTING_STATUS_LABELS[s]}
             </button>
           </form>
         );
@@ -152,7 +152,7 @@ function PaymentToggle({ id, paid }: { id: string; paid: boolean }) {
       <input type="hidden" name="status" value={paid ? "unpaid" : "paid"} />
       <button
         type="submit"
-        className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+        className={`text-[12px] px-3 min-h-[44px] rounded-full font-medium transition-colors ${
           paid
             ? "bg-[#e3efe5] text-[#3a6b4d]"
             : "bg-[#f4e0d9] text-[#b8523a] active:opacity-80"
@@ -166,15 +166,15 @@ function PaymentToggle({ id, paid }: { id: string; paid: boolean }) {
 
 function FilterTabs({ current }: { current: string }) {
   return (
-    <nav className="flex gap-1 p-1 rounded-lg bg-zinc-100 overflow-x-auto">
+    <nav aria-label="Filtr dokumentów" className="flex flex-wrap gap-1.5">
       {FILTERS.map((t) => {
         const active = t.key === current;
         return (
           <Link
             key={t.key}
             href={`/finanse/ksiegowosc?f=${t.key}`}
-            className={`flex-1 whitespace-nowrap text-center text-xs py-2 px-2 rounded-md font-medium transition-colors ${
-              active ? "bg-white text-[#1f1d1b] shadow-sm" : "text-zinc-600 active:bg-zinc-50"
+            className={`whitespace-nowrap text-center text-[13px] min-h-[44px] inline-flex items-center px-4 rounded-full font-semibold transition-colors ${
+              active ? "bg-[var(--accent)] text-[var(--background)]" : "border border-[var(--border)] bg-[var(--surface)] text-zinc-600 active:bg-zinc-50"
             }`}
           >
             {t.label}

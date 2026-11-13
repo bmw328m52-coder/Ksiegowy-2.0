@@ -51,7 +51,7 @@ export default function CostLineCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="font-medium text-sm truncate">{line.description}</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-[13px] text-zinc-500">
                 {line.category ?? "—"} • {fmtPLN(line.amount_net)} netto + VAT
               </p>
             </div>
@@ -60,12 +60,12 @@ export default function CostLineCard({
 
           <form action={assignBound} className="flex items-center gap-2">
             <input type="hidden" name="invoice_id" value={invoiceId} />
-            <label className="text-xs text-zinc-600 shrink-0">Zlecenie:</label>
+            <label className="text-[13px] text-zinc-600 shrink-0">Zlecenie:</label>
             <select
               name="job_id"
               defaultValue={line.job_id ?? "__none__"}
               onChange={(e) => e.currentTarget.form?.requestSubmit()}
-              className="flex-1 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-xs focus:outline-none focus:border-accent"
+              className="flex-1 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-[13px] min-h-[44px] min-w-0 max-w-full focus:outline-none focus:border-accent"
             >
               <option value="__none__">— koszt ogólny —</option>
               {jobs.map((j) => (
@@ -79,11 +79,11 @@ export default function CostLineCard({
           <form action={assignCatalogBound} className="flex flex-col gap-1.5 rounded-md bg-zinc-50 border border-zinc-200 p-2">
             <input type="hidden" name="invoice_id" value={invoiceId} />
             <div className="flex items-center gap-2">
-              <label className="text-xs text-zinc-600 shrink-0">Katalog:</label>
+              <label className="text-[13px] text-zinc-600 shrink-0">Katalog:</label>
               <select
                 name="catalog_id"
                 defaultValue={line.catalog_id ?? "__none__"}
-                className="flex-1 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-xs focus:outline-none focus:border-accent"
+                className="flex-1 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-[13px] min-h-[44px] min-w-0 max-w-full focus:outline-none focus:border-accent"
               >
                 <option value="__none__">— nie spinaj —</option>
                 {catalogGroups.map(({ category, items }) => (
@@ -98,34 +98,34 @@ export default function CostLineCard({
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-zinc-600 shrink-0">Ilość:</label>
+              <label className="text-[13px] text-zinc-600 shrink-0">Ilość:</label>
               <input
                 name="qty"
                 inputMode="decimal"
                 defaultValue={qtyNum}
-                className="w-20 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-xs text-right tabular-nums focus:outline-none focus:border-accent"
+                className="w-20 rounded-md border border-zinc-300 bg-white text-zinc-900 px-2 py-1.5 text-[13px] min-h-[44px] min-w-0 max-w-full text-right tabular-nums focus:outline-none focus:border-accent"
               />
-              <span className="text-[11px] text-zinc-500 flex-1 truncate">
+              <span className="text-[12px] text-zinc-500 flex-1 truncate">
                 = <strong>{fmtPLN(unitPriceGross)}</strong>/szt brutto
               </span>
               <button
                 type="submit"
-                className="text-[11px] px-2.5 py-1.5 rounded-md bg-accent text-white font-medium active:opacity-80"
+                className="text-[12px] px-2.5 py-1.5 min-h-[44px] rounded-md bg-[var(--accent)] text-[var(--background)] font-medium active:opacity-80"
               >
                 Spnij
               </button>
             </div>
-            <label className="flex items-center gap-1.5 text-[11px] text-zinc-600">
+            <label className="flex items-center gap-1.5 text-[12px] text-zinc-600">
               <input
                 type="checkbox"
                 name="update_price"
                 defaultChecked
-                className="accent-[#a06f3f]"
+                className="accent-[var(--accent)]"
               />
               Aktualizuj cenę w cenniku z tej faktury
             </label>
             {line.catalog_id && (
-              <p className="text-[10px] text-emerald-700">
+              <p className="text-[12px] text-emerald-700">
                 ✓ Spięte z cennikiem
               </p>
             )}
@@ -135,7 +135,7 @@ export default function CostLineCard({
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="flex-1 rounded-md border border-zinc-200 text-xs py-1.5 active:bg-zinc-50"
+              className="flex-1 rounded-md border border-zinc-200 text-[13px] py-1.5 min-h-[44px] active:bg-zinc-50"
             >
               Edytuj
             </button>
@@ -145,7 +145,7 @@ export default function CostLineCard({
                 onClick={(e) => {
                   if (!confirm("Usunąć tę pozycję kosztową?")) e.preventDefault();
                 }}
-                className="rounded-md border border-red-200 text-red-600 text-xs px-3 py-1.5 active:bg-red-50"
+                className="rounded-md border border-red-200 text-red-600 text-[13px] px-3 py-1.5 min-h-[44px] active:bg-red-50"
               >
                 Usuń
               </button>
@@ -208,7 +208,7 @@ export default function CostLineCard({
           </Field>
 
           {state.error && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1.5">
+            <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1.5">
               {state.error}
             </p>
           )}
@@ -217,14 +217,14 @@ export default function CostLineCard({
             <button
               type="submit"
               disabled={pending}
-              className="flex-1 rounded-md bg-accent text-white text-xs py-2 font-medium active:opacity-80 disabled:opacity-50"
+              className="flex-1 rounded-md bg-[var(--accent)] text-[var(--background)] text-[13px] py-2 font-medium min-h-[44px] active:opacity-80 disabled:opacity-50"
             >
               {pending ? "Zapisuję..." : "Zapisz"}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded-md border border-zinc-200 text-xs px-3 py-2 active:bg-zinc-50"
+              className="rounded-md border border-zinc-200 text-[13px] px-3 py-2 min-h-[44px] active:bg-zinc-50"
             >
               Anuluj
             </button>
@@ -236,12 +236,12 @@ export default function CostLineCard({
 }
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-2 py-1.5 text-sm focus:outline-none focus:border-accent w-full";
+  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-2 py-1.5 text-sm min-h-[44px] focus:outline-none focus:border-accent w-full";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">{label}</span>
+      <span className="text-[12px] font-medium text-zinc-500 uppercase tracking-wide">{label}</span>
       {children}
     </label>
   );

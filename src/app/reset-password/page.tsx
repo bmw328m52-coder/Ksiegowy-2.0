@@ -17,7 +17,7 @@ export default function ResetPasswordPage() {
         />
         <div className="text-center">
           <h1 className="text-xl font-semibold">Ustaw nowe hasło</h1>
-          <p className="text-sm text-zinc-500">Wpisz nowe hasło do swojego konta.</p>
+          <p className="text-sm text-[var(--muted)]">Wpisz nowe hasło do swojego konta.</p>
         </div>
         <ResetPasswordForm />
       </div>

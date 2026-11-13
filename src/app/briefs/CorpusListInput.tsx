@@ -5,7 +5,7 @@ import { useState } from "react";
 type Entry = { label: string; color: string; edgeColor: string };
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent";
+  "rounded-md border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] placeholder:text-zinc-400 px-3 py-2.5 min-h-11 text-base focus:outline-none focus:border-[var(--accent)]";
 
 const SLOTS: { label: string; hint: string }[] = [
   { label: "Baza kuchni", hint: "Główny kolor korpusów (np. K001 Biały)" },

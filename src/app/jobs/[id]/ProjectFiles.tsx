@@ -270,7 +270,7 @@ export default function ProjectFiles({
               onClick={() => src && setOpenId(f.id)}
               className="group text-left"
             >
-              <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-[#ededea] bg-[#f6f6f5]">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-[#ededea] bg-[var(--surface-2)]">
                 {src ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -297,7 +297,7 @@ export default function ProjectFiles({
           type="button"
           disabled={busy !== null}
           onClick={() => inputRef.current?.click()}
-          className="flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[#d8d7d3] bg-[#fafaf9] text-sm font-medium text-[#6f6c66] active:bg-[#f0f0ee] disabled:opacity-60"
+          className="flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] text-sm font-medium text-[#6f6c66] active:bg-[#f0f0ee] disabled:opacity-60"
         >
           <span className="text-xl leading-none">+</span>
           <span>{busy ? "Wgrywam…" : "Dodaj"}</span>

@@ -48,7 +48,7 @@ export default async function RentownoscPage({
 
         <BasisToggle basis={basis} disabledNet={!isVatPayer} />
 
-        <section className="rounded-2xl border border-[#cfe0ee] bg-[#eef3f8] p-4 grid grid-cols-3 gap-2 text-center">
+        <section className="rounded-2xl border border-[var(--border)] bg-[var(--info-soft)] p-4 grid grid-cols-3 gap-2 text-center">
           <Sum label="Przychód" value={fmtPLN(totalRevenue)} tone="neutral" />
           <Sum label="Koszty" value={fmtPLN(totalCost)} tone="neutral" />
           <Sum
@@ -73,13 +73,13 @@ export default async function RentownoscPage({
         )}
 
         {pendingCount > 0 && active.length > 0 && (
-          <p className="text-[11px] text-[#8d8a85] text-center">
+          <p className="text-[12px] text-[#8d8a85] text-center">
             + {pendingCount} {pendingCount === 1 ? "zlecenie" : "zleceń"} na wcześniejszym etapie
             (wycena/akceptacja) — jeszcze nie liczone do rentowności.
           </p>
         )}
 
-        <p className="text-[11px] text-[#8d8a85] text-center pt-1">
+        <p className="text-[12px] text-[#8d8a85] text-center pt-1">
           Liczone od etapu „Materiały zamówione”. Koszt „plan” = materiały z wyceny; koszt „realny” =
           faktury kosztowe przypięte do zlecenia.
         </p>
@@ -108,24 +108,24 @@ function JobRow({
     <li>
       <Link
         href={`/jobs/${job.id}`}
-        className="block rounded-2xl border border-[#ededea] bg-white p-4 hover:bg-[#f6f6f5] active:bg-[#f0f0ee] transition-colors"
+        className="block rounded-2xl border border-[#ededea] bg-white p-4 hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] transition-colors"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-[#1f1d1b] truncate">{job.title}</p>
-            <p className="text-[11px] text-[#8d8a85] mt-0.5 truncate">
+            <p className="text-[12px] text-[#8d8a85] mt-0.5 truncate">
               {job.client_name} · {JOB_STATUS_LABELS[job.status]}
             </p>
           </div>
           {pct !== null ? (
             <MarginBadge pct={pct} />
           ) : (
-            <span className="text-[10px] text-[#8d8a85] rounded-full bg-[#f0f0ee] px-2 py-0.5">
+            <span className="text-[12px] text-[#8d8a85] rounded-full bg-[#f0f0ee] px-2 py-0.5">
               brak danych
             </span>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+        <div className="mt-3 grid grid-cols-3 gap-2 text-[13px]">
           <Cell label="Przychód" value={fmtPLN(revenue)} />
           <Cell
             label={real ? `Koszt real. (${m.invoiceCount})` : "Koszt plan."}
@@ -138,7 +138,7 @@ function JobRow({
           />
         </div>
         {!real && (
-          <p className="mt-2 text-[10px] text-[#b08968]">
+          <p className="mt-2 text-[12px] text-[var(--accent)]">
             Szacunek z wyceny — przypnij faktury kosztowe, by policzyć realny wynik.
           </p>
         )}
@@ -160,7 +160,7 @@ function Cell({
     tone === "gold" ? "text-[#a06f3f]" : tone === "negative" ? "text-[#b8523a]" : "text-[#1f1d1b]";
   return (
     <div>
-      <p className="text-[10px] text-[#8d8a85]">{label}</p>
+      <p className="text-[12px] text-[#8d8a85]">{label}</p>
       <Money className={`text-sm font-medium tabular-nums ${color}`}>{value}</Money>
     </div>
   );
@@ -179,7 +179,7 @@ function Sum({
     tone === "gold" ? "text-[#a06f3f]" : tone === "negative" ? "text-[#b8523a]" : "text-[#1f1d1b]";
   return (
     <div>
-      <p className="text-[10px] text-[#8d8a85] uppercase tracking-wide">{label}</p>
+      <p className="text-[12px] text-[#8d8a85] uppercase tracking-wide">{label}</p>
       <Money className={`text-base font-semibold tabular-nums ${color}`}>{value}</Money>
     </div>
   );
@@ -188,11 +188,11 @@ function Sum({
 function MarginBadge({ pct }: { pct: number }) {
   return (
     <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[13px] font-medium ${
         pct >= 20
           ? "bg-[#e3efe5] text-[#3a6b4d]"
           : pct >= 0
-            ? "bg-[#faf5e9] text-[#a18653]"
+            ? "bg-[#faf5e9] text-[var(--accent)]"
             : "bg-red-100 text-red-700"
       }`}
     >
@@ -216,7 +216,7 @@ function BasisToggle({ basis, disabledNet }: { basis: Basis; disabledNet: boolea
             key={o.key}
             href={`/finanse/rentownosc?b=${o.key}`}
             aria-disabled={isDisabled}
-            className={`flex-1 text-center text-xs py-2 px-2 rounded-md font-medium transition-colors ${
+            className={`flex-1 text-center text-[13px] py-2 px-2 rounded-md font-medium transition-colors ${
               active ? "bg-white text-[#1f1d1b] shadow-sm" : "text-zinc-600 active:bg-zinc-50"
             } ${isDisabled ? "opacity-40 pointer-events-none" : ""}`}
           >

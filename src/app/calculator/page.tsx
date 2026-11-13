@@ -77,41 +77,43 @@ export default async function CalculatorPage({
   const backHref = presetJob ? `/jobs/${presetJob.id}` : "/wiecej";
 
   return (
-    <PageContainer width="narrow">
+    <PageContainer width="wide">
+      {/* Pion/telefon: wąska kolumna 640 px jak dotąd; od xl (iPad poziomo) pełna szerokość i dwie kolumny. */}
+      <div className="premium-calc-container mx-auto flex w-full flex-col gap-5">
       <PageHeader title="Kalkulator" back={{ href: backHref }} />
         <Link
           href="/calculator/moduly"
           className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#e2c79c] bg-gradient-to-br from-[#fbf1dd] to-[#fff8e9] px-3.5 py-2.5 active:opacity-90 hover:border-[#a06f3f] transition-colors"
         >
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#a18653]">
+            <p className="text-xs uppercase tracking-wide font-semibold text-[#7d5530]">
               Nowość
             </p>
             <p className="text-sm font-semibold text-[#7d5530] truncate">
               Wycena modułowa kuchni
             </p>
-            <p className="text-[11px] text-[#a18653] truncate">
+            <p className="text-xs text-[#7d5530] truncate">
               klikasz szafki → masz cenę
             </p>
           </div>
           <span className="shrink-0 text-[#7d5530] text-lg">→</span>
         </Link>
         {presetJob && (
-          <div className="mb-3 rounded-xl border border-[#f1e5d2] bg-[#faf5e9] px-3.5 py-2.5 flex items-baseline justify-between gap-3">
+          <div className="mb-3 rounded-xl border border-[#f1e5d2] bg-[#faf5e9] px-3.5 py-2.5 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+              <p className="text-xs uppercase tracking-wide font-semibold text-[#6f6c66]">
                 Wycena dla zlecenia
               </p>
-              <p className="text-sm font-medium text-[#1f1d1b] truncate">
+              <p className="text-sm font-medium text-[#1f1d1b] break-words">
                 {presetJob.title}
               </p>
-              <p className="text-[11px] text-[#6f6c66] truncate">
+              <p className="text-xs text-[#6f6c66] break-words">
                 {presetJob.client_name}
               </p>
             </div>
             <Link
               href={`/jobs/${presetJob.id}`}
-              className="shrink-0 text-[11px] font-medium text-[#a06f3f] underline-offset-2 hover:underline"
+              className="shrink-0 text-xs font-medium text-[#a06f3f] underline-offset-2 hover:underline"
             >
               ← do zlecenia
             </Link>
@@ -131,6 +133,8 @@ export default async function CalculatorPage({
           healthMinMonthly={settings.health_insurance_min}
           initialJobId={initialJobId}
         />
+      </div>
     </PageContainer>
   );
 }
+

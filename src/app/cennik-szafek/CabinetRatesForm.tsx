@@ -98,7 +98,7 @@ const str = (v: number) => String(v).replace(".", ",");
 
 // Bez szerokości — każde pole podaje własną (w-full wygrywało z w-24 i zgniatało etykiety).
 const INPUT =
-  "rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-right text-[15px] tabular-nums text-[#1f1d1b] focus:border-[#a06f3f] focus:outline-none";
+  "min-h-11 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-2 text-right text-base tabular-nums text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none";
 
 export default function CabinetRatesForm({ initial, defaults, saved }: { initial: Rates; defaults: Rates; saved: boolean }) {
   const toFields = (r: Rates) =>
@@ -156,8 +156,8 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <Card tone="accent" className="flex flex-wrap items-center gap-x-6 gap-y-3">
+    <div className="flex min-w-0 flex-col gap-5">
+      <Card className="flex flex-wrap items-center gap-x-6 gap-y-3 border-[#97814f]! bg-[var(--accent-soft)]!">
         <div className="min-w-0 flex-1 basis-64">
           <div className="text-[15px] font-semibold tracking-tight text-[#1f1d1b]">Marża</div>
           <div className="text-[12px] text-[#6f6c66]">
@@ -172,22 +172,22 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
             className={`${INPUT} w-24 shrink-0 text-[20px] font-semibold`}
             aria-label="Marża w procentach"
           />
-          <span className="text-[15px] font-semibold text-[#6f6c66]">%</span>
+          <span className="text-[15px] font-semibold text-[var(--muted)]">%</span>
         </div>
       </Card>
 
-      <div className="grid gap-5 xl:grid-cols-2">
-        <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-5">
           {GROUPS.map((g) => (
             <Card key={g.title}>
-              <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#a06f3f]">{g.title}</h2>
+              <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">{g.title}</h2>
               {g.hint && <p className="text-[12px] text-[#6f6c66]">{g.hint}</p>}
-              <ul className="mt-2 divide-y divide-[#f0efec]">
+              <ul className="mt-2 divide-y divide-[var(--border)]">
                 {g.fields.map((f) => (
-                  <li key={f.key} className="flex items-center gap-3 py-2">
+                  <li key={f.key} className="flex items-center gap-2 py-2 sm:gap-3">
                     <label htmlFor={`r-${f.key}`} className="min-w-0 flex-1">
                       <span className="block text-[14px] text-[#1f1d1b]">{f.label}</span>
-                      {f.hint && <span className="block text-[11px] text-[#8b8882]">{f.hint}</span>}
+                      {f.hint && <span className="block text-[11px] text-[var(--muted)]">{f.hint}</span>}
                     </label>
                     <input
                       id={`r-${f.key}`}
@@ -195,8 +195,9 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
                       value={fields[f.key]}
                       onChange={(e) => set(f.key, e.target.value)}
                       className={`${INPUT} w-24 shrink-0`}
+                      
                     />
-                    <span className="w-16 shrink-0 text-[12px] text-[#6f6c66]">{f.unit}</span>
+                    <span className="w-14 shrink-0 text-[12px] text-[var(--muted)]">{f.unit}</span>
                   </li>
                 ))}
               </ul>
@@ -204,12 +205,12 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
           ))}
         </div>
 
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
           <Card>
-            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#a06f3f]">Przykładowe szafki</h2>
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">Przykładowe szafki</h2>
             <p className="text-[12px] text-[#6f6c66]">Przeliczają się na żywo, gdy zmieniasz stawki.</p>
             <table className="mt-2 w-full text-[13px]">
-              <thead className="text-left text-[11px] text-[#8b8882]">
+              <thead className="text-left text-[11px] text-[var(--muted)]">
                 <tr>
                   <th className="py-1 font-medium">Szafka</th>
                   <th className="py-1 text-right font-medium">Koszt</th>
@@ -223,7 +224,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
                     <tr key={ex.name} className="border-t border-[#f0efec]">
                       <td className="py-1.5 pr-2">
                         {ex.name}
-                        <span className="block text-[11px] text-[#8b8882]">{CAB_KIND_LABELS[ex.cab.kind]}</span>
+                        <span className="block text-[11px] text-[var(--muted)]">{CAB_KIND_LABELS[ex.cab.kind]}</span>
                       </td>
                       <td className="py-1.5 text-right tabular-nums text-[#6f6c66]">{fmtPLN(cost)}</td>
                       <td className="py-1.5 text-right font-semibold tabular-nums">{fmtPLN(priceOf(cost, rates))}</td>
@@ -232,35 +233,35 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
                 })}
               </tbody>
             </table>
-            <p className="mt-2 text-[11px] text-[#8b8882]">
+            <p className="mt-2 text-[11px] text-[var(--muted)]">
               W cenie szafki: korpus, plecy, front, okucia, uchwyt, a przy dolnych także blat nad szafką.
             </p>
           </Card>
 
           <Card>
-            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#a06f3f]">Dodatki</h2>
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">Dodatki</h2>
             <p className="text-[12px] text-[#6f6c66]">Koszt zakupu — marża dolicza się tak samo jak do szafek.</p>
             <ul className="mt-2 flex flex-col gap-2">
               {extras.map((e, i) => (
-                <li key={e.key} className="flex items-center gap-2">
+                <li key={e.key} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] p-2 sm:flex-nowrap sm:border-0 sm:p-0">
                   <input
                     value={e.name}
                     onChange={(ev) => setExtra(i, { name: ev.target.value })}
                     placeholder="Nazwa"
-                    className={`${INPUT} min-w-0 flex-1 text-left`}
+                    className={`${INPUT} min-w-0 basis-full flex-1 text-left! sm:basis-0`}
                     aria-label="Nazwa dodatku"
                   />
                   <input
                     value={e.unit}
                     onChange={(ev) => setExtra(i, { unit: ev.target.value })}
-                    className={`${INPUT} w-14 shrink-0 text-center`}
+                    className={`${INPUT} w-16 shrink-0 text-center`}
                     aria-label="Jednostka"
                   />
                   <input
                     inputMode="decimal"
                     value={e.price}
                     onChange={(ev) => setExtra(i, { price: ev.target.value })}
-                    className={`${INPUT} w-24 shrink-0`}
+                    className={`${INPUT} min-w-0 flex-1 sm:w-24 sm:flex-none`}
                     aria-label="Koszt"
                   />
                   <button
@@ -269,7 +270,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
                       setExtras((xs) => xs.filter((_, j) => j !== i));
                       touch();
                     }}
-                    className="px-1.5 text-[18px] leading-none text-[#b3b0a9] hover:text-[#b8523a]"
+                    className="ml-auto inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-[22px] leading-none text-[var(--muted)] hover:text-[var(--warn)]"
                     aria-label={`Usuń ${e.name}`}
                   >
                     ×
@@ -280,7 +281,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
             <Button
               variant="secondary"
               size="sm"
-              className="mt-3"
+              className="mt-3 min-h-11"
               type="button"
               onClick={() => {
                 setExtras((xs) => [...xs, { key: `extra_${Date.now().toString(36)}`, name: "", unit: "szt", price: "0" }]);
@@ -294,14 +295,14 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
       </div>
 
       <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+72px)] z-20 md:bottom-4">
-        <div className="flex items-center gap-3 rounded-2xl border border-[#ededea] bg-white/95 p-3 shadow-[0_8px_24px_rgba(40,38,36,0.12)] backdrop-blur">
-          <span className={`min-w-0 flex-1 text-[13px] ${status.error ? "text-[#b8523a]" : "text-[#6f6c66]"}`}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-[#ededea] bg-[var(--surface)] p-3 shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+          <span role="status" className={`min-w-0 basis-full flex-1 text-[13px] sm:basis-0 ${status.error ? "text-[var(--warn)]" : "text-[var(--muted)]"}`}>
             {status.error ?? status.ok ?? (dirty ? "Niezapisane zmiany" : saved ? "Twoje stawki" : "Stawki z faktur (domyślne)")}
           </span>
-          <Button variant="ghost" size="sm" type="button" onClick={reset} disabled={pending}>
+          <Button variant="ghost" size="md" className="shrink-0 whitespace-nowrap" type="button" onClick={reset} disabled={pending}>
             Przywróć domyślne
           </Button>
-          <Button type="button" onClick={save} disabled={pending || !dirty}>
+          <Button type="button" className="flex-1 sm:flex-none" onClick={save} disabled={pending || !dirty}>
             {pending ? "Zapisuję…" : "Zapisz"}
           </Button>
         </div>

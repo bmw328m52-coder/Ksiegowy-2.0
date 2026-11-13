@@ -70,7 +70,7 @@ export default function ClientForm({
 }
 
 const inputCls =
-  "rounded-lg border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-accent w-full";
+  "rounded-lg border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] placeholder:text-zinc-400 px-3 py-3 text-base focus:outline-none focus:border-[var(--accent)] w-full";
 const errorCls = "text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2";
 
 function Field({

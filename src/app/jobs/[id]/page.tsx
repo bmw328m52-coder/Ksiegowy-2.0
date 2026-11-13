@@ -67,7 +67,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <span className="text-sm text-[#8d8a85]">Klient</span>
             <Link
               href={`/clients/${job.client_id}`}
-              className="text-sm font-medium text-[#1f1d1b] underline-offset-2 hover:underline"
+              className="inline-flex items-center min-h-11 text-right break-words text-sm font-medium text-[#1f1d1b] underline-offset-2 hover:underline"
             >
               {job.client_name}
             </Link>
@@ -79,15 +79,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </section>
 
-        {!isCancelled && <MarginSection job={job} />}
-
-        {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
-
-        {!isCancelled && job.calc_quote?.plan?.input && (
-          <PlanSection job={job} plan={job.calc_quote.plan} savedAt={job.calc_quote.savedAt} />
-        )}
-
-
         <StageActions
           jobId={id}
           status={job.status}
@@ -95,20 +86,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           paidDate={job.paid_date}
         />
 
-        <StageTimeline stages={stages} />
-
-        <ProjectFilesSection jobId={id} />
-
-        {(scans.length > 0 || MEASURE_STAGES.includes(job.status)) && <ScanStatusCard jobId={id} scans={scans} />}
-
-        <PomiarSection jobId={id} brief={brief} scanned={scans.length > 0} />
-
-        <RoomScanSection jobId={id} scans={scans} />
-
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <Link
             href={`/jobs/${id}/wycena`}
-            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[#f6f6f5] hover:border-[#d8d7d3] transition-colors sm:col-span-2"
+            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[var(--surface-2)] hover:border-[var(--border)] transition-colors sm:col-span-2"
           >
             <div className="flex items-center justify-between">
               <span>Wycena pozycji</span>
@@ -120,7 +101,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </Link>
           <Link
             href={`/jobs/${id}/zakupy`}
-            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[#f6f6f5] hover:border-[#d8d7d3] transition-colors"
+            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[var(--surface-2)] hover:border-[var(--border)] transition-colors"
           >
             <div className="flex items-center justify-between">
               <span>Lista zakupów</span>
@@ -132,7 +113,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </Link>
           <Link
             href={`/calculator?job=${id}`}
-            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[#f6f6f5] hover:border-[#d8d7d3] transition-colors"
+            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[var(--surface-2)] hover:border-[var(--border)] transition-colors"
           >
             <div className="flex items-center justify-between">
               <span>Kalkulator wyceny</span>
@@ -143,6 +124,27 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             </p>
           </Link>
         </div>
+
+        {!isCancelled && <MarginSection job={job} />}
+
+        {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
+
+        {!isCancelled && job.calc_quote?.plan?.input && (
+          <PlanSection job={job} plan={job.calc_quote.plan} savedAt={job.calc_quote.savedAt} />
+        )}
+
+
+
+        <StageTimeline stages={stages} />
+
+        <ProjectFilesSection jobId={id} />
+
+        {(scans.length > 0 || MEASURE_STAGES.includes(job.status)) && <ScanStatusCard jobId={id} scans={scans} />}
+
+        <PomiarSection jobId={id} brief={brief} scanned={scans.length > 0} />
+
+        <RoomScanSection jobId={id} scans={scans} />
+
 
         <InvoiceSection
           jobId={id}
@@ -414,7 +416,7 @@ function StageActions({
     <form action={revert}>
       <button
         type="submit"
-        className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-[#6f6c66] bg-[#f6f6f5] border border-[#ededea] hover:bg-[#eeeeed] active:opacity-80 transition-colors"
+        className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 min-h-11 text-sm font-medium text-[var(--muted)] bg-[var(--surface-2)] border border-[#ededea] hover:border-[var(--accent)] active:opacity-80 transition-colors"
       >
         <span aria-hidden>←</span>
         <span>Cofnij do: {prevLabel}</span>
@@ -427,7 +429,7 @@ function StageActions({
       <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
         <Link
           href={`/jobs/${jobId}/pomiar/edit`}
-          className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+          className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
         >
           <span>Wykonaj pomiar →</span>
           <span aria-hidden>→</span>
@@ -447,7 +449,7 @@ function StageActions({
         <form action={confirmPomiar}>
           <button
             type="submit"
-            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
           >
             <span>Zatwierdź pomiar → Uzupełnienie</span>
             <span aria-hidden>→</span>
@@ -468,7 +470,7 @@ function StageActions({
         <form action={confirmUzup}>
           <button
             type="submit"
-            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
           >
             <span>Zatwierdź uzupełnienie → Wycena</span>
             <span aria-hidden>→</span>
@@ -502,7 +504,7 @@ function StageActions({
       {canAdvance && (
         <form action={advance} className="flex-1 flex flex-col gap-2">
           {askDate && (
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-[#e2c79c] bg-[#fbf6ee] px-3 py-2">
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--accent-soft)] px-3 py-2">
               <span className="text-xs font-medium text-[#7d5530]">{askDate.label}</span>
               <input
                 type="date"
@@ -516,7 +518,7 @@ function StageActions({
           )}
           <button
             type="submit"
-            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[#7d5530] active:opacity-90 transition-colors"
+            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-3 min-h-11 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
           >
             <span>Następny etap: {nextLabel}</span>
             <span aria-hidden>→</span>
@@ -538,8 +540,8 @@ function StatusPill({ status }: { status: JobStatus }) {
     scheduled_measurement: "bg-[#f1e5d2] text-[#7d5530]",
     to_measure: "bg-[#f1e5d2] text-[#7d5530]",
     after_measure: "bg-[#f1e5d2] text-[#7d5530]",
-    to_quote: "bg-[#faf5e9] text-[#a18653]",
-    quote_sent: "bg-[#faf5e9] text-[#a18653]",
+    to_quote: "bg-[#faf5e9] text-[var(--accent)]",
+    quote_sent: "bg-[#faf5e9] text-[var(--accent)]",
     accepted: "bg-[#dde5ef] text-[#5a7898]",
     materials_ordered: "bg-[#dde5ef] text-[#5a7898]",
     in_production: "bg-[#dde5ef] text-[#5a7898]",
@@ -561,12 +563,12 @@ function StatusPill({ status }: { status: JobStatus }) {
 function CalcQuoteCard({ q }: { q: CalcQuote }) {
   const marginPct = q.amountGross > 0 ? (q.profit / q.amountGross) * 100 : null;
   return (
-    <section className="mt-3 rounded-xl border border-[#e2c79c] bg-[linear-gradient(160deg,#fbf1dd,#fff8e9)] p-4">
+    <section className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--accent-soft)] p-4">
       <div className="flex items-center justify-between mb-2.5">
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#a18653]">
+        <p className="text-[11px] uppercase tracking-wide font-semibold text-[var(--accent)]">
           Wycena z kalkulatora
         </p>
-        <span className="text-[10px] text-[#a18653]">
+        <span className="text-[10px] text-[var(--accent)]">
           {q.withInvoice ? "z fakturą" : "bez faktury"}
         </span>
       </div>
@@ -608,9 +610,9 @@ function CalcQuoteCard({ q }: { q: CalcQuote }) {
       )}
       <div className="mt-2.5 flex items-center justify-between">
         {marginPct !== null && (
-          <span className="text-[11px] font-medium text-[#a18653]">marża {marginPct.toFixed(1)}%</span>
+          <span className="text-[11px] font-medium text-[var(--accent)]">marża {marginPct.toFixed(1)}%</span>
         )}
-        <span className="text-[10px] text-[#b3b0aa]">przeniesione z kalkulatora · {fmtDate(q.savedAt)}</span>
+        <span className="text-[10px] text-[var(--muted)]">przeniesione z kalkulatora · {fmtDate(q.savedAt)}</span>
       </div>
     </section>
   );

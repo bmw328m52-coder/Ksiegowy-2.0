@@ -7,7 +7,7 @@ import { fmtDate, fmtPLN } from "@/lib/format";
 
 const RATE_TONE: Record<RateStatus, string> = {
   cel: "text-[#3a6b4d]",
-  minimum: "text-[#a18653]",
+  minimum: "text-[var(--accent)]",
   ponizej: "text-red-700",
 };
 
@@ -124,7 +124,7 @@ export default async function PlanSection({
 
       <div className="mt-3 pt-3 border-t border-[#f0efec] space-y-1 text-[11px] text-[#6f6c66]">
         {planHours <= 0 && (
-          <p className="text-[#a18653]">
+          <p className="text-[var(--accent)]">
             Plan nie ma godzin — otwórz kalkulator, wpisz czas pracy i przenieś wycenę ponownie.
           </p>
         )}
@@ -158,11 +158,11 @@ export default async function PlanSection({
         <div className="flex items-center justify-between pt-1">
           <Link
             href={`/calculator?job=${job.id}`}
-            className="font-medium text-[#a06f3f] underline-offset-2 hover:underline"
+            className="inline-flex items-center min-h-11 font-medium text-[#a06f3f] underline-offset-2 hover:underline"
           >
             Otwórz plan w kalkulatorze →
           </Link>
-          <span className="text-[10px] text-[#b3b0aa]">plan z {fmtDate(savedAt)}</span>
+          <span className="text-[10px] text-[var(--muted)]">plan z {fmtDate(savedAt)}</span>
         </div>
       </div>
     </section>

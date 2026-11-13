@@ -45,7 +45,12 @@ export default function StatCard({
   /** Większy, wyróżniony kafel (np. kluczowa metryka) */
   emphasis?: boolean;
 }) {
-  const valueSize = emphasis ? "text-[30px] leading-none" : "text-[24px] leading-none";
+  const valueSize = "leading-none";
+  // Rozmiar liczby dopasowuje się do szerokości kafla (container query), żeby duże kwoty się nie ucinały:
+  // ok. 0,62 em na znak; maksimum jak dotąd (24 px, w wyróżnionym kaflu 30 px).
+  const chars = Math.max(String(value).length, 6);
+  const maxPx = emphasis ? 30 : 24;
+  const valueFont = `clamp(14px, calc(100cqw / ${(chars * 0.62).toFixed(2)}), ${maxPx}px)`;
   const inner = (
     <>
       <span
@@ -55,7 +60,7 @@ export default function StatCard({
       <p className="text-[10px] uppercase tracking-[0.06em] font-semibold text-[#9ea29c] truncate">
         {label}
       </p>
-      <div className="mt-1.5">
+      <div className="mt-1.5" style={{ fontSize: valueFont }}>
         {money ? (
           <Money className={`${valueSize} font-bold tabular-nums ${VALUE_TONE[tone]}`}>
             {value}
@@ -78,7 +83,7 @@ export default function StatCard({
   );
 
   const base =
-    "relative overflow-hidden rounded-2xl border border-[#ededea] bg-white p-3.5 shadow-[0_1px_2px_rgba(40,38,36,0.04)]";
+    "relative overflow-hidden [container-type:inline-size] rounded-2xl border border-[#ededea] bg-white p-3.5 shadow-[0_1px_2px_rgba(40,38,36,0.04)]";
 
   if (href) {
     return (

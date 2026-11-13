@@ -52,7 +52,7 @@ export default async function CalcSettingsPage() {
                   <select
                     name="catalog_id"
                     defaultValue={selectedId}
-                    className="w-full h-11 px-3 rounded-lg border border-zinc-300 bg-white text-sm text-[#1f1d1b]"
+                    className="w-full h-12 px-3 rounded-lg border border-[var(--border)] bg-[var(--background)] text-base text-[var(--foreground)]"
                   >
                     <option value="">
                       — brak (użyj domyślnej {fmtPLN(PRICES[slot.key])}/{slot.unit}) —
@@ -72,7 +72,7 @@ export default async function CalcSettingsPage() {
                     </p>
                     <button
                       type="submit"
-                      className="text-xs px-3 py-1.5 rounded-md bg-[#a06f3f] text-white font-medium active:bg-[#7d5530]"
+                      className="text-xs px-3 py-1.5 rounded-md bg-[var(--accent)] text-[var(--btn-fg)] font-semibold min-h-11 active:opacity-80"
                     >
                       Zapisz
                     </button>
@@ -86,7 +86,7 @@ export default async function CalcSettingsPage() {
       {catalog.length === 0 && (
         <p className="text-center text-sm text-[#8d8a85] py-6">
           Katalog jest pusty.{" "}
-          <Link href="/materials" className="text-[#a06f3f] underline">
+          <Link href="/materials" className="text-[#a06f3f] underline inline-block min-h-11 leading-[44px]">
             Dodaj materiały
           </Link>{" "}
           albo wgraj starter.

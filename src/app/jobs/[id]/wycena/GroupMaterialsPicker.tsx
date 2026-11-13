@@ -15,7 +15,7 @@ import { humanizeSupabaseError } from "@/lib/supabaseError";
 import { useGroupItems, useMaterialsStore } from "./MaterialsStore";
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
+  "rounded-md border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] placeholder:text-zinc-400 px-3 py-2.5 min-h-11 text-base focus:outline-none focus:border-[var(--accent)] w-full";
 
 export default function GroupMaterialsPicker({
   jobId,

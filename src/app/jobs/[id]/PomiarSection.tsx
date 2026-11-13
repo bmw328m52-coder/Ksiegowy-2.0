@@ -38,7 +38,7 @@ export default function PomiarSection({
         </p>
         <Link
           href={`/jobs/${jobId}/pomiar/edit`}
-          className="rounded-md bg-accent text-white py-2 text-sm font-medium text-center"
+          className="rounded-md bg-accent text-white py-2.5 min-h-11 flex items-center justify-center text-sm font-medium text-center"
         >
           + Uzupełnij wybory
         </Link>
@@ -93,7 +93,7 @@ export default function PomiarSection({
 
       {(typeof data.visit_address === "string" && data.visit_address) ||
       (typeof data.visit_phone === "string" && data.visit_phone) ? (
-        <div className="rounded-lg bg-[#f6f6f5] border border-[#ededea] px-3 py-2 text-xs flex flex-col gap-1">
+        <div className="rounded-lg bg-[var(--surface-2)] border border-[#ededea] px-3 py-2 text-xs flex flex-col gap-1">
           {typeof data.visit_address === "string" && data.visit_address && (
             <div className="flex items-baseline gap-2">
               <span className="text-zinc-500 shrink-0">Adres:</span>

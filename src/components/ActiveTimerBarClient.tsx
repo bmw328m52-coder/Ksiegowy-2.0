@@ -22,7 +22,7 @@ export default function ActiveTimerBarClient({ jobId, jobTitle, phaseLabel, star
     return () => clearInterval(id);
   }, []);
 
-  if (pathname.startsWith("/login")) return null;
+  if (pathname.startsWith("/login") || pathname === "/timer") return null;
 
   const elapsedSec = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
   const h = Math.floor(elapsedSec / 3600);
@@ -37,6 +37,9 @@ export default function ActiveTimerBarClient({ jobId, jobTitle, phaseLabel, star
   };
 
   return (
+    <>
+    {/* Zapas miejsca na końcu strony, żeby pływający pasek nie zasłaniał ostatnich przycisków. */}
+    <div aria-hidden className="h-[76px]" />
     <div
       className="fixed left-0 right-0 z-50 bg-emerald-700 text-white"
       style={{
@@ -45,7 +48,7 @@ export default function ActiveTimerBarClient({ jobId, jobTitle, phaseLabel, star
     >
       <div className="w-full max-w-md mx-auto flex items-center gap-2 px-3 py-2">
         <span className="inline-block w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
-        <Link href={`/jobs/${jobId}`} className="min-w-0 flex-1 active:opacity-80">
+        <Link href={`/jobs/${jobId}`} className="flex min-h-11 min-w-0 flex-1 flex-col justify-center active:opacity-80">
           <p className="text-[11px] uppercase tracking-wide font-semibold truncate">
             {phaseLabel} · {jobTitle}
           </p>
@@ -63,5 +66,6 @@ export default function ActiveTimerBarClient({ jobId, jobTitle, phaseLabel, star
         </button>
       </div>
     </div>
+    </>
   );
 }

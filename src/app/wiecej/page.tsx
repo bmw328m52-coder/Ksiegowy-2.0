@@ -25,6 +25,18 @@ const iconProps = {
 
 const TOOLS: Tool[] = [
   {
+    href: "/timer",
+    label: "Licznik czasu",
+    hint: "Rejestr pracy nad zleceniem",
+    tone: "info",
+    icon: (
+      <svg {...iconProps}>
+        <circle cx="12" cy="13" r="8" />
+        <path d="M12 9v4l2 2M9 2h6M12 2v3" />
+      </svg>
+    ),
+  },
+  {
     href: "/materials",
     label: "Cennik",
     hint: "Materiały, okucia, akcesoria",
@@ -61,14 +73,28 @@ const TOOLS: Tool[] = [
     ),
   },
   {
-    href: "/timer",
-    label: "Licznik czasu",
-    hint: "Rejestr pracy nad zleceniem",
+    href: "/calculator/moduly",
+    label: "Wycena modułowa",
+    hint: "Moduły, płyty i fronty — szybka cena",
     tone: "info",
     icon: (
       <svg {...iconProps}>
-        <circle cx="12" cy="13" r="8" />
-        <path d="M12 9v4l2 2M9 2h6M12 2v3" />
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    href: "/cennik-szafek",
+    label: "Cennik szafek",
+    hint: "Stawki i marża do wyceny ze skanu",
+    tone: "accent",
+    icon: (
+      <svg {...iconProps}>
+        <path d="M4 4h16v16H4z" />
+        <path d="M12 4v16M8 9h.01M16 9h.01" />
       </svg>
     ),
   },
@@ -98,17 +124,17 @@ export default function WiecejPage() {
     <PageContainer>
       <header className="pt-1">
         <h1 className="text-2xl font-bold tracking-tight text-[#1f1d1b]">Więcej</h1>
-        <p className="mt-1 text-[13px] text-[#6f6c66]">Narzędzia, cennik i ustawienia firmy</p>
+        <p className="mt-1 text-sm text-[#6f6c66]">Narzędzia, cenniki i ustawienia firmy</p>
       </header>
 
       <section>
         <SectionHeading>Narzędzia</SectionHeading>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-2 gap-3">
           {TOOLS.map((t) => (
             <Link
               key={t.href}
               href={t.href}
-              className="group rounded-2xl border border-[#ededea] bg-white p-4 flex items-center gap-3 shadow-[0_1px_2px_rgba(40,38,36,0.04)] transition-all active:scale-[0.98] active:bg-[#f6f6f5] hover:border-[#d8d7d3] hover:shadow-[0_2px_8px_rgba(40,38,36,0.08)]"
+              className="group rounded-2xl border border-[#ededea] bg-white p-4 min-h-[76px] flex items-center gap-3 shadow-[0_1px_2px_rgba(40,38,36,0.04)] transition-all active:scale-[0.98] active:bg-[#f6f6f5] hover:border-[#d8d7d3] hover:shadow-[0_2px_8px_rgba(40,38,36,0.08)]"
             >
               <span
                 className={`inline-flex items-center justify-center w-11 h-11 rounded-xl shrink-0 ${TONE_BOX[t.tone]}`}
@@ -116,12 +142,12 @@ export default function WiecejPage() {
                 {t.icon}
               </span>
               <span className="min-w-0 flex flex-col">
-                <span className="text-[15px] font-semibold tracking-tight text-[#1f1d1b] truncate">
+                <span className="text-[16px] font-semibold tracking-tight text-[#1f1d1b]">
                   {t.label}
                 </span>
-                <span className="text-[12px] text-[#6f6c66] truncate">{t.hint}</span>
+                <span className="text-[13px] text-[#6f6c66]">{t.hint}</span>
               </span>
-              <span className="ml-auto text-[#c9c7c2] group-hover:text-[#a06f3f] transition-colors">
+              <span aria-hidden="true" className="ml-auto text-[var(--muted)] group-hover:text-[#a06f3f] transition-colors">
                 →
               </span>
             </Link>

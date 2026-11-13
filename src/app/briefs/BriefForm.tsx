@@ -33,7 +33,7 @@ function DiagramSkeleton() {
 type Action = (prev: { error?: string }, formData: FormData) => Promise<{ error?: string }>;
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
+  "rounded-md border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] placeholder:text-zinc-400 px-3 py-2.5 min-h-11 text-base focus:outline-none focus:border-[var(--accent)] w-full";
 
 const NOOP_ACTION: Action = async () => ({ error: undefined });
 
@@ -194,6 +194,10 @@ export default function BriefForm({
         // Gdy typ projektu nie ma pól po-pomiarowych, pokazujemy tylko pomiar
         // (bez paska zakładek), żeby stan tab="post" nie ukrył formularza.
         const showMeasurement = tab === "measurement" || !hasPostFields;
+        const measurementJump = schema.groups
+          .filter((g) => g.fields.some((f) => !isPost(f) && !isFromScan(f)))
+          .map((g) => ({ id: sectionId("m", g.title), title: g.title }));
+        const postJump = postGroups.map((g) => ({ id: sectionId("p", g.title), title: g.title }));
 
         return (
           <>
@@ -211,9 +215,11 @@ export default function BriefForm({
               </div>
             )}
 
+            <SectionJump items={showMeasurement ? measurementJump : postJump} />
+
             {/* Panel: Pomiar — tylko dane zbierane na wizycie */}
             <div className={showMeasurement ? "flex flex-col gap-5" : "hidden"}>
-              <p className="rounded-xl border border-[#cfe4d4] bg-[#eef6f0] px-3.5 py-2.5 text-xs text-[#3a6b4d]">
+              <p className="rounded-xl border border-[var(--border)] bg-[var(--ok-soft)] px-3.5 py-2.5 text-xs text-[#3a6b4d]">
                 Wymiary ścian, okna i położenie przyłączy zbiera skaner na iPadzie — tu zostają tylko wybory.
               </p>
               {schema.groups.map((group) => {
@@ -226,7 +232,11 @@ export default function BriefForm({
                 ));
                 if (visible.length === 0) return <div key={group.title}>{hiddenInputs}</div>;
                 return (
-                  <section key={group.title} className="rounded-xl border border-zinc-200 bg-white p-4">
+                  <section
+                    key={group.title}
+                    id={sectionId("m", group.title)}
+                    className="scroll-mt-24 rounded-xl border border-zinc-200 bg-white p-4"
+                  >
                     <h3 className="text-sm font-semibold text-zinc-700 mb-3">{group.title}</h3>
                     <div className="flex flex-col gap-3">
                       {visible.map(renderFieldNode)}
@@ -249,7 +259,11 @@ export default function BriefForm({
                   Pola ilościowe i szczegóły — wypełnij po akceptacji wstępnej wyceny.
                 </p>
                 {postGroups.map((g) => (
-                  <section key={g.title} className="rounded-xl border border-zinc-200 bg-white p-4">
+                  <section
+                    key={g.title}
+                    id={sectionId("p", g.title)}
+                    className="scroll-mt-24 rounded-xl border border-zinc-200 bg-white p-4"
+                  >
                     <h3 className="text-sm font-semibold text-zinc-700 mb-3">{g.title}</h3>
                     <div className="flex flex-col gap-3">
                       {g.fields.map(renderFieldNode)}
@@ -287,6 +301,31 @@ export default function BriefForm({
 }
 
 /** Pole geometrii — niewidoczne, ale zachowuje wartość wpisaną dawniej ręcznie. */
+function sectionId(panel: "m" | "p", title: string): string {
+  return `brief-${panel}-${title.toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]+/gi, "-").replace(/^-|-$/g, "")}`;
+}
+
+/** Przyklejony pasek skoków do sekcji — formularz ma kilkadziesiąt pól i ponad 7000 px wysokości. */
+function SectionJump({ items }: { items: { id: string; title: string }[] }) {
+  if (items.length < 3) return null;
+  return (
+    <nav
+      aria-label="Przejdź do sekcji formularza"
+      className="no-scrollbar sticky top-2 z-30 -mx-1 flex gap-2 overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-sm"
+    >
+      {items.map((it) => (
+        <a
+          key={it.id}
+          href={`#${it.id}`}
+          className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 text-[13px] font-semibold text-[var(--foreground)] hover:border-[var(--accent)]"
+        >
+          {it.title}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function HiddenField({
   field,
   value,
@@ -405,7 +444,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex-1 flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex-1 flex items-center justify-center rounded-md px-3 py-2.5 min-h-11 text-sm font-medium transition-colors ${
         active
           ? "bg-white text-zinc-900 shadow-sm"
           : "text-zinc-500 active:bg-white/50"

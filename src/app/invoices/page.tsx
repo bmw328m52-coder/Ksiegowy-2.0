@@ -12,11 +12,12 @@ import KsefSyncCard from "./KsefSyncCard";
 import { getKsefStatus } from "@/lib/dao/ksef";
 import { createClient } from "@/lib/supabase/server";
 import InvoicesListClient from "./InvoicesListClient";
+import { FinSegmentedNav, FinEmptyState } from "../finanse/fin-ui";
 import { isOverdueUnpaid } from "@/lib/dao/invoices.types";
 import {
   PageContainer,
-  SegmentedNav,
-  EmptyState,
+
+
   ButtonLink,
   type SegmentItem,
 } from "@/components/ui";
@@ -141,7 +142,7 @@ export default async function InvoicesPage({
       {all.length > 0 && (
         <>
           <ExportMonthCard />
-          <SegmentedNav items={segments} activeKey={filter} />
+          <FinSegmentedNav items={segments} activeKey={filter} />
           {availableCats.length > 0 && (
             <CategoryPills current={cat} available={availableCats} buildHref={buildHref} />
           )}
@@ -149,7 +150,7 @@ export default async function InvoicesPage({
       )}
 
       {all.length === 0 ? (
-        <EmptyState
+        <FinEmptyState
           icon={<InvoiceGlyph />}
           title="Brak faktur"
           hint="Wgraj pierwszą fakturę — OCR odczyta dane automatycznie."
@@ -157,7 +158,7 @@ export default async function InvoicesPage({
           tone="accent"
         />
       ) : invoices.length === 0 ? (
-        <EmptyState
+        <FinEmptyState
           icon={<InvoiceGlyph />}
           title={
             cat
@@ -197,10 +198,10 @@ function CategoryPills({
 }) {
   const allActive = current === null;
   const pill = (active: boolean) =>
-    `text-xs px-3 py-1.5 rounded-full whitespace-nowrap font-semibold transition-colors ${
+    `text-[13px] px-4 min-h-[44px] inline-flex items-center rounded-full whitespace-nowrap font-semibold transition-colors ${
       active
         ? "bg-[#a06f3f] text-white"
-        : "bg-white border border-[#ededea] text-[#6f6c66] active:bg-[#f6f6f5] hover:border-[#d8d7d3]"
+        : "bg-white border border-[#ededea] text-[#6f6c66] active:bg-[var(--surface-2)] hover:border-[var(--accent)]"
     }`;
   return (
     <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 overflow-x-auto">
@@ -230,12 +231,12 @@ function SalesLink({ total, unlinked }: { total: number; unlinked: number }) {
     <Link
       href="/invoices/sprzedaz"
       className={`flex items-center gap-3 rounded-2xl border p-3.5 active:opacity-80 ${
-        unlinked > 0 ? "border-[#e2c79c] bg-[#fffaf0]" : "border-[#ededea] bg-white"
+        unlinked > 0 ? "border-[#e2c79c] bg-[var(--accent-soft)]" : "border-[#ededea] bg-white"
       }`}
     >
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#1f1d1b]">Faktury sprzedażowe</p>
-        <p className="text-xs text-[#6f6c66]">
+        <p className="text-[13px] text-[#6f6c66]">
           {total} z KSeF{unlinked > 0 ? ` · ${unlinked} do przypisania do zlecenia` : " · wszystkie przypięte"}
         </p>
       </div>
@@ -250,11 +251,11 @@ function GrantLink({ invoices }: { invoices: { funded_by_grant?: boolean; amount
   return (
     <Link
       href="/invoices/dotacja"
-      className="flex items-center gap-3 rounded-2xl border border-[#ededea] bg-white p-3.5 active:bg-[#f6f6f5]"
+      className="flex items-center gap-3 rounded-2xl border border-[#ededea] bg-white p-3.5 active:bg-[var(--surface-2)]"
     >
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#1f1d1b]">Zakupy z dotacji</p>
-        <p className="text-xs text-[#6f6c66]">
+        <p className="text-[13px] text-[#6f6c66]">
           {grant.length > 0
             ? `${grant.length} faktur · ${sum.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} zł brutto — poza kosztami`
             : "Zaznacz faktury opłacone z dotacji PUP"}

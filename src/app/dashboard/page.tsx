@@ -1,6 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import { PageContainer } from "@/components/ui";
-import TrendChart from "@/components/TrendChart";
+import { FinTrendChart } from "../finanse/fin-ui";
 import { Money } from "@/components/Money";
 import { getDashboardData, MONTH_NAMES_PL, type ReminderItem } from "@/lib/dao/dashboard";
 import { CATEGORY_COLORS } from "@/lib/dao/cost_lines.types";
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
 
         <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
               Bilans podatkowy
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
 
         <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-4">
           <div>
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
               Bieżący miesiąc
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">{monthName}</h2>
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
           </div>
           {d.costsByCategoryMonth.length > 0 && (
             <div className="pt-3 border-t border-[#eeeeed] space-y-2">
-              <p className="text-[10px] font-semibold text-[#8d8a85] uppercase tracking-wide">
+              <p className="text-[12px] font-semibold text-[#8d8a85] uppercase tracking-wide">
                 Rozkład kosztów
               </p>
               <CategoryBars rows={d.costsByCategoryMonth} />
@@ -115,18 +115,18 @@ export default async function DashboardPage() {
 
         <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-4">
           <div>
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
               Rok
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">{d.year}</h2>
           </div>
           {!hasYearData ? (
-            <p className="text-xs text-[#8d8a85] py-4 text-center">
+            <p className="text-[13px] text-[#8d8a85] py-4 text-center">
               Brak danych w {d.year}. Dodaj zlecenia (status „Opłacone”) i faktury kosztowe.
             </p>
           ) : (
             <>
-              <TrendChart data={d.monthlyTrend} highlightMonth={d.month_index} />
+              <FinTrendChart data={d.monthlyTrend} highlightMonth={d.month_index} />
               <div className="space-y-2 pt-3 border-t border-[#eeeeed]">
                 <Row label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />
                 <Row label="Koszty netto YTD" value={fmtPLN(d.ytd.costsNet)} />
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
         {hasCashAlerts && (
           <section className="rounded-xl border border-[#ededea] bg-white overflow-hidden">
             <div className="px-4 pt-4 pb-2">
-              <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+              <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
                 Cash flow
               </p>
               <h2 className="text-sm font-semibold text-[#1f1d1b]">Alerty kasowe</h2>
@@ -172,7 +172,7 @@ export default async function DashboardPage() {
           </section>
         )}
 
-        <p className="text-[11px] text-[#8d8a85] text-center pt-2">
+        <p className="text-[12px] text-[#8d8a85] text-center pt-2">
           Forma: {taxFormLabel} · VAT: {vatPeriodLabel}
           <br />
           PIT, ZUS i VAT liczone tylko ze zleceń z fakturą. Zlecenia bez faktury to symulacja —
@@ -207,7 +207,7 @@ function CashAlertRow({
           {fmtPLN(amount)}
         </Money>
       </div>
-      <p className="text-[11px] text-[#8d8a85] mt-0.5">{hint}</p>
+      <p className="text-[12px] text-[#8d8a85] mt-0.5">{hint}</p>
     </div>
   );
 }
@@ -232,7 +232,7 @@ function BalanceBlock({
       <div className="flex items-baseline justify-between gap-2 mb-2">
         <div className="flex items-baseline gap-2">
           <span className="text-base font-semibold text-[#1f1d1b]">{title}</span>
-          <span className="text-[11px] text-[#8d8a85]">{periodLabel}</span>
+          <span className="text-[12px] text-[#8d8a85]">{periodLabel}</span>
         </div>
         <DeadlinePill deadline={deadline} />
       </div>
@@ -270,10 +270,10 @@ function DeadlinePill({ deadline }: { deadline: string }) {
   const overdue = days < 0;
   const urgent = days >= 0 && days <= 7;
   const cls = overdue
-    ? "bg-[#f4e0d9] text-[#b8523a] border-[#e6c4b9]"
+    ? "bg-[var(--warn-soft)] text-[var(--warn)] border-[var(--warn)]"
     : urgent
-      ? "bg-[#f1e5d2] text-[#7d5530] border-[#e3d4b6]"
-      : "bg-[#f6f6f5] text-[#8d8a85] border-[#ededea]";
+      ? "bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]"
+      : "bg-[var(--surface-2)] text-[#8d8a85] border-[#ededea]";
   const suffix = overdue
     ? `${Math.abs(days)} dni po terminie`
     : days === 0
@@ -282,7 +282,7 @@ function DeadlinePill({ deadline }: { deadline: string }) {
         ? "jutro"
         : `za ${days} dni`;
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${cls} whitespace-nowrap`}>
+    <span className={`text-[12px] px-2.5 py-0.5 rounded-full border ${cls} whitespace-nowrap`}>
       do {fmtDate(d)} · {suffix}
     </span>
   );
@@ -313,14 +313,14 @@ function Row({
             : "text-[#3a3633]";
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className={`${sub ? "text-xs text-[#8d8a85]" : "text-sm text-[#6f6c66]"}`}>{label}</span>
-      <Money className={`${sub ? "text-xs" : "text-sm"} tabular-nums ${valueCls}`}>{value}</Money>
+      <span className={`${sub ? "text-[13px] text-[#8d8a85]" : "text-sm text-[#6f6c66]"}`}>{label}</span>
+      <Money className={`${sub ? "text-[13px]" : "text-sm"} tabular-nums ${valueCls}`}>{value}</Money>
     </div>
   );
 }
 
 function Divider() {
-  return <div className="h-px bg-[#eeeeed]" />;
+  return <div className="h-px bg-[var(--surface-2)]" />;
 }
 
 function RemindersBanner({ reminders }: { reminders: ReminderItem[] }) {
@@ -356,8 +356,8 @@ function ReminderRow({
   tone: "overdue" | "urgent" | "upcoming";
 }) {
   const tones = {
-    overdue: "border-[#e6c4b9] bg-[#f4e0d9] text-[#7a2f1e]",
-    urgent: "border-[#e3d4b6] bg-[#f1e5d2] text-[#5a3d1f]",
+    overdue: "border-[var(--warn)] bg-[var(--warn-soft)] text-[var(--warn)]",
+    urgent: "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-2)]",
     upcoming: "border-[#ededea] bg-white text-[#3a3633]",
   } as const;
   const days = item.daysUntil;
@@ -375,7 +375,7 @@ function ReminderRow({
         <p className="text-sm font-semibold leading-tight">
           {item.label} · {item.periodLabel}
         </p>
-        <p className="text-[11px] opacity-80">do {fmtDate(new Date(item.deadline + "T00:00:00"))} · {suffix}</p>
+        <p className="text-[12px] opacity-80">do {fmtDate(new Date(item.deadline + "T00:00:00"))} · {suffix}</p>
       </div>
       {item.amount !== null && (
         <Money className="text-sm font-semibold tabular-nums shrink-0">
@@ -399,13 +399,13 @@ function CategoryBars({
         const widthPct = max > 0 ? Math.max(2, (r.amountNet / max) * 100) : 0;
         return (
           <li key={r.category} className="space-y-1">
-            <div className="flex items-baseline justify-between gap-2 text-xs">
+            <div className="flex items-baseline justify-between gap-2 text-[13px]">
               <span className="text-[#3a3633] capitalize">{r.category}</span>
               <Money className="tabular-nums text-[#6f6c66]">
                 {fmtPLN(r.amountNet)} <span className="text-[#8d8a85]">· {Math.round(r.share * 100)}%</span>
               </Money>
             </div>
-            <div className="h-2 rounded-full bg-[#eeeeed] overflow-hidden">
+            <div className="h-2 rounded-full bg-[var(--surface-2)] overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{ width: `${widthPct}%`, backgroundColor: color }}

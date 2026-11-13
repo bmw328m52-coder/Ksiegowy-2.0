@@ -56,35 +56,35 @@ export default function SalesInvoiceCard({ row }: { row: SalesRow }) {
   const others = row.options.filter((o) => !o.suggested);
 
   return (
-    <div className={`rounded-xl border bg-white p-3 ${jobId ? "border-zinc-200" : "border-[#e2c79c]"}`}>
-      <div className="flex items-start justify-between gap-2">
+    <div className={`rounded-xl border bg-white p-3 ${jobId ? "border-zinc-200" : "border-[var(--accent)]"}`}>
+      <div className="flex flex-col min-[480px]:flex-row min-[480px]:items-start justify-between gap-1 min-[480px]:gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{row.buyer}</p>
-          <p className="text-[11px] text-zinc-500 truncate">
+          <p className="text-sm font-medium break-words">{row.buyer}</p>
+          <p className="text-[13px] text-zinc-500 break-words">
             {row.number ?? "bez numeru"} · {fmtDate(row.date)}
             {row.type && TYPE_LABELS[row.type] ? ` · ${TYPE_LABELS[row.type]}` : ""}
           </p>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-sm font-semibold tabular-nums">{fmtPLN(row.gross)}</p>
-          <p className="text-[10px] text-zinc-500 tabular-nums">
+        <div className="min-[480px]:text-right shrink-0">
+          <p className="text-sm font-semibold tabular-nums">{fmtPLN(row.gross)} <span className="text-[12px] font-normal text-zinc-500">brutto</span></p>
+          <p className="text-[12px] text-zinc-500 tabular-nums">
             netto {fmtPLN(row.net)} · VAT {fmtPLN(row.vat)}
           </p>
         </div>
       </div>
-      {row.summary && <p className="text-xs text-zinc-600 truncate mt-1">{row.summary}</p>}
+      {row.summary && <p className="text-[13px] text-zinc-600 break-words mt-1">{row.summary}</p>}
 
       <div className="mt-2.5 pt-2.5 border-t border-[#f0efec]">
         {jobId ? (
           <div className="flex items-center justify-between gap-2">
-            <Link href={`/jobs/${jobId}`} className="text-xs font-medium text-[#a06f3f] truncate">
+            <Link href={`/jobs/${jobId}`} className="text-[13px] font-medium text-[#a06f3f] break-words min-h-[44px] flex items-center">
               ✓ {jobLabel ?? "Przypięte do zlecenia"}
             </Link>
             <button
               type="button"
               disabled={pending}
               onClick={() => link(null)}
-              className="text-[11px] text-zinc-500 underline shrink-0"
+              className="text-[13px] text-zinc-500 underline shrink-0 min-h-[44px] px-2"
             >
               Odepnij
             </button>
@@ -95,7 +95,7 @@ export default function SalesInvoiceCard({ row }: { row: SalesRow }) {
               <select
                 value={choice}
                 onChange={(e) => setChoice(e.target.value)}
-                className="flex-1 min-w-0 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm"
+                className="flex-1 min-w-0 rounded-lg border border-zinc-300 bg-white px-2 min-h-[44px] text-sm"
               >
                 <option value="">Wybierz zlecenie…</option>
                 {suggested.length > 0 && (
@@ -119,7 +119,7 @@ export default function SalesInvoiceCard({ row }: { row: SalesRow }) {
                 type="button"
                 disabled={pending || !choice}
                 onClick={() => link(choice)}
-                className="rounded-lg text-white text-[13px] font-semibold px-3 bg-[linear-gradient(160deg,#a06f3f,#7d5530)] disabled:opacity-50"
+                className="rounded-lg text-[var(--background)] text-[13px] font-semibold px-4 min-h-[44px] bg-[var(--accent)] disabled:opacity-50"
               >
                 Przypnij
               </button>
@@ -128,13 +128,13 @@ export default function SalesInvoiceCard({ row }: { row: SalesRow }) {
               type="button"
               disabled={pending}
               onClick={createJob}
-              className="rounded-lg bg-white border border-[#ededea] text-[13px] font-semibold py-2 active:bg-[#f6f6f5] disabled:opacity-50"
+              className="rounded-lg bg-white border border-[#ededea] text-[13px] font-semibold min-h-[44px] active:bg-[var(--surface-2)] disabled:opacity-50"
             >
               {pending ? "Zapisuję…" : "Utwórz zlecenie z tej faktury"}
             </button>
           </div>
         )}
-        {error && <p className="text-xs text-red-700 mt-1.5">{error}</p>}
+        {error && <p role="alert" className="text-[13px] text-red-700 mt-1.5">{error}</p>}
       </div>
     </div>
   );

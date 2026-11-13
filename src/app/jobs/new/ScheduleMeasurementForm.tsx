@@ -39,7 +39,7 @@ export default function ScheduleMeasurementForm({
           name="title"
           required
           placeholder="np. Kuchnia — Kowalscy, Wrocław"
-          className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#8a8677] bg-[var(--background)] px-3 py-2.5 text-[14px] focus:outline-none focus:border-[var(--accent)]"
         />
       </label>
 
@@ -57,7 +57,7 @@ export default function ScheduleMeasurementForm({
                   "flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors",
                   active
                     ? "border-[#a06f3f] bg-[#f1e5d2] text-[#7d5530]"
-                    : "border-[#ededea] bg-white text-[#6f6c66] hover:bg-[#f6f6f5]",
+                    : "border-[#ededea] bg-white text-[#6f6c66] hover:bg-[var(--surface-2)]",
                 ].join(" ")}
               >
                 {opt.label}
@@ -77,7 +77,7 @@ export default function ScheduleMeasurementForm({
             required
             defaultValue={todayIso}
             min={todayIso}
-            className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+            className="rounded-lg border border-[#8a8677] bg-[var(--background)] px-3 py-2.5 text-[14px] focus:outline-none focus:border-[var(--accent)]"
           />
         </label>
         <label className="flex w-[110px] flex-col gap-1">
@@ -85,7 +85,7 @@ export default function ScheduleMeasurementForm({
           <input
             type="time"
             name="visit_time"
-            className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+            className="rounded-lg border border-[#8a8677] bg-[var(--background)] px-3 py-2.5 text-[14px] focus:outline-none focus:border-[var(--accent)]"
           />
         </label>
       </div>
@@ -97,7 +97,7 @@ export default function ScheduleMeasurementForm({
           name="visit_address"
           defaultValue={defaultAddress ?? ""}
           placeholder="ul. Przykładowa 12, Wrocław"
-          className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#8a8677] bg-[var(--background)] px-3 py-2.5 text-[14px] focus:outline-none focus:border-[var(--accent)]"
         />
       </label>
 
@@ -109,7 +109,7 @@ export default function ScheduleMeasurementForm({
           defaultValue={defaultPhone ?? ""}
           placeholder="+48 ..."
           inputMode="tel"
-          className="rounded-lg border border-[#ededea] bg-white px-3 py-2.5 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#8a8677] bg-[var(--background)] px-3 py-2.5 text-[14px] focus:outline-none focus:border-[var(--accent)]"
         />
       </label>
 
@@ -119,12 +119,12 @@ export default function ScheduleMeasurementForm({
           name="notes"
           rows={3}
           placeholder="np. dojazd 2 ścianami, parking od strony podwórka"
-          className="rounded-lg border border-[#ededea] bg-white px-3 py-2 text-[14px] focus:outline-none focus:border-[#a06f3f]"
+          className="rounded-lg border border-[#8a8677] bg-[var(--background)] px-3 py-2 text-[14px] focus:outline-none focus:border-[var(--accent)]"
         />
       </label>
 
       {state.error && (
-        <p className="rounded-lg border border-[#f4c8bc] bg-[#fdf2ed] px-3 py-2 text-[12px] text-[#b8523a]">
+        <p className="rounded-lg border border-[var(--border)] bg-[var(--warn-soft)] px-3 py-2 text-[12px] text-[#b8523a]">
           {state.error}
         </p>
       )}
@@ -132,8 +132,7 @@ export default function ScheduleMeasurementForm({
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 rounded-xl px-4 py-3 text-[14px] font-bold text-white shadow-[0_6px_14px_rgba(160,111,63,.25)] disabled:opacity-60"
-        style={{ background: "linear-gradient(160deg, #a06f3f, #7d5530)" }}
+        className="mt-2 rounded-xl px-4 py-3 text-[14px] font-bold text-[var(--btn-fg)] bg-[var(--accent)] disabled:opacity-60"
       >
         {pending ? "Zapisywanie…" : "Zaplanuj pomiar"}
       </button>

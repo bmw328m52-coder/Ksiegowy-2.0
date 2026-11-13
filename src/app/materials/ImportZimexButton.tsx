@@ -11,19 +11,19 @@ export default function ImportZimexButton() {
     <form action={formAction} className="rounded-xl border border-dashed border-accent/40 bg-accent-soft/40 p-3 flex flex-col gap-2">
       <div>
         <p className="text-sm font-medium text-foreground">Materiały Zimex (płyty, blaty, obrzeża)</p>
-        <p className="text-xs text-muted">
+        <p className="text-[13px] text-muted">
           Dodaje {ZIMEX_STARTER.length} pozycji materiału (płyta biała/dekor, HDF, blat,
-          oklejanie) z kategoriami wpiętymi pod „Korpusy" i „Blat" w wycenie. Pomija to, co
+          oklejanie) z kategoriami wpiętymi pod „Korpusy” i „Blat” w wycenie. Pomija to, co
           już masz. Ceny to wartości wyjściowe — popraw je w cenniku.
         </p>
       </div>
       {state.message && (
-        <p className="text-xs text-ok bg-ok-soft border border-ok/30 rounded-md px-2 py-1">
+        <p className="text-[13px] text-ok bg-ok-soft border border-ok/30 rounded-md px-2 py-1">
           {state.message}
         </p>
       )}
       {state.error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1">
+        <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1">
           {state.error}
         </p>
       )}

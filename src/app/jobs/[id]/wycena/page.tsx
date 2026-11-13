@@ -228,7 +228,7 @@ export default async function WycenaPage({
           <p className="text-sm text-zinc-500 truncate">{job.title}</p>
           <Link
             href={`/jobs/${id}/zakupy`}
-            className="shrink-0 text-xs font-medium text-accent px-2 py-1 rounded-md active:bg-accent/10"
+            className="shrink-0 inline-flex items-center min-h-11 text-sm font-medium text-accent px-2 py-1 rounded-md active:bg-accent/10"
           >
             Lista zakupów →
           </Link>
@@ -251,7 +251,7 @@ export default async function WycenaPage({
               <p>Brak pomiaru. Najpierw wypełnij pomiar, aby wygenerować listę pozycji.</p>
               <Link
                 href={`/jobs/${id}/pomiar/edit`}
-                className="inline-block rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80"
+                className="inline-flex items-center min-h-11 rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80"
               >
                 Wypełnij pomiar
               </Link>

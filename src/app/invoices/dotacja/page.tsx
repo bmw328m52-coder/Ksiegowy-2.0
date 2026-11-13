@@ -49,7 +49,7 @@ export default async function GrantPage() {
   return (
     <PageContainer width="narrow">
       <PageHeader title="Zakupy z dotacji" back={{ href: "/invoices" }} />
-      <p className="text-xs text-[#6f6c66] -mt-1">
+      <p className="text-[13px] text-[#6f6c66] -mt-1">
         Zaznacz faktury opłacone z dotacji. Wchodzą w koszty i obniżają PIT (dotacja zwolniona z podatku,
         a wydatek z niej jest kosztem — poza amortyzacją maszyn powyżej 10 tys. zł). Ich VAT pokaże się osobno — trzeba go oddać do PUP, sprawdź termin w umowie.
       </p>

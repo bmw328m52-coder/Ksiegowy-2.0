@@ -158,7 +158,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
                       key={m.code}
                       type="button"
                       onClick={() => addModule(m.code)}
-                      className="rounded-lg border border-[#ededea] bg-white px-2.5 py-1.5 text-[12px] text-[#1f1d1b] hover:border-[#a06f3f] hover:bg-[#f6f6f5] active:bg-[#f1e5d2] transition-colors"
+                      className="rounded-lg border border-[#ededea] bg-white px-3 min-h-11 py-1.5 text-[13px] text-[#1f1d1b] hover:border-[#a06f3f] hover:bg-[var(--surface-2)] active:bg-[#f1e5d2] transition-colors"
                     >
                       <span className="font-semibold">{m.code}</span>
                       <span className="text-[#6f6c66] ml-1">· {m.width_mm}mm</span>
@@ -271,21 +271,25 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
       <style jsx>{`
         .input {
           width: 100%;
-          height: 42px;
+          height: 48px;
           padding: 0 12px;
           border-radius: 0.5rem;
-          border: 1px solid #e4e4e7;
-          background: white;
+          border: 1px solid #8a8677;
+          background: var(--background);
           font-size: 16px;
-          color: #1f1d1b;
+          color: var(--foreground);
         }
         .input:focus {
-          outline: 2px solid #a06f3f;
-          outline-offset: 1px;
+          outline: 3px solid var(--accent);
+          outline-offset: 2px;
+        }
+        .input::placeholder {
+          color: var(--muted);
+          opacity: 0.8;
         }
         .input:disabled {
-          background: #f5f1ea;
-          color: #6f6c66;
+          background: var(--surface-2);
+          color: var(--muted);
         }
       `}</style>
     </div>
@@ -304,12 +308,12 @@ function ModuleRow({
   onChangeQty: (q: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2.5">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-[#1f1d1b] truncate leading-tight">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5">
+      <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
+        <p className="text-sm font-semibold text-[#1f1d1b] break-words leading-tight">
           <span className="text-[#a06f3f]">{mod.code}</span> · {mod.name}
         </p>
-        <p className="text-[10.5px] text-[#8d8a85] truncate mt-0.5">
+        <p className="text-[12px] text-[#8d8a85] mt-0.5">
           {mod.width_mm}×{mod.height_mm}×{mod.depth_mm}mm · koszt {fmtPLN(unitCost)}/szt
         </p>
       </div>
@@ -317,7 +321,7 @@ function ModuleRow({
         <button
           type="button"
           onClick={() => onChangeQty(qty - 1)}
-          className="w-8 h-8 rounded-md border border-[#ededea] text-[#6f6c66] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
+          className="w-11 h-11 rounded-lg border border-[#ededea] text-[#6f6c66] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
           aria-label="Zmniejsz"
         >
           −
@@ -326,13 +330,13 @@ function ModuleRow({
         <button
           type="button"
           onClick={() => onChangeQty(qty + 1)}
-          className="w-8 h-8 rounded-md border border-[#ededea] text-[#6f6c66] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
+          className="w-11 h-11 rounded-lg border border-[#ededea] text-[#6f6c66] hover:border-[#a06f3f] hover:text-[#a06f3f] active:bg-[#f1e5d2]"
           aria-label="Zwiększ"
         >
           +
         </button>
       </div>
-      <p className="w-24 text-right tabular-nums text-sm font-semibold text-[#1f1d1b] shrink-0">
+      <p className="ml-auto w-28 text-right tabular-nums text-sm font-semibold text-[#1f1d1b] shrink-0">
         {fmtPLN(unitCost * qty)}
       </p>
     </div>
@@ -349,15 +353,15 @@ function ResultPanel({
     <section className="flex flex-col gap-3">
       <div
         className="rounded-2xl border border-[#e2c79c] p-4 shadow-[0_2px_8px_rgba(160,111,63,0.10)]"
-        style={{ background: "linear-gradient(160deg, #fbf1dd 0%, #fff8e9 100%)" }}
+        style={{ background: "linear-gradient(160deg, var(--accent-soft) 0%, var(--surface) 100%)" }}
       >
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#a18653]">
+        <p className="text-[11px] uppercase tracking-wide font-semibold text-[var(--accent)]">
           Cena dla klienta · brutto
         </p>
         <p className="text-[34px] leading-none font-bold tabular-nums text-[#7d5530] mt-1.5">
           {fmtPLN(breakdown.priceGross)}
         </p>
-        <p className="text-[11px] text-[#a18653] mt-1.5">
+        <p className="text-[11px] text-[var(--accent)] mt-1.5">
           netto {fmtPLN(breakdown.priceNet)} · VAT {fmtPLN(breakdown.vatAmount)}
         </p>
       </div>
@@ -381,26 +385,26 @@ function ResultPanel({
 
       <div
         className={`rounded-xl border p-3.5 ${
-          positive ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"
+          positive ? "border-[var(--ok)] bg-[var(--ok-soft)]" : "border-[var(--warn)] bg-[var(--warn-soft)]"
         }`}
       >
         <p
           className={`text-[11px] uppercase tracking-wide font-semibold ${
-            positive ? "text-emerald-700" : "text-red-700"
+            positive ? "text-[var(--ok)]" : "text-[var(--warn)]"
           }`}
         >
           Zysk z wyceny (cena netto − koszt)
         </p>
         <p
           className={`text-2xl font-bold tabular-nums mt-1 ${
-            positive ? "text-emerald-900" : "text-red-900"
+            positive ? "text-[var(--foreground)]" : "text-[var(--foreground)]"
           }`}
         >
           {fmtPLN(breakdown.profit)}
         </p>
         <p
           className={`text-[11px] mt-1 ${
-            positive ? "text-emerald-700/80" : "text-red-700/80"
+            positive ? "text-[var(--muted)]" : "text-[var(--muted)]"
           }`}
         >
           przed PIT i ZUS (te policzy /calculator)
@@ -434,7 +438,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function GroupHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d8a85] bg-[#f6f6f5] border-b border-[#eeeeed]">
+    <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d8a85] bg-[var(--surface-2)] border-b border-[#eeeeed]">
       {children}
     </div>
   );
@@ -453,7 +457,7 @@ function Row({
   highlight?: boolean;
   bold?: boolean;
 }) {
-  const bg = highlight ? "bg-[#faf5e9]" : bold ? "bg-[#f6f6f5]" : "";
+  const bg = highlight ? "bg-[#faf5e9]" : bold ? "bg-[var(--surface-2)]" : "";
   return (
     <div
       className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b last:border-b-0 border-[#eeeeed] ${bg}`}

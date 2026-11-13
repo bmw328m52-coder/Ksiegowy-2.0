@@ -160,12 +160,12 @@ export function WycenaTotals({
         </div>
       ) : (
         <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between gap-3">
-          <p className="text-[11px] text-[#b08968]">
+          <p className="text-[11px] text-[var(--accent)]">
             Ustaw wartość zlecenia, aby zobaczyć marżę.
           </p>
           <Link
             href={`/jobs/${jobId}/edit`}
-            className="shrink-0 rounded-lg bg-[#a06f3f] px-3 py-1.5 text-[12px] font-semibold text-white active:opacity-80 hover:bg-[#7d5530] transition-colors"
+            className="shrink-0 rounded-lg bg-[#a06f3f] px-3 py-1.5 text-[12px] font-semibold text-white active:opacity-80 hover:bg-[var(--accent-2)] transition-colors"
           >
             Ustaw kwotę →
           </Link>
@@ -182,7 +182,7 @@ function MarginBadge({ pct }: { pct: number }) {
         pct >= 20
           ? "bg-[#e3efe5] text-[#3a6b4d]"
           : pct >= 0
-            ? "bg-[#faf5e9] text-[#a18653]"
+            ? "bg-[#faf5e9] text-[var(--accent)]"
             : "bg-red-100 text-red-700"
       }`}
     >

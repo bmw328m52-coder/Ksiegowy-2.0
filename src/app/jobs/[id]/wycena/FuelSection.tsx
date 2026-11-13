@@ -7,7 +7,7 @@ import { fmtPLN } from "@/lib/format";
 import { useFuelItem, useMaterialsStore } from "./MaterialsStore";
 
 const inputCls =
-  "rounded-md border border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 px-3 py-2 text-sm focus:outline-none focus:border-accent w-full";
+  "rounded-md border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] placeholder:text-zinc-400 px-3 py-2.5 min-h-11 text-base focus:outline-none focus:border-[var(--accent)] w-full";
 
 // Kwota do pola input (kropka → przecinek, bez zbędnych zer).
 function toInput(n: number | null): string {
@@ -70,7 +70,7 @@ export default function FuelSection({ jobId }: { jobId: string }) {
         <button
           type="submit"
           disabled={saving}
-          className="shrink-0 rounded-md bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80 disabled:opacity-50"
+          className="shrink-0 min-h-11 rounded-md bg-accent text-white px-4 py-2 text-sm font-medium active:opacity-80 disabled:opacity-50"
         >
           Zapisz
         </button>

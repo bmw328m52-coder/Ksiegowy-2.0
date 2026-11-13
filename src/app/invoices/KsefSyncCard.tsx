@@ -22,12 +22,12 @@ export default function KsefSyncCard({ status }: { status: KsefStatus | null }) 
     return (
       <Link
         href="/settings#ksef"
-        className="flex items-center gap-3 rounded-2xl border border-[#e2c79c] bg-[linear-gradient(160deg,#fbf1dd_0%,#fff8e9_100%)] p-3.5 active:opacity-80"
+        className="flex items-center gap-3 rounded-2xl border border-[var(--accent)] bg-[var(--accent-soft)] p-3.5 active:opacity-80"
       >
         <KsefBadge />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[#1f1d1b]">Podłącz KSeF</p>
-          <p className="text-xs text-[#6f6c66]">Faktury od dostawców wpadną same — bez skanowania.</p>
+          <p className="text-[13px] text-[#6f6c66]">Faktury od dostawców wpadną same — bez skanowania.</p>
         </div>
         <span className="text-[#a06f3f] text-lg">›</span>
       </Link>
@@ -40,24 +40,24 @@ export default function KsefSyncCard({ status }: { status: KsefStatus | null }) 
         <KsefBadge />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[#1f1d1b]">KSeF</p>
-          <p className="text-xs text-[#6f6c66]">Ostatnio: {ago(status.last_sync_at)}</p>
+          <p className="text-[13px] text-[#6f6c66]">Ostatnio: {ago(status.last_sync_at)}</p>
         </div>
         <form action={action}>
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg text-white text-[13px] font-semibold px-3 py-1.5 bg-[linear-gradient(160deg,#a06f3f,#7d5530)] disabled:opacity-60"
+            className="rounded-lg text-[var(--background)] text-[13px] font-semibold px-3 py-1.5 bg-[var(--accent)] disabled:opacity-60"
           >
             {pending ? "Pobieram…" : "Pobierz z KSeF"}
           </button>
         </form>
       </div>
-      {pending && <p className="text-xs text-[#6f6c66]">Loguję się do KSeF i sprawdzam nowe faktury — kilka sekund.</p>}
+      {pending && <p className="text-[13px] text-[#6f6c66]">Loguję się do KSeF i sprawdzam nowe faktury — kilka sekund.</p>}
       {!pending && state.ok && (
-        <p className="text-xs text-[#3a6b4d] bg-[#e3efe5] border border-[#cfe4d4] rounded-md px-2.5 py-1.5">{state.ok}</p>
+        <p className="text-[13px] text-[#3a6b4d] bg-[#e3efe5] border border-[var(--border)] rounded-md px-2.5 py-1.5">{state.ok}</p>
       )}
       {!pending && (state.error || (!state.ok && status.last_error)) && (
-        <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5">
+        <p className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5">
           {state.error ?? status.last_error}
         </p>
       )}
@@ -67,7 +67,7 @@ export default function KsefSyncCard({ status }: { status: KsefStatus | null }) 
 
 function KsefBadge() {
   return (
-    <div className="w-9 h-9 shrink-0 rounded-lg bg-[#282624] text-white text-[10px] font-bold flex items-center justify-center tracking-tight">
+    <div className="w-9 h-9 shrink-0 rounded-lg bg-[#282624] text-white text-[12px] font-bold flex items-center justify-center tracking-tight">
       KSeF
     </div>
   );
