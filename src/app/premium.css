@@ -94,13 +94,15 @@
 .luviano-premium .premium-step-chevron { color: var(--muted); transition: transform .15s; }
 .luviano-premium .premium-step[open] > .premium-step-summary .premium-step-chevron { transform: rotate(180deg); }
 .luviano-premium .premium-step-summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
-.luviano-premium .premium-bar { position: sticky; top: 8px; z-index: 40; grid-column: 1 / -1; display: none; align-items: stretch; justify-content: space-between; gap: 8px; padding: 8px 14px; border-radius: 14px; border: 1px solid var(--accent); background: var(--surface-2); color: var(--foreground); box-shadow: 0 8px 24px var(--shadow); text-decoration: none; }
-.luviano-premium .premium-bar[data-show="true"] { display: flex; }
+/* Pasek wyniku: opakowanie ma wysokość 0, więc pojawianie/znikanie paska NIE przesuwa treści (Safari/iPad bez kotwiczenia przewijania). */
+.luviano-premium .premium-bar-wrap { position: sticky; top: 8px; z-index: 40; grid-column: 1 / -1; height: 0; margin-bottom: -24px; }
+.luviano-premium .premium-bar { position: absolute; left: 0; right: 0; top: 0; display: flex; visibility: hidden; opacity: 0; pointer-events: none; transition: opacity .15s; align-items: stretch; justify-content: space-between; gap: 8px; padding: 8px 14px; border-radius: 14px; border: 1px solid var(--accent); background: var(--surface-2); color: var(--foreground); box-shadow: 0 8px 24px var(--shadow); text-decoration: none; }
+.luviano-premium .premium-bar[data-show="true"] { visibility: visible; opacity: 1; pointer-events: auto; }
 .luviano-premium .premium-bar-item { display: flex; flex-direction: column; min-width: 0; }
 .luviano-premium .premium-bar-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .luviano-premium .premium-bar-value { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .luviano-premium .premium-bar-item:first-child .premium-bar-value { color: var(--ok); }
-@media (max-width: 767px) { .luviano-premium .premium-bar { top: 4px; } .luviano-premium .premium-bar-value { font-size: 15px; } }
+@media (max-width: 767px) { .luviano-premium .premium-bar-wrap { top: 4px; } .luviano-premium .premium-bar-value { font-size: 15px; } }
 @media (max-width: 480px) {
   .luviano-premium .premium-quick-action { padding: 16px; min-height: 128px; }
   .luviano-premium .premium-calc-section { padding: 16px; }

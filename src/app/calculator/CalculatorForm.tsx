@@ -1425,6 +1425,7 @@ function StickyResultBar({
     return () => io.disconnect();
   }, []);
   return (
+    <div className="premium-bar-wrap">
     <a
       href="#wynik"
       aria-label={`Wynik: na czysto ${fmtPLN(cash)}, cena dla klienta ${fmtPLN(price)}${hasRate ? `, stawka ${fmtPLN(rate)} na godzinę` : ""}. Przejdź do wyniku`}
@@ -1445,6 +1446,7 @@ function StickyResultBar({
         <span className="premium-bar-value">{hasRate ? `${fmtPLN(rate)}/h` : "—"}</span>
       </span>
     </a>
+    </div>
   );
 }
 
