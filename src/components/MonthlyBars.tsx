@@ -165,14 +165,16 @@ export default function MonthlyBars({
               Koszty netto
             </span>
             <span className="money text-right font-semibold tabular-nums">{fmtPLN(cur.costsNet)}</span>
-            <span className="text-[var(--ink-2)] border-t border-[var(--border)] pt-1.5">Wynik</span>
-            <span
-              className={`money text-right font-semibold tabular-nums border-t border-[var(--border)] pt-1.5 ${
-                result < 0 ? "text-[var(--warn)]" : "text-[var(--foreground)]"
-              }`}
-            >
-              {result > 0 ? "+" : ""}
-              {fmtPLN(result)}
+            <span className="col-span-2 mt-0.5 flex items-baseline justify-between border-t border-[var(--border)] pt-1.5">
+              <span className="text-[var(--ink-2)]">Wynik</span>
+              <span
+                className={`money font-semibold tabular-nums ${
+                  result < 0 ? "text-[var(--warn)]" : "text-[var(--foreground)]"
+                }`}
+              >
+                {result > 0 ? "+" : ""}
+                {fmtPLN(result)}
+              </span>
             </span>
           </dd>
         </dl>

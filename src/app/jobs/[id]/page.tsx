@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import PhaseStepper from "@/components/job/PhaseStepper";
 import PhaseNowCard from "@/components/job/PhaseNowCard";
-import StageActionBar, { StageActionBarSpacer } from "@/components/job/StageActionBar";
+import StageActionBar from "@/components/job/StageActionBar";
 import JobMenu from "@/components/job/JobMenu";
 import { phaseOfStatus, type PhaseContext } from "@/lib/jobPhases";
 import { listMaterialsByJob } from "@/lib/dao/material_catalog";
@@ -43,6 +43,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   // Pomiar i skan są „na wierzchu” w fazach Pomiar i Wycena, potem zwijają się do jednego wiersza.
   const measureOpen = phase === "pomiar" || phase === "wycena";
   const showMoney = phase !== "pomiar"; // pieniądze od fazy Wycena wzwyż
+  // W fazach Pomiar i Wycena te same wejścia są już zadaniami na karcie „Teraz”.
+  const showQuickLinks = phase !== "pomiar" && phase !== "wycena";
 
   const phaseCtx: PhaseContext = {
     jobId: id,
@@ -95,7 +97,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <PhaseStepper status={job.status} />
         <PhaseNowCard ctx={phaseCtx} />
 
-        {showMoney && (
+        {showQuickLinks && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <QuickLink href={`/jobs/${id}/wycena`} title="Wycena" hint="Pozycje i materiały, potem cena i rentowność" wide />
             <QuickLink href={`/jobs/${id}/zakupy`} title="Lista zakupów" hint="Co kupić, wg dostawcy" wide />
@@ -112,7 +114,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </div>
         )}
 
-        <details id="skan" open={measureOpen} className="mt-4">
+        <details id="skan" open={measureOpen} className="group mt-4">
           <FoldSummary>Pomiar, skan i projekt</FoldSummary>
           <ProjectFilesSection jobId={id} />
           {(scans.length > 0 || phase === "pomiar") && <ScanStatusCard jobId={id} scans={scans} />}
@@ -142,12 +144,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           </section>
         )}
 
-        <details className="mt-4">
+        <details className="group mt-4">
           <FoldSummary>Historia etapów</FoldSummary>
           <StageTimeline stages={stages} />
         </details>
 
-        <StageActionBarSpacer />
         <StageActionBar
           jobId={id}
           status={job.status}
@@ -163,7 +164,7 @@ function FoldSummary({ children }: { children: React.ReactNode }) {
   return (
     <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between rounded-xl border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--ink-2)] [&::-webkit-details-marker]:hidden">
       {children}
-      <span aria-hidden className="text-[var(--muted)]">⌄</span>
+      <span aria-hidden className="text-[var(--muted)] transition-transform group-open:rotate-180">⌄</span>
     </summary>
   );
 }

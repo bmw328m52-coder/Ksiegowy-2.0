@@ -9,7 +9,7 @@ import { fmtDate, fmtDuration, fmtPLN } from "@/lib/format";
 type Entry = { id: string; date: string; minutes: number; phase: WorkPhase; notes: string | null };
 
 const inputCls =
-  "rounded-lg border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] px-3 py-2.5 text-base focus:outline-none focus:border-[var(--accent)] w-full";
+  "rounded-lg border border-[#8a8677] bg-[var(--background)] text-[var(--foreground)] px-3 py-2.5 text-base focus:outline-none focus:border-[var(--accent)] w-full min-w-0";
 
 export default function LaborForm({
   jobId,
@@ -64,7 +64,7 @@ export default function LaborForm({
       </div>
 
       <form ref={formRef} action={addAction} className="space-y-2">
-        <div className="grid grid-cols-[1fr_1.3fr] gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-2">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-zinc-600">Godziny</span>
             <input name="hours" inputMode="decimal" placeholder="np. 6,5" required className={inputCls} />
