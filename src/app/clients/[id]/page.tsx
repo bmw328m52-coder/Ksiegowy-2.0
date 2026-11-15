@@ -172,7 +172,7 @@ export default async function ClientDetailPage({
 
         {billableJobs.length > 0 && (
           <Card className="mb-2.5">
-            <p className="text-[11px] uppercase tracking-[0.06em] font-semibold text-[#9ea29c] mb-2">
+            <p className="text-[11px] font-semibold text-[#9ea29c] mb-2">
               Marża (brutto)
               {jobs.length !== billableJobs.length && " · od zamówienia materiałów"}
             </p>

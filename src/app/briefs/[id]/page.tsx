@@ -93,7 +93,7 @@ export default async function BriefDetailPage({
         if (rows.length === 0) return null;
         return (
           <Card key={group.title}>
-            <h3 className="text-[11px] uppercase tracking-[0.06em] font-semibold text-[#9ea29c] mb-2">{group.title}</h3>
+            <h3 className="text-[11px] font-semibold text-[#9ea29c] mb-2">{group.title}</h3>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
               {rows.map((r) => (
                 <RenderRow key={r.field.key} field={r.field} value={r.value} />
@@ -105,7 +105,7 @@ export default async function BriefDetailPage({
 
       {brief.notes && (
         <Card>
-          <h3 className="text-[11px] uppercase tracking-[0.06em] font-semibold text-[#9ea29c] mb-2">Notatki</h3>
+          <h3 className="text-[11px] font-semibold text-[#9ea29c] mb-2">Notatki</h3>
           <p className="text-sm whitespace-pre-wrap text-[#3a3633]">{brief.notes}</p>
         </Card>
       )}

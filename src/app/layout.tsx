@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Inter } from "next/font/google";
+import { Figtree } from "next/font/google";
 import "./globals.css";
 import "./premium.css";
 import AppAppearance from "@/components/AppAppearance";
@@ -11,7 +11,7 @@ import ToastContainer from "@/components/ToastContainer";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import { PrivateModeProvider } from "@/components/PrivateModeProvider";
 
-const inter = Inter({
+const inter = Figtree({
   subsets: ["latin", "latin-ext"],
   variable: "--font-inter",
   display: "swap",

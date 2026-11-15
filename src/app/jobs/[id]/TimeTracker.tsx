@@ -95,7 +95,7 @@ export default function TimeTracker({ jobId, entries, active, phaseSums }: Props
       )}
 
       <div>
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 mb-2">
+        <p className="text-[11px] font-semibold text-zinc-500 mb-2">
           Start / Stop fazy
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -163,7 +163,7 @@ function SummaryCard({
   return (
     <div className="rounded-xl border border-zinc-200 bg-[var(--surface-2)] p-4">
       <div className="flex items-baseline justify-between mb-3">
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500">
+        <p className="text-[11px] font-semibold text-zinc-500">
           Łącznie
         </p>
         <p className="text-2xl font-bold tabular-nums text-zinc-900">
@@ -252,7 +252,7 @@ function ActiveBanner({
   return (
     <div className="rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-3 flex items-center justify-between gap-3">
       <div>
-        <p className="text-[11px] uppercase tracking-wide text-emerald-700 font-semibold">
+        <p className="text-[11px] text-emerald-700 font-semibold">
           ● Trwa: {WORK_PHASE_LABELS[entry.phase]}
         </p>
         <p className="text-2xl font-bold tabular-nums text-emerald-900">

@@ -6,7 +6,7 @@ import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { computeJobMarginFull } from "@/lib/jobMargin";
 import { listEntriesByJob, totalMinutes } from "@/lib/dao/time_entries";
 import { createClient } from "@/lib/supabase/server";
-import { fmtPLN, fmtDate } from "@/lib/format";
+import { fmtPLN, fmtDate, fmtNum } from "@/lib/format";
 import type { Job } from "@/lib/dao/jobs.types";
 
 type InvoiceHead = {
@@ -68,7 +68,7 @@ export default async function MarginSection({
   return (
     <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-4">
       <div className="flex items-baseline justify-between mb-3">
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+        <p className="text-[11px] font-semibold text-[#8d8a85]">
           Koszty zlecenia
         </p>
         {hasInvoices && (
@@ -206,7 +206,7 @@ export default async function MarginSection({
                 Na godzinę ({hours.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} h)
               </span>
               <span className="tabular-nums text-[#3a3633]">
-                {Math.round(m.realProfit / hours).toLocaleString("pl-PL")} zł/h
+                {fmtNum(Math.round(m.realProfit / hours))} zł/h
               </span>
             </div>
           )}

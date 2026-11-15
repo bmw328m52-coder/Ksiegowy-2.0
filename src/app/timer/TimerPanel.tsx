@@ -16,7 +16,7 @@ import {
 } from "@/lib/dao/time_entries.types";
 import type { Job } from "@/lib/dao/jobs";
 import type { HourlyOverhead } from "@/lib/dao/finance";
-import { fmtDate, fmtDuration } from "@/lib/format";
+import { fmtDate, fmtDuration, fmtNum, fmtZl } from "@/lib/format";
 import { netRate } from "@/lib/timerRate";
 
 // Stawka zł/h = marża (przychód − koszty) ÷ przepracowane godziny. null gdy brak czasu.
@@ -28,10 +28,10 @@ function hourlyRate(margin: number, minutes: number): number | null {
 
 function fmtRate(rate: number | null): string {
   if (rate === null) return "—";
-  return `${Math.round(rate).toLocaleString("pl-PL")} zł/h`;
+  return `${fmtNum(Math.round(rate))} zł/h`;
 }
 
-const zl = (v: number) => `${Math.round(v).toLocaleString("pl-PL")} zł`;
+const zl = fmtZl;
 
 // Kolor stawki względem docelowej: zielony ≥ cel, bursztynowy ≥ 80% celu, czerwony niżej.
 function rateTone(rate: number | null, target: number): string {
@@ -431,7 +431,7 @@ function ActiveBanner({
   return (
     <div className="rounded-xl bg-[var(--ok-soft)] border border-[var(--ok)] px-4 py-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
       <div className="min-w-0 flex-1 basis-56">
-        <p className="text-[12px] uppercase tracking-wide text-[var(--ok)] font-semibold">
+        <p className="text-[12px] text-[var(--ok)] font-semibold">
           ● Trwa: {WORK_PHASE_LABELS[entry.phase]}
         </p>
         <p className="text-4xl font-bold tabular-nums text-[var(--foreground)]">

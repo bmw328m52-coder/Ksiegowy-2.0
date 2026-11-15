@@ -71,7 +71,7 @@ export default function JobChecklist({
       <div className="flex flex-col gap-4">
         {Array.from(groups.entries()).map(([category, catItems]) => (
           <div key={category}>
-            <h3 className="text-[11px] uppercase tracking-wide font-semibold text-zinc-500 mb-1">
+            <h3 className="text-[11px] font-semibold text-zinc-500 mb-1">
               {category}
             </h3>
             <ul className="flex flex-col divide-y divide-zinc-100 border border-zinc-100 rounded-lg">

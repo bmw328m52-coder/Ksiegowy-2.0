@@ -32,7 +32,7 @@ export default function KsefSettings({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">KSeF — faktury kosztowe</h2>
+      <h2 className="text-[13px] font-semibold text-[var(--accent)]">KSeF — faktury kosztowe</h2>
 
       {status && !editing && (
         <div className="rounded-lg border border-[#ededea] bg-[var(--surface-2)] p-3.5 flex flex-col gap-2 text-sm">

@@ -18,7 +18,7 @@ export default function ScanStatusCard({ jobId, scans }: { jobId: string; scans:
     <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">Pomiar · skan iPadem</p>
+          <p className="text-[11px] font-semibold text-[#8d8a85]">Pomiar · skan iPadem</p>
           {latest ? (
             <p className="text-sm font-medium text-[#1f1d1b] truncate">
               {latest.name} <span className="text-xs font-normal text-[#8d8a85]">· {fmtDate(latest.created_at)}</span>

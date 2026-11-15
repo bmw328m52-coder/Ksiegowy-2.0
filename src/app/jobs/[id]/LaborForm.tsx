@@ -59,7 +59,7 @@ export default function LaborForm({
   return (
     <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-4">
       <div className="flex items-baseline justify-between">
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">Godziny i dojazd</p>
+        <p className="text-[11px] font-semibold text-[#8d8a85]">Godziny i dojazd</p>
         <p className="text-xl font-bold tabular-nums text-[#1f1d1b]">{totalMin > 0 ? fmtDuration(totalMin) : "0 h"}</p>
       </div>
 

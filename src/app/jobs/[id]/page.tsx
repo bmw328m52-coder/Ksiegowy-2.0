@@ -1,20 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
-import { ButtonLink } from "@/components/ui";
-import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
+import PhaseStepper from "@/components/job/PhaseStepper";
+import PhaseNowCard from "@/components/job/PhaseNowCard";
+import StageActionBar, { StageActionBarSpacer } from "@/components/job/StageActionBar";
+import JobMenu from "@/components/job/JobMenu";
+import { phaseOfStatus, type PhaseContext } from "@/lib/jobPhases";
+import { listMaterialsByJob } from "@/lib/dao/material_catalog";
 import { getJob } from "@/lib/dao/jobs";
 import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus, type CalcQuote } from "@/lib/dao/jobs.types";
 import { fmtDate, fmtPLN } from "@/lib/format";
-import {
-  advanceJobStatusAction,
-  cancelJobAction,
-  confirmPomiarAction,
-  confirmUzupelnienieAction,
-  deleteJobAction,
-  revertJobStatusAction,
-  uncancelJobAction,
-} from "../actions";
+import { cancelJobAction, deleteJobAction, uncancelJobAction } from "../actions";
 import InvoiceSection from "./InvoiceSection";
 import MarginSection from "./MarginSection";
 import PlanSection from "./PlanSection";
@@ -25,9 +21,6 @@ import ProjectFilesSection from "./ProjectFilesSection";
 import ScanStatusCard from "./ScanStatusCard";
 import { listScansByJob } from "@/lib/dao/room_scans";
 import { getBriefByJob } from "@/lib/dao/quote_briefs";
-
-// Etapy, na których karta skanu ma sens nawet bez skanu (zachęta „Skanuj iPadem”).
-const MEASURE_STAGES: JobStatus[] = ["new_inquiry", "scheduled_measurement", "to_measure", "after_measure"];
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -40,14 +33,38 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const job = await getJob(id);
   if (!job) notFound();
 
-  const [brief, scans] = await Promise.all([getBriefByJob(id), listScansByJob(id)]);
+  const [brief, scans, materials] = await Promise.all([
+    getBriefByJob(id),
+    listScansByJob(id),
+    listMaterialsByJob(id),
+  ]);
   const stages = buildStages(job);
+  const phase = phaseOfStatus(job.status);
+  // Pomiar i skan są „na wierzchu” w fazach Pomiar i Wycena, potem zwijają się do jednego wiersza.
+  const measureOpen = phase === "pomiar" || phase === "wycena";
+  const showMoney = phase !== "pomiar"; // pieniądze od fazy Wycena wzwyż
+
+  const phaseCtx: PhaseContext = {
+    jobId: id,
+    status: job.status,
+    scanCount: scans.length,
+    hasBrief: !!brief,
+    hasQuote: !!job.calc_quote,
+    hasMaterials: materials.length > 0,
+    startDate: job.start_date,
+    depositAmount: Number(job.deposit_amount) || 0,
+    depositDate: job.deposit_date,
+    dueDate: job.due_date,
+    completedDate: job.completed_date,
+    paidDate: job.paid_date,
+    invoiced: job.invoiced,
+    invoiceNumber: job.invoice_number,
+  };
 
   const deleteWithIds = deleteJobAction.bind(null, id, job.client_id);
   const cancelWithId = cancelJobAction.bind(null, id);
   const uncancelWithId = uncancelJobAction.bind(null, id);
   const isCancelled = job.status === "cancelled";
-  const canCancel = !isCancelled && job.status !== "settled" && job.status !== "archived";
 
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
@@ -56,104 +73,64 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           title={job.title}
           back={{ href: `/clients/${job.client_id}` }}
           action={
-            <ButtonLink href={`/jobs/${id}/edit`} variant="secondary" size="sm">
-              Edytuj
-            </ButtonLink>
+            <JobMenu
+              jobId={id}
+              status={job.status}
+              cancelAction={cancelWithId}
+              uncancelAction={uncancelWithId}
+              deleteAction={deleteWithIds}
+            />
           }
         />
 
-        <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-[#8d8a85]">Klient</span>
-            <Link
-              href={`/clients/${job.client_id}`}
-              className="inline-flex items-center min-h-11 text-right break-words text-sm font-medium text-[#1f1d1b] underline-offset-2 hover:underline"
-            >
-              {job.client_name}
-            </Link>
+        <p className="-mt-2 mb-4 text-sm text-[var(--muted)]">
+          <Link
+            href={`/clients/${job.client_id}`}
+            className="inline-flex items-center min-h-11 underline-offset-2 hover:underline"
+          >
+            {job.client_name}
+          </Link>
+        </p>
+
+        <PhaseStepper status={job.status} />
+        <PhaseNowCard ctx={phaseCtx} />
+
+        {showMoney && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <QuickLink href={`/jobs/${id}/wycena`} title="Wycena pozycji" hint="Pozycje, materiały i ceny" wide />
+            <QuickLink href={`/jobs/${id}/zakupy`} title="Lista zakupów" hint="Co kupić, wg dostawcy" />
+            <QuickLink href={`/calculator?job=${id}`} title="Kalkulator wyceny" hint="Marża, VAT, PIT, ZUS — na czysto" />
           </div>
+        )}
 
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-[#8d8a85]">Etap</span>
-            <StatusPill status={job.status} />
-          </div>
-        </section>
-
-        <StageActions
-          jobId={id}
-          status={job.status}
-          completedDate={job.completed_date}
-          paidDate={job.paid_date}
-        />
-
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <Link
-            href={`/jobs/${id}/wycena`}
-            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[var(--surface-2)] hover:border-[var(--border)] transition-colors sm:col-span-2"
-          >
-            <div className="flex items-center justify-between">
-              <span>Wycena pozycji</span>
-              <span className="text-[#8d8a85]">→</span>
-            </div>
-            <p className="text-xs text-[#8d8a85] mt-1">
-              Pozycje, materiały i ceny
-            </p>
-          </Link>
-          <Link
-            href={`/jobs/${id}/zakupy`}
-            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[var(--surface-2)] hover:border-[var(--border)] transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <span>Lista zakupów</span>
-              <span className="text-[#8d8a85]">→</span>
-            </div>
-            <p className="text-xs text-[#8d8a85] mt-1">
-              Co kupić, wg dostawcy
-            </p>
-          </Link>
-          <Link
-            href={`/calculator?job=${id}`}
-            className="block rounded-xl border border-[#ededea] bg-white p-4 text-sm font-medium text-[#1f1d1b] active:bg-[var(--surface-2)] hover:border-[var(--border)] transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <span>Kalkulator wyceny</span>
-              <span className="text-[#8d8a85]">→</span>
-            </div>
-            <p className="text-xs text-[#8d8a85] mt-1">
-              Marża, VAT, PIT, ZUS — na czysto
-            </p>
-          </Link>
-        </div>
-
-        {!isCancelled && <MarginSection job={job} />}
+        {showMoney && !isCancelled && <MarginSection job={job} />}
 
         {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
 
         {!isCancelled && job.calc_quote?.plan?.input && (
-          <PlanSection job={job} plan={job.calc_quote.plan} savedAt={job.calc_quote.savedAt} />
+          <div id="plan">
+            <PlanSection job={job} plan={job.calc_quote.plan} savedAt={job.calc_quote.savedAt} />
+          </div>
         )}
 
+        <details id="skan" open={measureOpen} className="mt-4">
+          <FoldSummary>Pomiar, skan i projekt</FoldSummary>
+          <ProjectFilesSection jobId={id} />
+          {(scans.length > 0 || phase === "pomiar") && <ScanStatusCard jobId={id} scans={scans} />}
+          <PomiarSection jobId={id} brief={brief} scanned={scans.length > 0} />
+          <RoomScanSection jobId={id} scans={scans} />
+        </details>
 
-
-        <StageTimeline stages={stages} />
-
-        <ProjectFilesSection jobId={id} />
-
-        {(scans.length > 0 || MEASURE_STAGES.includes(job.status)) && <ScanStatusCard jobId={id} scans={scans} />}
-
-        <PomiarSection jobId={id} brief={brief} scanned={scans.length > 0} />
-
-        <RoomScanSection jobId={id} scans={scans} />
-
-
-        <InvoiceSection
-          jobId={id}
-          invoiced={job.invoiced}
-          invoiceNumber={job.invoice_number}
-          invoiceDate={job.invoice_date}
-          amountGross={Number(job.amount_gross) || 0}
-          status={job.status}
-        />
+        <div id="faktura">
+          <InvoiceSection
+            jobId={id}
+            invoiced={job.invoiced}
+            invoiceNumber={job.invoice_number}
+            invoiceDate={job.invoice_date}
+            amountGross={Number(job.amount_gross) || 0}
+            status={job.status}
+          />
+        </div>
 
         {!isCancelled && (
           <LaborSection jobId={id} defaultDate={job.completed_date ?? new Date().toISOString().slice(0, 10)} />
@@ -161,49 +138,49 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
         {job.notes && (
           <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-2">
-              Notatki
-            </p>
-            <p className="whitespace-pre-wrap text-sm text-[#6f6c66]">
-              {job.notes}
-            </p>
+            <p className="text-[11px] font-semibold text-[#8d8a85] mb-2">Notatki</p>
+            <p className="whitespace-pre-wrap text-sm text-[#6f6c66]">{job.notes}</p>
           </section>
         )}
 
-        <div className="mt-10 flex flex-col gap-1">
-          {canCancel && (
-            <form action={cancelWithId}>
-              <ConfirmSubmitButton
-                message="Anulować to zlecenie? Status zmieni się na „Anulowane”. Można to później cofnąć."
-                formNoValidate
-                className="w-full text-sm text-[#8d8a85] py-3 hover:text-[#3a3633] active:underline"
-              >
-                Anuluj zlecenie
-              </ConfirmSubmitButton>
-            </form>
-          )}
-          {isCancelled && (
-            <form action={uncancelWithId}>
-              <button
-                type="submit"
-                className="w-full text-sm text-[#a06f3f] py-3 hover:text-[#7d5530] active:underline"
-              >
-                Przywróć (do „Nowe zapytanie”)
-              </button>
-            </form>
-          )}
-          <form action={deleteWithIds}>
-            <ConfirmSubmitButton
-              message="Na pewno usunąć to zlecenie? Tej operacji nie da się cofnąć."
-              formNoValidate
-              className="w-full text-sm text-red-600 py-3 active:underline"
-            >
-              Usuń zlecenie
-            </ConfirmSubmitButton>
-          </form>
-        </div>
+        <details className="mt-4">
+          <FoldSummary>Historia etapów</FoldSummary>
+          <StageTimeline stages={stages} />
+        </details>
+
+        <StageActionBarSpacer />
+        <StageActionBar
+          jobId={id}
+          status={job.status}
+          completedDate={job.completed_date}
+          paidDate={job.paid_date}
+        />
       </div>
     </main>
+  );
+}
+
+function FoldSummary({ children }: { children: React.ReactNode }) {
+  return (
+    <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between rounded-xl border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--ink-2)] [&::-webkit-details-marker]:hidden">
+      {children}
+      <span aria-hidden className="text-[var(--muted)]">⌄</span>
+    </summary>
+  );
+}
+
+function QuickLink({ href, title, hint, wide }: { href: string; title: string; hint: string; wide?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`block rounded-xl border border-[var(--border)] bg-white p-4 text-sm font-medium text-[var(--foreground)] active:bg-[var(--surface-2)] transition-colors${wide ? " sm:col-span-2" : ""}`}
+    >
+      <div className="flex items-center justify-between">
+        <span>{title}</span>
+        <span className="text-[var(--muted)]">→</span>
+      </div>
+      <p className="text-xs text-[var(--muted)] mt-1">{hint}</p>
+    </Link>
   );
 }
 
@@ -232,7 +209,7 @@ function stageDate(
         date: job.deposit_date,
         hint:
           Number(job.deposit_amount) > 0
-            ? `zaliczka ${Number(job.deposit_amount).toFixed(2)} zł`
+            ? `zaliczka ${fmtPLN(Number(job.deposit_amount))}`
             : undefined,
       };
     case "in_production":
@@ -303,7 +280,7 @@ function toneForKey(key: string): string {
 function StageTimeline({ stages }: { stages: Stage[] }) {
   return (
     <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
-      <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-3">
+      <p className="text-[11px] font-semibold text-[#8d8a85] mb-3">
         Etapy zlecenia
       </p>
       <ol className="relative pl-2">
@@ -335,7 +312,7 @@ function StageTimeline({ stages }: { stages: Stage[] }) {
                   >
                     {s.label}
                     {s.state === "current" && (
-                      <span className="ml-2 inline-block text-[10px] uppercase tracking-wide font-semibold text-white rounded-full px-1.5 py-0.5 align-middle"
+                      <span className="ml-2 inline-block text-[10px] font-semibold text-white rounded-full px-1.5 py-0.5 align-middle"
                         style={{ backgroundColor: tone }}
                       >
                         teraz
@@ -394,170 +371,6 @@ function StageConnector({ state, tone }: { state: StageState; tone: string }) {
   return <span aria-hidden className="mt-0.5 w-0.5 flex-1 min-h-[14px]" style={style} />;
 }
 
-function StageActions({
-  jobId,
-  status,
-  completedDate,
-  paidDate,
-}: {
-  jobId: string;
-  status: JobStatus;
-  completedDate: string | null;
-  paidDate: string | null;
-}) {
-  if (status === "cancelled") return null;
-
-  const idx = JOB_STATUS_WORKFLOW.indexOf(status);
-  const canRevert = idx > 0;
-  const prevLabel = canRevert ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx - 1]] : null;
-  const revert = revertJobStatusAction.bind(null, jobId);
-
-  const revertBtn = canRevert ? (
-    <form action={revert}>
-      <button
-        type="submit"
-        className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 min-h-11 text-sm font-medium text-[var(--muted)] bg-[var(--surface-2)] border border-[#ededea] hover:border-[var(--accent)] active:opacity-80 transition-colors"
-      >
-        <span aria-hidden>←</span>
-        <span>Cofnij do: {prevLabel}</span>
-      </button>
-    </form>
-  ) : null;
-
-  if (status === "scheduled_measurement") {
-    return (
-      <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
-        <Link
-          href={`/jobs/${jobId}/pomiar/edit`}
-          className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
-        >
-          <span>Wykonaj pomiar →</span>
-          <span aria-hidden>→</span>
-        </Link>
-        <p className="text-[11px] text-[#8d8a85]">
-          Wypełnij brief po wizycie u klienta — po zapisaniu zlecenie trafi od razu do „Uzupełnienia”.
-        </p>
-        {revertBtn}
-      </section>
-    );
-  }
-
-  if (status === "to_measure") {
-    const confirmPomiar = confirmPomiarAction.bind(null, jobId);
-    return (
-      <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
-        <form action={confirmPomiar}>
-          <button
-            type="submit"
-            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
-          >
-            <span>Zatwierdź pomiar → Uzupełnienie</span>
-            <span aria-hidden>→</span>
-          </button>
-        </form>
-        <p className="text-[11px] text-[#8d8a85]">
-          Po zatwierdzeniu zlecenie trafi do etapu „Uzupełnienie” — tam dopiszesz ilości okuć, szuflad, LED-ów itd. dla wyceny.
-        </p>
-        {revertBtn}
-      </section>
-    );
-  }
-
-  if (status === "after_measure") {
-    const confirmUzup = confirmUzupelnienieAction.bind(null, jobId);
-    return (
-      <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
-        <form action={confirmUzup}>
-          <button
-            type="submit"
-            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
-          >
-            <span>Zatwierdź uzupełnienie → Wycena</span>
-            <span aria-hidden>→</span>
-          </button>
-        </form>
-        <p className="text-[11px] text-[#8d8a85]">
-          Po zatwierdzeniu zlecenie trafi do „Wyceny” — gotowy komplet danych do kalkulatora i listy zakupów.
-        </p>
-        {revertBtn}
-      </section>
-    );
-  }
-
-  const canAdvance = idx >= 0 && idx < JOB_STATUS_WORKFLOW.length - 1;
-  if (!canAdvance && !canRevert) return null;
-  const nextLabel = canAdvance ? JOB_STATUS_LABELS[JOB_STATUS_WORKFLOW[idx + 1]] : null;
-  const advance = advanceJobStatusAction.bind(null, jobId);
-  // Zamykanie (montaż / rozliczenie) pyta o datę — przy nadrabianiu zaległości
-  // „dziś” wrzucało przychód do złego miesiąca.
-  const nextStatus = canAdvance ? JOB_STATUS_WORKFLOW[idx + 1] : null;
-  const today = new Date().toISOString().slice(0, 10);
-  const askDate =
-    nextStatus === "installed"
-      ? { label: "Kiedy zamontowane / zakończone?", value: completedDate ?? today }
-      : nextStatus === "settled"
-        ? { label: "Kiedy klient zapłacił?", value: paidDate ?? today }
-        : null;
-
-  return (
-    <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-      {canAdvance && (
-        <form action={advance} className="flex-1 flex flex-col gap-2">
-          {askDate && (
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--accent-soft)] px-3 py-2">
-              <span className="text-xs font-medium text-[#7d5530]">{askDate.label}</span>
-              <input
-                type="date"
-                name="date"
-                required
-                defaultValue={askDate.value}
-                max={today}
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900"
-              />
-            </label>
-          )}
-          <button
-            type="submit"
-            className="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-3 min-h-11 text-sm font-semibold text-white bg-[#a06f3f] hover:bg-[var(--accent-2)] active:opacity-90 transition-colors"
-          >
-            <span>Następny etap: {nextLabel}</span>
-            <span aria-hidden>→</span>
-          </button>
-        </form>
-      )}
-      {canRevert && (
-        <div className={canAdvance ? "sm:w-auto" : "flex-1"}>
-          {revertBtn}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function StatusPill({ status }: { status: JobStatus }) {
-  const styles: Record<JobStatus, string> = {
-    new_inquiry: "bg-[#f0f0ee] text-[#8d8a85]",
-    scheduled_measurement: "bg-[#f1e5d2] text-[#7d5530]",
-    to_measure: "bg-[#f1e5d2] text-[#7d5530]",
-    after_measure: "bg-[#f1e5d2] text-[#7d5530]",
-    to_quote: "bg-[#faf5e9] text-[var(--accent)]",
-    quote_sent: "bg-[#faf5e9] text-[var(--accent)]",
-    accepted: "bg-[#dde5ef] text-[#5a7898]",
-    materials_ordered: "bg-[#dde5ef] text-[#5a7898]",
-    in_production: "bg-[#dde5ef] text-[#5a7898]",
-    ready_to_install: "bg-[#e3efe5] text-[#4f8a64]",
-    installed: "bg-[#e3efe5] text-[#4f8a64]",
-    settled: "bg-[#e3efe5] text-[#3a6b4d]",
-    archived: "bg-[#f0f0ee] text-[#8d8a85]",
-    cancelled: "bg-[#f0f0ee] text-[#8d8a85] line-through",
-  };
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
-      {JOB_STATUS_LABELS[status]}
-    </span>
-  );
-}
-
 // Wycena przeniesiona z kalkulatora — pokazuje kwotę/koszty/zysk 1:1 z kalkulatorem
 // (z ZUS-em i rezerwą urlop/L4, jeśli były policzone). Źródło: jobs.calc_quote.
 function CalcQuoteCard({ q }: { q: CalcQuote }) {
@@ -565,7 +378,7 @@ function CalcQuoteCard({ q }: { q: CalcQuote }) {
   return (
     <section className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--accent-soft)] p-4">
       <div className="flex items-center justify-between mb-2.5">
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[var(--accent)]">
+        <p className="text-[11px] font-semibold text-[var(--accent)]">
           Wycena z kalkulatora
         </p>
         <span className="text-[10px] text-[var(--accent)]">
@@ -574,15 +387,15 @@ function CalcQuoteCard({ q }: { q: CalcQuote }) {
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <p className="text-[10px] text-[#8d8a85] uppercase tracking-wide">Kwota</p>
+          <p className="text-[10px] text-[#8d8a85] ">Kwota</p>
           <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(q.amountGross)}</p>
         </div>
         <div>
-          <p className="text-[10px] text-[#8d8a85] uppercase tracking-wide">Koszty</p>
+          <p className="text-[10px] text-[#8d8a85] ">Koszty</p>
           <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(q.costsGross)}</p>
         </div>
         <div>
-          <p className="text-[10px] text-[#8d8a85] uppercase tracking-wide">Zysk</p>
+          <p className="text-[10px] text-[#8d8a85] ">Zysk</p>
           <p className="font-semibold text-sm tabular-nums text-[#3a6b4d]">{fmtPLN(q.profit)}</p>
         </div>
       </div>

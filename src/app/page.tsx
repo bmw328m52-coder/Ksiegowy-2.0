@@ -617,7 +617,7 @@ function AgendaRow({
       className="flex items-center gap-3 px-3 py-3 active:bg-[#f6f6f5] hover:bg-[#faf9f8] transition-colors first:rounded-t-2xl last:rounded-b-2xl"
     >
       <div className="text-center shrink-0 w-10">
-        <p className="text-[9px] uppercase tracking-wide font-semibold text-[#9ea29c]">{weekday}</p>
+        <p className="text-[9px] font-semibold text-[#9ea29c]">{weekday}</p>
         <p className="text-lg font-bold text-[#1f1d1b] tabular-nums leading-none mt-0.5">{dayNum}</p>
       </div>
       <span

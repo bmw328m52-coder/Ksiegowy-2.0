@@ -39,7 +39,7 @@ export default function InvoiceSection({
     return (
       <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+          <p className="text-[11px] font-semibold text-[#8d8a85]">
             Faktura sprzedaży
           </p>
           <form action={unmarkJobInvoicedAction.bind(null, jobId)}>
@@ -73,7 +73,7 @@ export default function InvoiceSection({
   return (
     <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-3">
       <div>
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+        <p className="text-[11px] font-semibold text-[#8d8a85]">
           Faktura sprzedaży
         </p>
         <p className="text-xs text-[#6f6c66] mt-0.5">
@@ -84,7 +84,7 @@ export default function InvoiceSection({
       <form action={action} className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-wide text-[#8d8a85]">
+            <span className="text-[10px] text-[#8d8a85]">
               Numer
             </span>
             <input
@@ -97,7 +97,7 @@ export default function InvoiceSection({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-wide text-[#8d8a85]">
+            <span className="text-[10px] text-[#8d8a85]">
               Data
             </span>
             <input

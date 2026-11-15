@@ -16,7 +16,7 @@ import {
   HEALTH_MIN_2026,
 } from "@/lib/zus";
 import type { TaxForm } from "@/lib/tax";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, fmtNum } from "@/lib/format";
 import {
   createDeadlineAction,
   toggleDeadlineAction,
@@ -59,8 +59,7 @@ function taxDeadlines(
     const phase = zusPhaseForMonth(settings.zus_start_date, year, monthIdx);
     const social = zusSocialForPhase(phase);
     const minHealth = settings.health_insurance_min || HEALTH_MIN_2026;
-    const zl = (n: number) =>
-      n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const zl = (n: number) => fmtNum(n, 2);
     zusHint = `${ZUS_PHASE_LABELS[phase]} · od ${zl(social + minHealth)} zł`;
   }
   rows.push({
@@ -92,7 +91,7 @@ export default async function TerminyPage() {
 
         <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] font-semibold text-[#8d8a85]">
               Podatkowe · liczone automatycznie
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">Bieżący okres</h2>
@@ -122,7 +121,7 @@ export default async function TerminyPage() {
         <AddDeadlineForm today={today} />
 
         <section className="space-y-2">
-          <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
+          <p className="text-[12px] font-semibold text-[#8d8a85] px-1">
             Własne terminy {open.length > 0 && `(${open.length})`}
           </p>
           {open.length === 0 ? (
@@ -136,7 +135,7 @@ export default async function TerminyPage() {
 
         {done.length > 0 && (
           <section className="space-y-2">
-            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
+            <p className="text-[12px] font-semibold text-[#8d8a85] px-1">
               Wykonane ({done.length})
             </p>
             {done.map((d) => (

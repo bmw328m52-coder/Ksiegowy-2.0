@@ -34,7 +34,7 @@ export default function AutopriceForm({
     <div className="flex flex-col gap-5">
       {sections.map((section) => (
         <section key={section}>
-          <h2 className="text-xs uppercase tracking-wide font-semibold text-zinc-500 mb-2">
+          <h2 className="text-xs font-semibold text-zinc-500 mb-2">
             {section}
           </h2>
           <ul className="flex flex-col gap-2">

@@ -14,7 +14,7 @@ export default function SectionHeading({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 mb-2 px-0.5">
-      <h2 className="text-[11px] uppercase tracking-[0.08em] font-semibold text-[#9ea29c]">
+      <h2 className="text-[11px] font-semibold text-[#9ea29c]">
         {children}
       </h2>
       {action && (

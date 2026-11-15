@@ -19,7 +19,7 @@ export default async function RaportyPage() {
 
         <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] font-semibold text-[#8d8a85]">
               Raport miesięczny
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">
@@ -64,7 +64,7 @@ export default async function RaportyPage() {
 
           {d.costsByCategoryMonth.length > 0 && (
             <div className="px-4 pb-4">
-              <p className="text-[12px] font-semibold text-[#8d8a85] uppercase tracking-wide mb-2">
+              <p className="text-[12px] font-semibold text-[#8d8a85] mb-2">
                 Koszty wg kategorii
               </p>
               <ul className="space-y-1.5">
@@ -89,14 +89,14 @@ export default async function RaportyPage() {
         </section>
 
         <section className="space-y-2">
-          <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] px-1">
+          <p className="text-[12px] font-semibold text-[#8d8a85] px-1">
             Paczka dokumentów (dla ING / księgowej)
           </p>
           <ExportMonthCard />
         </section>
 
         <section className="rounded-2xl border border-[#ededea] bg-white p-4">
-          <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85] mb-2">
+          <p className="text-[12px] font-semibold text-[#8d8a85] mb-2">
             Rok {d.year}
           </p>
           <ReportRow label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />

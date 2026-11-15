@@ -81,7 +81,7 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
 
             {scan.data.notes?.trim() && (
               <div className="rounded-lg border border-[#ededea] bg-[var(--surface-2)] p-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-[#a06f3f]">Notatki z pomiaru</div>
+                <div className="text-[10px] font-semibold text-[#a06f3f]">Notatki z pomiaru</div>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800">{scan.data.notes}</p>
               </div>
             )}

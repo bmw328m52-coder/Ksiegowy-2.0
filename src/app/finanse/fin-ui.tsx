@@ -6,10 +6,11 @@ import type { AttentionItem, AttentionSeverity } from "@/lib/dao/finance";
 import type { MonthlyPoint } from "@/lib/dao/dashboard";
 import type { SegmentItem } from "@/components/ui/SegmentedNav";
 import { ButtonLink } from "@/components/ui/Button";
+import MonthlyBars from "@/components/MonthlyBars";
 
 /**
  * Elementy interfejsu modułu Finanse w motywie „grafit i szampan”.
- * Odpowiedniki wspólnych komponentów (Card, SegmentedNav, EmptyState, AttentionPanel, TrendChart),
+ * Odpowiedniki wspólnych komponentów (Card, SegmentedNav, EmptyState, AttentionPanel, wykres roczny),
  * które mają zaszyte jasne kolory — tu wszystkie kolory idą przez zmienne motywu.
  */
 
@@ -141,7 +142,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
       <header className="px-4 pt-4 pb-2 flex items-baseline justify-between gap-3">
         <div>
-          <p className="text-[12px] uppercase tracking-wide font-semibold text-[var(--muted)]">Kontrola</p>
+          <p className="text-[12px] font-semibold text-[var(--muted)]">Kontrola</p>
           <h2 className="text-base font-semibold text-[var(--foreground)]">Wymaga uwagi</h2>
         </div>
         <span
@@ -191,61 +192,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
   );
 }
 
-const MONTH_ABBR = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
-
-/** Wykres słupkowy przychód/koszty netto w skali roku — kolory z motywu. */
+/** Wykres przychód/koszty netto w skali roku — wspólny, interaktywny komponent. */
 export function FinTrendChart({ data, highlightMonth }: { data: MonthlyPoint[]; highlightMonth?: number }) {
-  const W = 360;
-  const H = 180;
-  const padTop = 8;
-  const padBottom = 22;
-  const padLeft = 8;
-  const padRight = 8;
-  const chartH = H - padTop - padBottom;
-  const chartW = W - padLeft - padRight;
-  const max = Math.max(1, ...data.map((p) => Math.max(p.revenueNet, p.costsNet)));
-  const slotW = chartW / data.length;
-  const barW = Math.max(2, slotW * 0.35);
-  const gap = slotW * 0.1;
-  const baseY = padTop + chartH;
-  return (
-    <div className="w-full">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Przychód i koszty netto w poszczególnych miesiącach">
-        <line x1={padLeft} x2={W - padRight} y1={baseY} y2={baseY} stroke="var(--border)" strokeWidth={1} />
-        {data.map((p, i) => {
-          const center = padLeft + i * slotW + slotW / 2;
-          const revH = (p.revenueNet / max) * chartH;
-          const costH = (p.costsNet / max) * chartH;
-          const isHL = i === highlightMonth;
-          return (
-            <g key={i}>
-              <title>{`${MONTH_ABBR[i]}: przychód ${fmtPLN(p.revenueNet)}, koszty ${fmtPLN(p.costsNet)} (netto)`}</title>
-              <rect x={center - barW - gap / 2} y={baseY - revH} width={barW} height={revH} fill="var(--accent)" opacity={isHL ? 1 : 0.8} rx={1} />
-              <rect x={center + gap / 2} y={baseY - costH} width={barW} height={costH} fill="var(--info)" opacity={isHL ? 1 : 0.8} rx={1} />
-              <text
-                x={center}
-                y={H - 6}
-                textAnchor="middle"
-                fontSize={9}
-                fill={isHL ? "var(--foreground)" : "var(--muted)"}
-                fontWeight={isHL ? 700 : 400}
-              >
-                {MONTH_ABBR[i]}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="flex items-center gap-4 text-[12px] text-[var(--foreground)] mt-2 px-2">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm bg-[var(--accent)]" aria-hidden />
-          Przychód netto
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm bg-[var(--info)]" aria-hidden />
-          Koszty netto
-        </span>
-      </div>
-    </div>
-  );
+  return <MonthlyBars data={data} highlightMonth={highlightMonth} />;
 }

@@ -11,6 +11,7 @@ import {
   HEALTH_RATE_SKALA,
   HEALTH_RATE_LINIOWY,
 } from "@/lib/zus";
+import { fmtNum } from "@/lib/format";
 
 type Action = (prev: { error?: string }, formData: FormData) => Promise<{ error?: string }>;
 
@@ -45,8 +46,7 @@ const MONTHS_PL = [
   "grudzień",
 ];
 
-const zl = (n: number) =>
-  n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " zł";
+const zl = (n: number) => fmtNum(n, 2) + " zł";
 
 export default function SettingsForm({
   action,
@@ -259,7 +259,7 @@ const errorCls = "text-sm text-[var(--warn)] bg-[var(--warn-soft)] border border
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">{title}</h2>
+      <h2 className="text-[13px] font-semibold text-[var(--accent)]">{title}</h2>
       {children}
     </section>
   );

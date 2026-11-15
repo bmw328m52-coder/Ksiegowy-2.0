@@ -18,6 +18,9 @@
   --warn-soft: #f4e0d9;
   --info: #5a7898;
   --info-soft: #dde5ef;
+  /* Kolory wykresów — zwalidowane (CVD ΔE >= 20, chroma >= 0.1). Złoto marki zostaje w --accent. */
+  --chart-1: #b87420;
+  --chart-2: #3f78ad;
   color-scheme: light;
 }
 
@@ -69,7 +72,6 @@ body {
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "cv11", "ss01";
 }
 
 h1, h2, h3, h4, h5, h6 {

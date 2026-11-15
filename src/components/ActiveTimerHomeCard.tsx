@@ -34,7 +34,7 @@ export default function ActiveTimerHomeCard({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-wide font-semibold text-emerald-700 flex items-center gap-1.5">
+          <p className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1.5">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
             Trwa: {phaseLabel}
           </p>

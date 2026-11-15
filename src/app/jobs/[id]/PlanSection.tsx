@@ -3,7 +3,7 @@ import { listCostLinesByJob } from "@/lib/dao/cost_lines";
 import { listEntriesByJob, totalMinutes } from "@/lib/dao/time_entries";
 import { JOB_STATUS_DONE, type Job } from "@/lib/dao/jobs.types";
 import { planVsActual, type JobPlan, type RateStatus } from "@/lib/profitability";
-import { fmtDate, fmtPLN } from "@/lib/format";
+import { fmtDate, fmtPLN, fmtNum } from "@/lib/format";
 
 const RATE_TONE: Record<RateStatus, string> = {
   cel: "text-[#3a6b4d]",
@@ -16,7 +16,7 @@ function fmtHours(h: number): string {
 }
 
 function fmtRate(v: number): string {
-  return `${Math.round(v).toLocaleString("pl-PL")} zł/h`;
+  return `${fmtNum(Math.round(v))} zł/h`;
 }
 
 function pctDiff(actual: number, planned: number): string | null {
@@ -54,7 +54,7 @@ export default async function PlanSection({
   return (
     <section className="mt-3 rounded-xl border border-[#ededea] bg-white p-4">
       <div className="flex items-baseline justify-between mb-3">
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+        <p className="text-[11px] font-semibold text-[#8d8a85]">
           Plan a wykonanie
         </p>
         <span className="text-[11px] text-[#8d8a85]">{finished ? "wynik" : "w toku · prognoza"}</span>
@@ -62,8 +62,8 @@ export default async function PlanSection({
 
       <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 text-sm">
         <span />
-        <span className="text-right text-[10px] uppercase tracking-wide text-[#8d8a85]">Plan</span>
-        <span className="text-right text-[10px] uppercase tracking-wide text-[#8d8a85]">
+        <span className="text-right text-[10px] text-[#8d8a85]">Plan</span>
+        <span className="text-right text-[10px] text-[#8d8a85]">
           {finished ? "Wyszło" : "Dziś"}
         </span>
 

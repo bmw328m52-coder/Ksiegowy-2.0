@@ -241,7 +241,7 @@ const inputCls =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-0.5">
-      <span className="text-[12px] font-medium text-zinc-500 uppercase tracking-wide">{label}</span>
+      <span className="text-[12px] font-medium text-zinc-500 ">{label}</span>
       {children}
     </label>
   );

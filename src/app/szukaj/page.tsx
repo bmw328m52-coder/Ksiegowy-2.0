@@ -39,7 +39,7 @@ export default async function SearchPage({
         <div className="flex flex-col gap-5">
           {jobHits.length > 0 && (
             <section>
-              <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#6f6c66]">
+              <h2 className="mb-2 text-[12px] font-semibold text-[#6f6c66]">
                 Zlecenia · {jobHits.length}
               </h2>
               <ul className="overflow-hidden rounded-2xl border border-[#ededea] bg-white divide-y divide-[#eeeeed]">
@@ -58,7 +58,7 @@ export default async function SearchPage({
           )}
           {clientHits.length > 0 && (
             <section>
-              <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#6f6c66]">
+              <h2 className="mb-2 text-[12px] font-semibold text-[#6f6c66]">
                 Klienci · {clientHits.length}
               </h2>
               <ul className="overflow-hidden rounded-2xl border border-[#ededea] bg-white divide-y divide-[#eeeeed]">

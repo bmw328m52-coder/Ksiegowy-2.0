@@ -180,7 +180,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
         <div className="flex min-w-0 flex-col gap-5">
           {GROUPS.map((g) => (
             <Card key={g.title}>
-              <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">{g.title}</h2>
+              <h2 className="text-[13px] font-semibold text-[var(--accent)]">{g.title}</h2>
               {g.hint && <p className="text-[12px] text-[#6f6c66]">{g.hint}</p>}
               <ul className="mt-2 divide-y divide-[var(--border)]">
                 {g.fields.map((f) => (
@@ -207,7 +207,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
 
         <div className="flex min-w-0 flex-col gap-5">
           <Card>
-            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">Przykładowe szafki</h2>
+            <h2 className="text-[13px] font-semibold text-[var(--accent)]">Przykładowe szafki</h2>
             <p className="text-[12px] text-[#6f6c66]">Przeliczają się na żywo, gdy zmieniasz stawki.</p>
             <table className="mt-2 w-full text-[13px]">
               <thead className="text-left text-[11px] text-[var(--muted)]">
@@ -239,7 +239,7 @@ export default function CabinetRatesForm({ initial, defaults, saved }: { initial
           </Card>
 
           <Card>
-            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--accent)]">Dodatki</h2>
+            <h2 className="text-[13px] font-semibold text-[var(--accent)]">Dodatki</h2>
             <p className="text-[12px] text-[#6f6c66]">Koszt zakupu — marża dolicza się tak samo jak do szafek.</p>
             <ul className="mt-2 flex flex-col gap-2">
               {extras.map((e, i) => (

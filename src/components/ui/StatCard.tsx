@@ -57,7 +57,7 @@ export default function StatCard({
         aria-hidden
         className={`absolute top-0 left-0 right-0 h-[3px] ${BAR_TONE[tone]}`}
       />
-      <p className="text-[10px] uppercase tracking-[0.06em] font-semibold text-[#9ea29c] truncate">
+      <p className="text-[10px] font-semibold text-[#9ea29c] truncate">
         {label}
       </p>
       <div className="mt-1.5" style={{ fontSize: valueFont }}>

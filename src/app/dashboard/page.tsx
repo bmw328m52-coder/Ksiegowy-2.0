@@ -34,7 +34,7 @@ export default async function DashboardPage() {
 
         <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
           <header className="px-4 pt-4 pb-2">
-            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] font-semibold text-[#8d8a85]">
               Bilans podatkowy
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
 
         <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-4">
           <div>
-            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] font-semibold text-[#8d8a85]">
               Bieżący miesiąc
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">{monthName}</h2>
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
           </div>
           {d.costsByCategoryMonth.length > 0 && (
             <div className="pt-3 border-t border-[#eeeeed] space-y-2">
-              <p className="text-[12px] font-semibold text-[#8d8a85] uppercase tracking-wide">
+              <p className="text-[12px] font-semibold text-[#8d8a85] ">
                 Rozkład kosztów
               </p>
               <CategoryBars rows={d.costsByCategoryMonth} />
@@ -115,7 +115,7 @@ export default async function DashboardPage() {
 
         <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-4">
           <div>
-            <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+            <p className="text-[12px] font-semibold text-[#8d8a85]">
               Rok
             </p>
             <h2 className="text-sm font-semibold text-[#1f1d1b]">{d.year}</h2>
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
         {hasCashAlerts && (
           <section className="rounded-xl border border-[#ededea] bg-white overflow-hidden">
             <div className="px-4 pt-4 pb-2">
-              <p className="text-[12px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+              <p className="text-[12px] font-semibold text-[#8d8a85]">
                 Cash flow
               </p>
               <h2 className="text-sm font-semibold text-[#1f1d1b]">Alerty kasowe</h2>

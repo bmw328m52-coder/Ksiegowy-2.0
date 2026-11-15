@@ -86,7 +86,7 @@ export default async function CalculatorPage({
           className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#e2c79c] bg-gradient-to-br from-[#fbf1dd] to-[#fff8e9] px-3.5 py-2.5 active:opacity-90 hover:border-[#a06f3f] transition-colors"
         >
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide font-semibold text-[#7d5530]">
+            <p className="text-xs font-semibold text-[#7d5530]">
               Nowość
             </p>
             <p className="text-sm font-semibold text-[#7d5530] truncate">
@@ -101,7 +101,7 @@ export default async function CalculatorPage({
         {presetJob && (
           <div className="mb-3 rounded-xl border border-[#f1e5d2] bg-[#faf5e9] px-3.5 py-2.5 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-wide font-semibold text-[#6f6c66]">
+              <p className="text-xs font-semibold text-[#6f6c66]">
                 Wycena dla zlecenia
               </p>
               <p className="text-sm font-medium text-[#1f1d1b] break-words">

@@ -42,7 +42,7 @@ export default async function CalcSettingsPage() {
               <Card key={slot.key} className="p-3">
                 <div className="flex items-baseline justify-between gap-2">
                   <h2 className="text-sm font-semibold text-[#1f1d1b]">{slot.label}</h2>
-                  <span className="text-[10px] uppercase tracking-wide text-[#8d8a85]">
+                  <span className="text-[10px] text-[#8d8a85]">
                     {slot.unit}
                   </span>
                 </div>

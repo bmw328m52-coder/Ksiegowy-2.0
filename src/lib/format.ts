@@ -1,9 +1,33 @@
+// pl-PL domyślnie nie grupuje liczb 4-cyfrowych (8300, ale 11 400) — wymuszamy spójny zapis kwot.
 const PLN = new Intl.NumberFormat("pl-PL", {
   style: "currency",
   currency: "PLN",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
+  useGrouping: "always",
 });
+
+const NUM_CACHE = new Map<string, Intl.NumberFormat>();
+
+/** Liczba w polskim zapisie ze spacją tysięcy (zawsze, także 4-cyfrowe). */
+export function fmtNum(value: number, minDigits = 0, maxDigits = minDigits): string {
+  const key = `${minDigits}-${maxDigits}`;
+  let f = NUM_CACHE.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat("pl-PL", {
+      minimumFractionDigits: minDigits,
+      maximumFractionDigits: maxDigits,
+      useGrouping: "always",
+    });
+    NUM_CACHE.set(key, f);
+  }
+  return f.format(value);
+}
+
+/** Kwota zaokrąglona do pełnych złotych: „8 300 zł”. */
+export function fmtZl(value: number): string {
+  return `${fmtNum(Math.round(value))} zł`;
+}
 
 const PL_DATE = new Intl.DateTimeFormat("pl-PL", {
   year: "numeric",

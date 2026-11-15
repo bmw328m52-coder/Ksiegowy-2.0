@@ -1172,7 +1172,7 @@ export default function CalculatorForm({
             }`}
           >
             <p
-              className={`text-xs font-medium uppercase tracking-wide ${
+              className={`text-xs font-medium ${
                 status ? STATUS_TONE[status].label : "text-zinc-600"
               }`}
             >
@@ -1631,7 +1631,7 @@ function HourlyRatePanel({
   return (
     <div className="space-y-2">
       <div className={`rounded-2xl border p-4 ${tone.box}`}>
-        <p className={`text-xs font-medium uppercase tracking-wide ${tone.label}`}>
+        <p className={`text-xs font-medium ${tone.label}`}>
           Stawka na rękę / godzinę {withInvoice ? "" : "(bez faktury)"}
         </p>
         <p className={`text-3xl font-bold tabular-nums mt-1 ${tone.value}`}>
@@ -1799,7 +1799,7 @@ function ResultPanel({
   return (
     <section className="space-y-3">
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+        <p className="text-xs font-medium text-emerald-700">
           {withInvoice ? "Na czysto (po VAT, PIT, ZUS)" : "Na czysto (gotówka, po ZUS)"}
         </p>
         <p className="text-3xl font-bold tabular-nums text-emerald-900 mt-1">
@@ -1852,12 +1852,12 @@ function ResultPanel({
 
       <div className="premium-kpis grid grid-cols-2 gap-3" aria-label="Cena dla klienta i stawka godzinowa">
         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Cena dla klienta</p>
+          <p className="text-xs font-medium text-zinc-600">Cena dla klienta</p>
           <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900 break-words">{fmtPLN(amountGross)}</p>
           <p className="text-xs text-zinc-600">brutto, z VAT</p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Stawka na rękę</p>
+          <p className="text-xs font-medium text-zinc-600">Stawka na rękę</p>
           <p className="mt-1 text-xl font-bold tabular-nums text-zinc-900 break-words">
             {hasRate ? `${fmtPLN(ratePerHour)} / h` : "— zł / h"}
           </p>
@@ -1868,7 +1868,7 @@ function ResultPanel({
       {withInvoice && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+            <p className="text-xs font-medium text-amber-800">
               Razem podatki {isVatPayer ? "(VAT + PIT)" : "(PIT)"}
             </p>
             <p className="text-xl font-semibold tabular-nums text-amber-900">
@@ -1967,7 +1967,7 @@ function ResultPanel({
 
 function GroupHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-zinc-600 bg-zinc-50 border-b border-zinc-100">
+    <div className="px-4 pt-3 pb-1 text-xs font-semibold text-zinc-600 bg-zinc-50 border-b border-zinc-100">
       {children}
     </div>
   );

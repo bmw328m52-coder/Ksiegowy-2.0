@@ -179,7 +179,7 @@ function Sum({
     tone === "gold" ? "text-[#a06f3f]" : tone === "negative" ? "text-[#b8523a]" : "text-[#1f1d1b]";
   return (
     <div>
-      <p className="text-[12px] text-[#8d8a85] uppercase tracking-wide">{label}</p>
+      <p className="text-[12px] text-[#8d8a85] ">{label}</p>
       <Money className={`text-base font-semibold tabular-nums ${color}`}>{value}</Money>
     </div>
   );

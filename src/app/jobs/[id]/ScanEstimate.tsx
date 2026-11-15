@@ -97,7 +97,7 @@ export default function ScanEstimate({
     <div className="rounded-xl border border-[var(--border)] bg-[var(--accent-soft)] p-3">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 text-left">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-[#a06f3f]">Przybliżona cena</div>
+          <div className="text-[10px] font-semibold text-[#a06f3f]">Przybliżona cena</div>
           {hasAnything ? (
             <>
               <div className="text-[22px] font-semibold leading-tight tracking-tight tabular-nums text-[#1f1d1b]">

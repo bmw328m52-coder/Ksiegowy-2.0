@@ -130,7 +130,7 @@ export default function PomiarSection({
       ) : (
         filledGroups.map((g) => (
           <div key={g.title} className="border-t border-zinc-100 pt-2">
-            <h3 className="text-xs uppercase tracking-wide font-semibold text-zinc-500 mb-1.5">
+            <h3 className="text-xs font-semibold text-zinc-500 mb-1.5">
               {g.title}
             </h3>
             {g.title === "AGD do zabudowy" ? (
@@ -162,7 +162,7 @@ export default function PomiarSection({
 
       {brief.notes && (
         <div className="border-t border-zinc-100 pt-2">
-          <h3 className="text-xs uppercase tracking-wide font-semibold text-zinc-500 mb-1">
+          <h3 className="text-xs font-semibold text-zinc-500 mb-1">
             Notatki
           </h3>
           <p className="text-xs whitespace-pre-wrap text-zinc-800">{brief.notes}</p>
@@ -349,7 +349,7 @@ function DerivedVent({ data }: { data: BriefData }) {
   if (!fridgeBuiltin && !hoodBuiltin) return null;
   return (
     <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5">
-      <p className="text-[11px] uppercase tracking-wide font-semibold text-amber-800 mb-0.5">
+      <p className="text-[11px] font-semibold text-amber-800 mb-0.5">
         Auto z AGD — do wyceny kratek
       </p>
       <ul className="text-xs text-amber-900 flex flex-col gap-0.5">

@@ -8,7 +8,7 @@ export default async function ProjectFilesSection({ jobId }: { jobId: string }) 
   return (
     <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
       <div className="mb-3 flex items-baseline justify-between gap-2">
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[#8d8a85]">Projekt</p>
+        <p className="text-[11px] font-semibold text-[#8d8a85]">Projekt</p>
         {files && files.length > 0 && (
           <span className="text-[11px] text-[#8d8a85]">dotknij, żeby powiększyć i poprawić</span>
         )}

@@ -49,7 +49,7 @@ export default function ActiveTimerBarClient({ jobId, jobTitle, phaseLabel, star
       <div className="w-full max-w-md mx-auto flex items-center gap-2 px-3 py-2">
         <span className="inline-block w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
         <Link href={`/jobs/${jobId}`} className="flex min-h-11 min-w-0 flex-1 flex-col justify-center active:opacity-80">
-          <p className="text-[11px] uppercase tracking-wide font-semibold truncate">
+          <p className="text-[11px] font-semibold truncate">
             {phaseLabel} · {jobTitle}
           </p>
           <p className="text-base font-bold tabular-nums leading-tight">

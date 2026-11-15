@@ -21,6 +21,7 @@ import {
   ButtonLink,
   type SegmentItem,
 } from "@/components/ui";
+import { fmtNum } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 // Pobieranie z KSeF (akcja serwera z tej strony) potrafi trwać kilkadziesiąt sekund.
@@ -257,7 +258,7 @@ function GrantLink({ invoices }: { invoices: { funded_by_grant?: boolean; amount
         <p className="text-sm font-semibold text-[#1f1d1b]">Zakupy z dotacji</p>
         <p className="text-[13px] text-[#6f6c66]">
           {grant.length > 0
-            ? `${grant.length} faktur · ${sum.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} zł brutto — poza kosztami`
+            ? `${grant.length} faktur · ${fmtNum(sum, 0, 2)} zł brutto — poza kosztami`
             : "Zaznacz faktury opłacone z dotacji PUP"}
         </p>
       </div>

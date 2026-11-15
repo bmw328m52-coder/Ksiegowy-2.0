@@ -149,7 +149,7 @@ export default function ModuleCalculator({ boards, fronts, blaty, uchwyty, price
             if (items.length === 0) return null;
             return (
               <div key={cat}>
-                <p className="text-[10px] uppercase tracking-wide font-semibold text-[#9ea29c] mb-1.5">
+                <p className="text-[10px] font-semibold text-[#9ea29c] mb-1.5">
                   {CATEGORY_LABEL[cat]}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -355,7 +355,7 @@ function ResultPanel({
         className="rounded-2xl border border-[#e2c79c] p-4 shadow-[0_2px_8px_rgba(160,111,63,0.10)]"
         style={{ background: "linear-gradient(160deg, var(--accent-soft) 0%, var(--surface) 100%)" }}
       >
-        <p className="text-[11px] uppercase tracking-wide font-semibold text-[var(--accent)]">
+        <p className="text-[11px] font-semibold text-[var(--accent)]">
           Cena dla klienta · brutto
         </p>
         <p className="text-[34px] leading-none font-bold tabular-nums text-[#7d5530] mt-1.5">
@@ -389,7 +389,7 @@ function ResultPanel({
         }`}
       >
         <p
-          className={`text-[11px] uppercase tracking-wide font-semibold ${
+          className={`text-[11px] font-semibold ${
             positive ? "text-[var(--ok)]" : "text-[var(--warn)]"
           }`}
         >
@@ -438,7 +438,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function GroupHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d8a85] bg-[var(--surface-2)] border-b border-[#eeeeed]">
+    <div className="px-4 pt-3 pb-1 text-[11px] font-semibold text-[#8d8a85] bg-[var(--surface-2)] border-b border-[#eeeeed]">
       {children}
     </div>
   );

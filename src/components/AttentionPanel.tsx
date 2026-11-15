@@ -26,7 +26,7 @@ export default function AttentionPanel({ items }: { items: AttentionItem[] }) {
     <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
       <header className="px-4 pt-4 pb-2 flex items-baseline justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-wide font-semibold text-[#8d8a85]">
+          <p className="text-[10px] font-semibold text-[#8d8a85]">
             Kontrola
           </p>
           <h2 className="text-sm font-semibold text-[#1f1d1b]">Wymaga uwagi</h2>
