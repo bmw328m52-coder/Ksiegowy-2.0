@@ -15,6 +15,7 @@ import {
   type PipelineGroup,
 } from "@/lib/jobStatusView";
 import { isJobOverdue } from "@/lib/jobStatus";
+import { PHASES, phaseOfStatus, phaseIndex, isJobClosed } from "@/lib/jobPhases";
 import { fmtDate, fmtPLN } from "@/lib/format";
 import { Money } from "@/components/Money";
 import { avatarTone, clientInitials } from "@/lib/avatar";
@@ -244,21 +245,6 @@ const STAGE_ACCENT: Record<JobStatus, string> = {
   cancelled: "#c9c7c2",
 };
 
-function hrefForJobStatus(id: string, status: JobStatus): string {
-  switch (status) {
-    case "scheduled_measurement":
-    case "to_measure":
-      return `/jobs/${id}/pomiar/edit`;
-    case "after_measure":
-      return `/jobs/${id}/pomiar/edit#uzupelnienie`;
-    case "to_quote":
-    case "quote_sent":
-      return `/jobs/${id}/wycena`;
-    default:
-      return `/jobs/${id}`;
-  }
-}
-
 function JobItem({
   job,
   overdue,
@@ -268,14 +254,13 @@ function JobItem({
 }) {
   const rawDate = job.due_date ?? job.start_date;
   const dateStr = rawDate ? fmtDate(rawDate) : "";
-  const stageIdx = JOB_STATUS_WORKFLOW.indexOf(job.status);
   const tone = avatarTone(job.client_name);
   const accent = STAGE_ACCENT[job.status];
-  const totalStages = JOB_STATUS_WORKFLOW.length - 1;
-  const completedStages = stageIdx >= 0 ? stageIdx + 1 : 0;
-  const showProgress =
-    stageIdx >= 0 && job.status !== "cancelled" && job.status !== "archived";
-  const href = hrefForJobStatus(job.id, job.status);
+  const phase = phaseOfStatus(job.status);
+  const phaseIdx = phase ? phaseIndex(phase) : -1;
+  const closed = isJobClosed(job.status);
+  const showProgress = phase !== null && job.status !== "archived";
+  const href = `/jobs/${job.id}`;
   return (
     <li>
       <Link
@@ -304,17 +289,17 @@ function JobItem({
           )}
           {showProgress && (
             <div className="flex items-center gap-1.5 mt-2">
-              <div className="flex items-center gap-[3px]" aria-hidden>
-                {Array.from({ length: totalStages }).map((_, i) => (
+              <div className="flex items-center gap-1" aria-hidden>
+                {PHASES.map((p, i) => (
                   <span
-                    key={i}
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: i < completedStages ? accent : "var(--border)" }}
+                    key={p.key}
+                    className="h-1.5 w-5 rounded-full"
+                    style={{ backgroundColor: closed || i <= phaseIdx ? accent : "var(--border)" }}
                   />
                 ))}
               </div>
-              <span className="text-xs text-[var(--muted)] tabular-nums">
-                {completedStages}/{totalStages}
+              <span className="text-xs text-[var(--muted)]">
+                {closed ? "Zakończone" : PHASES[phaseIdx].label}
               </span>
             </div>
           )}

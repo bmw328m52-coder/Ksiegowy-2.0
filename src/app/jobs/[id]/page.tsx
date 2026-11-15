@@ -97,9 +97,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
         {showMoney && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <QuickLink href={`/jobs/${id}/wycena`} title="Wycena pozycji" hint="Pozycje, materiały i ceny" wide />
-            <QuickLink href={`/jobs/${id}/zakupy`} title="Lista zakupów" hint="Co kupić, wg dostawcy" />
-            <QuickLink href={`/calculator?job=${id}`} title="Kalkulator wyceny" hint="Marża, VAT, PIT, ZUS — na czysto" />
+            <QuickLink href={`/jobs/${id}/wycena`} title="Wycena" hint="Pozycje i materiały, potem cena i rentowność" wide />
+            <QuickLink href={`/jobs/${id}/zakupy`} title="Lista zakupów" hint="Co kupić, wg dostawcy" wide />
           </div>
         )}
 

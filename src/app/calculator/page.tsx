@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import WycenaSteps from "@/components/job/WycenaSteps";
 import { PageContainer } from "@/components/ui";
 import CalculatorForm from "./CalculatorForm";
 import { listJobs } from "@/lib/dao/jobs";
@@ -74,13 +75,14 @@ export default async function CalculatorPage({
   const today = new Date();
   const zusPhase = zusPhaseForMonth(settings.zus_start_date, today.getFullYear(), today.getMonth());
 
-  const backHref = presetJob ? `/jobs/${presetJob.id}` : "/wiecej";
+  const backHref = presetJob ? `/jobs/${presetJob.id}/wycena` : "/wiecej";
 
   return (
     <PageContainer width="wide">
       {/* Pion/telefon: wąska kolumna 640 px jak dotąd; od xl (iPad poziomo) pełna szerokość i dwie kolumny. */}
       <div className="premium-calc-container mx-auto flex w-full flex-col gap-5">
-      <PageHeader title="Kalkulator" back={{ href: backHref }} />
+      <PageHeader title={presetJob ? "Cena i rentowność" : "Kalkulator"} back={{ href: backHref }} />
+        {presetJob && <WycenaSteps jobId={presetJob.id} current={2} />}
         <Link
           href="/calculator/moduly"
           className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#e2c79c] bg-gradient-to-br from-[#fbf1dd] to-[#fff8e9] px-3.5 py-2.5 active:opacity-90 hover:border-[#a06f3f] transition-colors"
