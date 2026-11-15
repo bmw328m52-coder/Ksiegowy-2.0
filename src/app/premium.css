@@ -244,3 +244,92 @@
 
 /* Pola daty/czasu: część formularzy ma focus:outline-none bez zamiennika — fokus zawsze widoczny. */
 .luviano-premium input[type="date"]:focus-visible, .luviano-premium input[type="time"]:focus-visible, .luviano-premium input[type="month"]:focus-visible, .luviano-premium input[type="datetime-local"]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* ===== Pulpit startowy (lv-*) — tokeny motywu, działa w jasnym i ciemnym ===== */
+.luviano-premium .lv-home { gap: 28px; }
+.luviano-premium .lv-hero {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 28px 28px 30px; border-radius: 28px; color: #f3f0e8;
+  background: radial-gradient(120% 140% at 100% 0%, rgba(220,192,143,.22), transparent 55%), linear-gradient(145deg, #1d1f23, #121316);
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,.55); border: 1px solid rgba(220,192,143,.16);
+}
+.luviano-premium .lv-eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #dcc08f; }
+.luviano-premium .lv-hello { margin-top: 8px; font-size: clamp(28px, 4vw, 42px); font-weight: 700; line-height: 1.1; letter-spacing: -.02em; }
+.luviano-premium .lv-hello span { display: block; margin-top: 6px; font-size: .52em; font-weight: 400; color: #bdb9af; letter-spacing: 0; }
+.luviano-premium .lv-hero-sub { margin-top: 14px; font-size: 14px; color: #bdb9af; }
+.luviano-premium .lv-hero-sub b { color: #f3f0e8; }
+.luviano-premium .lv-hero .lv-warn { color: #ffb89e; }
+.luviano-premium .lv-alert { padding: 12px 16px; border-radius: 14px; border: 1px solid var(--warn); background: var(--warn-soft); color: var(--warn); font-size: 14px; }
+
+.luviano-premium .lv-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (min-width: 1100px) { .luviano-premium .lv-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.luviano-premium .lv-tile {
+  position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 22px;
+  min-height: 168px; padding: 22px; border-radius: 24px; color: var(--foreground);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 10px 28px -16px var(--shadow); transition: transform .15s, border-color .15s;
+}
+.luviano-premium .lv-tile:hover { border-color: var(--accent); }
+.luviano-premium .lv-tile:active { transform: scale(.985); }
+.luviano-premium .lv-tile-ico { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--accent-soft); color: var(--accent); }
+.luviano-premium .lv-tile-txt b { display: block; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.luviano-premium .lv-tile-txt small { display: block; margin-top: 4px; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.luviano-premium .lv-tile-go { position: absolute; top: 20px; right: 22px; color: var(--muted); font-size: 18px; }
+.luviano-premium .lv-tile[data-featured="true"] { background: linear-gradient(145deg, #2a2723, #181715); color: #f3f0e8; border-color: rgba(220,192,143,.4); }
+.luviano-premium .lv-tile[data-featured="true"] .lv-tile-ico { background: #dcc08f; color: #1a1712; }
+.luviano-premium .lv-tile[data-featured="true"] small, .luviano-premium .lv-tile[data-featured="true"] .lv-tile-go { color: #bdb9af; }
+
+.luviano-premium .lv-minor { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -10px; }
+.luviano-premium .lv-minor a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); font-size: 13.5px; font-weight: 600; }
+.luviano-premium .lv-minor a:hover { border-color: var(--accent); color: var(--accent); }
+
+.luviano-premium .lv-rail { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; padding: 4px 2px 14px; margin: 0 -2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.luviano-premium .lv-rail::-webkit-scrollbar { display: none; }
+.luviano-premium .lv-pcard {
+  scroll-snap-align: start; flex: 0 0 min(300px, 78%); display: flex; flex-direction: column; gap: 12px;
+  padding: 20px; border-radius: 22px; background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 10px 26px -16px var(--shadow); color: var(--foreground);
+}
+.luviano-premium .lv-pcard:hover { border-color: var(--accent); }
+.luviano-premium .lv-pcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.luviano-premium .lv-pcard-client { font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.luviano-premium .lv-pcard-title { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: -6px; }
+.luviano-premium .lv-mini { display: grid; grid-template-columns: repeat(5, 1fr); margin: 6px 0 2px; }
+.luviano-premium .lv-mini li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; color: var(--muted); text-align: center; }
+.luviano-premium .lv-mini li i { position: relative; z-index: 1; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); }
+.luviano-premium .lv-mini li + li::before { content: ""; position: absolute; top: 5px; right: 50%; width: 100%; height: 2px; background: var(--border); }
+.luviano-premium .lv-mini li[data-s="done"] i { background: var(--accent); border-color: var(--accent); }
+.luviano-premium .lv-mini li[data-s="done"]::before, .luviano-premium .lv-mini li[data-s="cur"]::before { background: var(--accent); }
+.luviano-premium .lv-mini li[data-s="cur"] { color: var(--foreground); }
+.luviano-premium .lv-mini li[data-s="cur"] i { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.luviano-premium .lv-pcard-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.luviano-premium .lv-pcard-step { font-size: 12.5px; font-weight: 600; color: var(--accent); }
+.luviano-premium .lv-pcard-amt { display: block; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.luviano-premium .lv-pcard-foot small { display: block; font-size: 11px; color: var(--muted); }
+.luviano-premium .lv-pcard-foot small[data-late="true"] { color: var(--warn); font-weight: 600; }
+
+.luviano-premium .lv-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+@media (min-width: 1100px) { .luviano-premium .lv-cols { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
+.luviano-premium .lv-card { border-radius: 22px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+.luviano-premium .lv-list > * + * { border-top: 1px solid var(--border); }
+.luviano-premium .lv-agenda { display: flex; align-items: center; gap: 14px; padding: 14px 16px; color: var(--foreground); }
+.luviano-premium .lv-agenda:hover { background: var(--surface-2); }
+.luviano-premium .lv-agenda-day { width: 40px; text-align: center; }
+.luviano-premium .lv-agenda-day small { display: block; font-size: 10px; text-transform: uppercase; color: var(--muted); }
+.luviano-premium .lv-agenda-day b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.luviano-premium .lv-agenda-ico { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--info-soft); color: var(--info); }
+.luviano-premium .lv-agenda[data-kind="install"] .lv-agenda-ico { background: var(--ok-soft); color: var(--ok); }
+.luviano-premium .lv-agenda[data-kind="deadline"] .lv-agenda-ico { background: var(--warn-soft); color: var(--warn); }
+.luviano-premium .lv-agenda p { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.luviano-premium .lv-agenda small { font-size: 12px; color: var(--muted); }
+.luviano-premium .lv-agenda .lv-tile-go { position: static; }
+.luviano-premium .lv-urgent { display: block; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--border); background: var(--accent-soft); color: var(--foreground); }
+.luviano-premium .lv-urgent[data-late="true"] { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.luviano-premium .lv-urgent p { font-size: 14px; font-weight: 600; }
+.luviano-premium .lv-urgent small { font-size: 12px; opacity: .8; }
+.luviano-premium .lv-empty { padding: 28px 20px; text-align: center; border-radius: 22px; border: 1px dashed var(--border); background: var(--surface); }
+.luviano-premium .lv-empty p { font-weight: 600; font-size: 14px; }
+.luviano-premium .lv-empty span { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
+@media (max-width: 520px) { .luviano-premium .lv-hero { padding: 20px; border-radius: 22px; } .luviano-premium .lv-tile { min-height: 140px; padding: 16px; } }
+.luviano-premium .lv-home section h2 { font-size: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--foreground); }
+.luviano-premium .lv-rail::after { content: ""; flex: 0 0 2px; }

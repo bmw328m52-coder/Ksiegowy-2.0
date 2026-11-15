@@ -122,6 +122,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <RoomScanSection jobId={id} scans={scans} />
         </details>
 
+        <details id="finanse" open={phase === "montaz"} className="group mt-4">
+          <FoldSummary>Finanse zlecenia: faktura i czas pracy</FoldSummary>
         <div id="faktura">
           <InvoiceSection
             jobId={id}
@@ -136,6 +138,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {!isCancelled && (
           <LaborSection jobId={id} defaultDate={job.completed_date ?? new Date().toISOString().slice(0, 10)} />
         )}
+        </details>
 
         {job.notes && (
           <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
