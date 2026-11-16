@@ -10,7 +10,7 @@ import {
   updateJobMaterialQtyAction,
 } from "@/app/materials/actions";
 import { fmtPLN, parseAmount } from "@/lib/format";
-import { matchesSearch } from "@/lib/search";
+import { rankByQuery } from "@/lib/search";
 import { humanizeSupabaseError } from "@/lib/supabaseError";
 import { useGroupItems, useMaterialsStore } from "./MaterialsStore";
 
@@ -205,12 +205,12 @@ function AddForm({
   // Wyniki filtrowane po nazwie/kategorii/dostawcy; sugerowane kategorie na górze.
   const results = useMemo(() => {
     const q = query.trim();
-    const list = q
-      ? catalog.filter((c) =>
-          matchesSearch(`${c.name} ${c.category ?? ""} ${c.supplier ?? ""}`, q)
-        )
-      : catalog.slice();
-    return list.sort((a, b) => {
+    if (q) {
+      // Wpisane litery: najtrafniejsze na gorze (nazwa zaczyna sie od, potem slowo od, potem gdziekolwiek).
+      return rankByQuery(catalog, q, (c) => ({ name: c.name, extra: `${c.category ?? ""} ${c.supplier ?? ""}` }));
+    }
+    // Bez zapytania: kategorie sugerowane dla tej grupy na gorze.
+    return catalog.slice().sort((a, b) => {
       const as = a.category && sugSet.has(a.category) ? 0 : 1;
       const bs = b.category && sugSet.has(b.category) ? 0 : 1;
       if (as !== bs) return as - bs;

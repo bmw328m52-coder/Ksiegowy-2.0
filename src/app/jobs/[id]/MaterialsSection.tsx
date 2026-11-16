@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { JobMaterial, MaterialCatalogItem } from "@/lib/dao/material_catalog";
@@ -10,6 +10,7 @@ import {
   updateJobMaterialQtyAction,
 } from "@/app/materials/actions";
 import { fmtPLN, parseAmount } from "@/lib/format";
+import { rankByQuery } from "@/lib/search";
 import { useLooseItems, useMaterialsStore } from "./wycena/MaterialsStore";
 
 const inputCls =
@@ -195,11 +196,27 @@ function AddMaterialForm({
   const { add } = useMaterialsStore();
   const [mode, setMode] = useState<"catalog" | "manual">("catalog");
   const [error, setError] = useState<string | undefined>();
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<MaterialCatalogItem | null>(null);
+  const LIMIT = 50;
+
+  const results = useMemo(() => {
+    const q = query.trim();
+    if (!q) return catalog.slice().sort((a, b) => a.name.localeCompare(b.name, "pl"));
+    return rankByQuery(catalog, q, (c) => ({ name: c.name, extra: `${c.category ?? ""} ${c.supplier ?? ""}` }));
+  }, [catalog, query]);
 
   return (
     <form
       action={async (formData) => {
         setError(undefined);
+        if (mode === "catalog") {
+          if (!selected) {
+            setError("Wybierz materiał z listy.");
+            return;
+          }
+          formData.set("catalog_id", selected.id);
+        }
         try {
           const created = await addJobMaterialAction(jobId, formData);
           add(created); // pokaż od razu
@@ -238,17 +255,71 @@ function AddMaterialForm({
             .
           </p>
         ) : (
-          <select name="catalog_id" required className={inputCls} defaultValue="">
-            <option value="" disabled>
-              — wybierz materiał —
-            </option>
-            {catalog.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.category ? `[${c.category}] ` : ""}
-                {c.name} ({c.unit})
-              </option>
-            ))}
-          </select>
+          selected ? (
+            <div className="flex items-start justify-between gap-2 rounded-md border border-zinc-200 bg-white p-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium break-words">{selected.name}</p>
+                <p className="text-xs text-zinc-500">
+                  {selected.category ? `[${selected.category}] ` : ""}
+                  {selected.unit}
+                  {selected.default_price_gross !== null ? ` · ${fmtPLN(selected.default_price_gross)}` : " · brak ceny"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelected(null);
+                  setQuery("");
+                }}
+                className="shrink-0 text-xs text-[#a06f3f] underline-offset-2 hover:underline"
+              >
+                zmień
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (results.length > 0) setSelected(results[0]);
+                  }
+                }}
+                placeholder="Szukaj: początek nazwy albo dowolne litery…"
+                className={inputCls}
+              />
+              <ul className="max-h-60 overflow-y-auto flex flex-col gap-1 rounded-md border border-zinc-200 bg-white p-1">
+                {results.length === 0 ? (
+                  <li className="text-xs text-zinc-500 px-2 py-2">Brak dopasowań.</li>
+                ) : (
+                  results.slice(0, LIMIT).map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelected(c)}
+                        className="w-full text-left rounded-md px-2 py-1.5 active:bg-zinc-100 hover:bg-zinc-50"
+                      >
+                        <span className="block text-sm break-words">{c.name}</span>
+                        <span className="block text-xs text-zinc-500">
+                          {c.category ? `[${c.category}] ` : ""}
+                          {c.unit}
+                          {c.default_price_gross !== null ? ` · ${fmtPLN(c.default_price_gross)}` : " · brak ceny"}
+                        </span>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+              {results.length > LIMIT && (
+                <p className="text-[11px] text-zinc-400">
+                  Pokazano {LIMIT} z {results.length} — doprecyzuj wyszukiwanie.
+                </p>
+              )}
+            </>
+          )
         )
       ) : (
         <>

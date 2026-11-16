@@ -10,6 +10,7 @@ import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import MaterialsSection from "../MaterialsSection";
 import GroupMaterialsPicker from "./GroupMaterialsPicker";
 import QtyCalculator from "./QtyCalculator";
+import ToCalculatorLink from "./ToCalculatorLink";
 import RecalcAutopriceButton from "./RecalcAutopriceButton";
 import FuelSection from "./FuelSection";
 import { suggestedCategoriesFor } from "./groupCategories";
@@ -274,18 +275,9 @@ export default async function WycenaPage({
 
           <MaterialsSection jobId={id} catalog={catalog} />
           <FuelSection jobId={id} />
+          <ToCalculatorLink jobId={id} />
         </MaterialsStoreProvider>
 
-        <Link
-          href={`/calculator?job=${id}`}
-          className="mt-6 flex min-h-[54px] items-center justify-between rounded-2xl bg-[var(--accent)] px-5 text-base font-bold text-white active:opacity-90"
-        >
-          <span>Dalej: cena i rentowność</span>
-          <span aria-hidden>→</span>
-        </Link>
-        <p className="mt-2 text-center text-[12.5px] text-[var(--muted)]">
-          Z tych kosztów policzysz cenę dla klienta i marżę.
-        </p>
       </div>
     </main>
   );

@@ -36,25 +36,16 @@ type JobOption = {
   plan_saved_at: string | null;
 };
 
-// Koszt zlecenia do kalkulatora: najpierw realne faktury kosztowe (cost_lines),
-// a gdy ich brak — szacunek z wyceny (job_materials). Spójne z modelem kosztów Artura.
-function jobCostGross(job: JobOption): number {
-  const invoices = job.costs_net + job.costs_vat;
-  return invoices > 0 ? invoices : job.materials_gross;
-}
-
-// Koszt planowany = pozycje wyceny, ale tylko gdy są już faktury do porównania.
-function jobPlannedGross(job: JobOption): number {
-  return job.costs_net + job.costs_vat > 0 ? job.materials_gross : 0;
-}
-
-// Pola kosztów po wyborze zlecenia. Gdy zlecenie ma zapisany plan, planem są koszty z wyceny
-// z tamtej chwili, a rzeczywistością faktury (jeśli już są).
+// Pola kosztów po wyborze zlecenia: realne faktury, a bez nich — materiały z wyceny.
+// Materiały wpisane w wycenie są ZAWSZE aktualne (żywa suma job_materials) — zapisany plan
+// trzyma tylko kwotę z dnia „Przenieś wycenę", więc nie może przykrywać późniejszych zmian w wycenie.
 function jobCostFields(job: JobOption): { costs: number; planned: number } {
-  const planCosts = job.plan?.input.costsGross ?? 0;
-  if (planCosts <= 0) return { costs: jobCostGross(job), planned: jobPlannedGross(job) };
   const invoices = job.costs_net + job.costs_vat;
-  return invoices > 0 ? { costs: invoices, planned: planCosts } : { costs: planCosts, planned: 0 };
+  const wycena = job.materials_gross;
+  const planCosts = job.plan?.input.costsGross ?? 0;
+  const planned = wycena > 0 ? wycena : planCosts;
+  if (invoices > 0) return { costs: invoices, planned };
+  return { costs: wycena > 0 ? wycena : planCosts, planned: 0 };
 }
 
 type BomLine = { id: string; category: string; amountStr: string };
@@ -732,6 +723,16 @@ export default function CalculatorForm({
               aria-invalid={!useBom && numberProblem(costsGrossStr) !== null}
             />
             {!useBom && <NumberHint value={costsGrossStr} />}
+            {!useBom && selectedJob && selectedJob.materials_gross > 0 &&
+              Math.abs((parseAmount(costsGrossStr) ?? 0) - selectedJob.materials_gross) > 0.005 && (
+                <button
+                  type="button"
+                  onClick={() => setCostsGrossStr(selectedJob.materials_gross.toFixed(2))}
+                  className="mt-1.5 text-left text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+                >
+                  ↻ Pobierz materiały z wyceny: {fmtPLN(selectedJob.materials_gross)}
+                </button>
+              )}
           </Field>
           <Field label="VAT kosztów (%)">
             <select

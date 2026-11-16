@@ -195,6 +195,19 @@ final class Session: ObservableObject {
         return try Self.snake.1.decode([RemoteScan].self, from: data)
     }
 
+    /// Usuwa skan ze zlecenia w meble-app (zdjęcia punktów zostają w magazynie).
+    func deleteRemoteScan(id: String) async throws {
+        _ = try await rest("room_scans", query: [URLQueryItem(name: "id", value: "eq.\(id)")], method: "DELETE")
+    }
+
+    /// Usuwa kartkę ze zlecenia: wiersz job_files i obraz w buckecie.
+    func deleteRemoteSketch(id: String, path: String?) async throws {
+        _ = try await rest("job_files", query: [URLQueryItem(name: "id", value: "eq.\(id)")], method: "DELETE")
+        if let path, let del = try? JSONSerialization.data(withJSONObject: ["prefixes": [path]]) {
+            _ = try? await storage("object/job-files", method: "DELETE", body: del, contentType: "application/json")
+        }
+    }
+
     /// Wysyła skan do zlecenia. Z `remoteId` aktualizuje istniejący wiersz (gdy w międzyczasie
     /// usunięto go w meble-app — wstawia nowy). Zwraca id wiersza.
     func uploadScan(jobId: String, name: String, scan: ScanPayload, remoteId: String?) async throws -> String {

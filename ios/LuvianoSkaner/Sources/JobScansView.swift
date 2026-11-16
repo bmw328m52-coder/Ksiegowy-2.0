@@ -14,6 +14,36 @@ struct JobScansView: View {
     @State private var newScan = false
     @State private var sketches: [SavedSketch] = []
     @State private var openedSketch: SavedSketch?
+    @State private var pending: Pending?
+
+    /// Co użytkownik chce usunąć (przytrzymanie na wierszu → Usuń → potwierdzenie).
+    enum Pending: Identifiable {
+        case scan(SavedScan, alsoRemote: Bool)
+        case remoteScan(Session.RemoteScan)
+        case sketch(SavedSketch, alsoRemote: Bool)
+
+        var id: String {
+            switch self {
+            case .scan(let s, let r): return "scan-\(s.id)-\(r)"
+            case .remoteScan(let r): return "remote-\(r.id)"
+            case .sketch(let s, let r): return "sketch-\(s.id)-\(r)"
+            }
+        }
+        var title: String {
+            switch self {
+            case .scan(let s, let r): return r ? "Usunąć „\(s.name)” z iPada i ze zlecenia?" : "Usunąć „\(s.name)” z iPada?"
+            case .remoteScan(let r): return "Usunąć „\(r.name)” ze zlecenia?"
+            case .sketch(let s, let r): return r ? "Usunąć „\(s.name)” z iPada i ze zlecenia?" : "Usunąć „\(s.name)” z iPada?"
+            }
+        }
+        var message: String {
+            switch self {
+            case .scan(_, let r), .sketch(_, let r):
+                return r ? "Zniknie też z meble-app. Tego nie da się cofnąć." : "Kopia w zleceniu (jeśli jest) zostanie, więc skan może wrócić na listę."
+            case .remoteScan: return "Zniknie z meble-app. Tego nie da się cofnąć."
+            }
+        }
+    }
 
     /// Skany z meble-app, których nie ma jeszcze na tym iPadzie.
     private var remoteOnly: [Session.RemoteScan] {
@@ -53,6 +83,14 @@ struct JobScansView: View {
                 Section("Kartki") {
                     ForEach(sketches) { s in
                         Button { openedSketch = s } label: { sketchRow(s) }
+                            .contextMenu {
+                                Button("Usuń z iPada", systemImage: "trash", role: .destructive) { pending = .sketch(s, alsoRemote: false) }
+                                if s.remoteId != nil {
+                                    Button("Usuń z iPada i ze zlecenia", systemImage: "trash.fill", role: .destructive) {
+                                        pending = .sketch(s, alsoRemote: true)
+                                    }
+                                }
+                            }
                             .swipeActions {
                                 Button("Usuń z iPada", role: .destructive) {
                                     SketchStore.delete(s.id)
@@ -74,6 +112,14 @@ struct JobScansView: View {
                                 : s.remoteId != nil ? ("Zmiany niewysłane", "arrow.triangle.2.circlepath.icloud", Color.orange)
                                 : ("Niewysłany", "ipad", Color.secondary))
                     }
+                    .contextMenu {
+                        Button("Usuń z iPada", systemImage: "trash", role: .destructive) { pending = .scan(s, alsoRemote: false) }
+                        if s.remoteId != nil {
+                            Button("Usuń z iPada i ze zlecenia", systemImage: "trash.fill", role: .destructive) {
+                                pending = .scan(s, alsoRemote: true)
+                            }
+                        }
+                    }
                     .swipeActions {
                         Button("Usuń z iPada", role: .destructive) {
                             ScanStore.delete(s.id)
@@ -89,6 +135,9 @@ struct JobScansView: View {
                         Button { openRemote(r) } label: {
                             row(name: r.name, scan: r.data, detail: Self.date(r.createdAt),
                                 status: ("W zleceniu", "icloud.and.arrow.down", Color.secondary))
+                        }
+                        .contextMenu {
+                            Button("Usuń ze zlecenia", systemImage: "trash", role: .destructive) { pending = .remoteScan(r) }
                         }
                     }
                 } header: {
@@ -107,6 +156,13 @@ struct JobScansView: View {
                         .labelStyle(.titleAndIcon)
                 }
             }
+        }
+        .confirmationDialog(pending?.title ?? "", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+                            titleVisibility: .visible, presenting: pending) { p in
+            Button("Usuń", role: .destructive) { Task { await perform(p) } }
+            Button("Anuluj", role: .cancel) {}
+        } message: { p in
+            Text(p.message)
         }
         .refreshable { await load() }
         .task { await load() }
@@ -161,6 +217,26 @@ struct JobScansView: View {
                 .foregroundStyle(status.2)
         }
         .padding(.vertical, 4)
+    }
+
+    private func perform(_ p: Pending) async {
+        do {
+            switch p {
+            case .scan(let s, let alsoRemote):
+                if alsoRemote, let rid = s.remoteId { try await session.deleteRemoteScan(id: rid) }
+                ScanStore.delete(s.id)
+            case .remoteScan(let r):
+                try await session.deleteRemoteScan(id: r.id)
+            case .sketch(let s, let alsoRemote):
+                if alsoRemote, let rid = s.remoteId { try await session.deleteRemoteSketch(id: rid, path: s.remotePath) }
+                SketchStore.delete(s.id)
+            }
+            error = nil
+        } catch {
+            self.error = "Nie udało się usunąć: \(error.localizedDescription)"
+        }
+        reloadLocal()
+        await load()
     }
 
     private func reloadLocal() {
