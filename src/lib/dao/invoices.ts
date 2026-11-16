@@ -114,6 +114,28 @@ export async function setInvoicePayment(
   if (error) throw error;
 }
 
+/** Dokumenty spoza KSeF (skaner, zdjęcia, PDF) oznaczone jako niezapłacone → zapłacone w dniu wystawienia. */
+export async function markScannedInvoicesPaid(): Promise<number> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("id, issue_date")
+    .neq("payment_status", "paid")
+    .is("ksef_number", null);
+  if (error) throw error;
+  const today = new Date().toISOString().slice(0, 10);
+  let n = 0;
+  for (const r of (data ?? []) as { id: string; issue_date: string | null }[]) {
+    const { error: e2 } = await supabase
+      .from("invoices")
+      .update({ payment_status: "paid", paid_date: r.issue_date ?? today })
+      .eq("id", r.id);
+    if (e2) throw e2;
+    n += 1;
+  }
+  return n;
+}
+
 export async function deleteInvoice(id: string): Promise<void> {
   const supabase = await createClient();
   const { data: row } = await supabase

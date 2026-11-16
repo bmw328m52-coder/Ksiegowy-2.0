@@ -1,0 +1,29 @@
+dolna                750×  720× 560 wys.od pod³.  157  fronty:1 [(747, 714)]  szuflady:1 pó³ki:0
+dolna                618×  720× 560 wys.od pod³.  157  fronty:2 [(597, 355), (597, 355)]  szuflady:3 pó³ki:0
+dolna                318×  720× 560 wys.od pod³.  157  fronty:1 [(296, 714)]  szuflady:0 pó³ki:0
+dolna               1210×  720× 530 wys.od pod³.  157  fronty:1 [(597, 714)]  szuflady:0 pó³ki:0
+dolna               1282×  720× 530 wys.od pod³.  157  fronty:2 [(674, 714), (50, 720)]  szuflady:0 pó³ki:1
+górna                608×  634× 340 wys.od pod³. 1431  fronty:1 [(603, 646)]  szuflady:0 pó³ki:2
+górna                754×  634× 340 wys.od pod³. 1431  fronty:1 [(751, 646)]  szuflady:0 pó³ki:2
+górna                600×  634× 340 wys.od pod³. 1431  fronty:1 [(597, 646)]  szuflady:0 pó³ki:2
+górna                600×  634× 340 wys.od pod³. 1431  fronty:1 [(597, 646)]  szuflady:0 pó³ki:1
+górna                296×  634× 340 wys.od pod³. 1431  fronty:1 [(294, 646)]  szuflady:0 pó³ki:2
+nadstawka            930×  291× 682 wys.od pod³. 1903  fronty:0 []  szuflady:0 pó³ki:0
+nadstawka            616×  513× 540 wys.od pod³. 1990  fronty:1 [(594, 509)]  szuflady:0 pó³ki:0
+nadstawka            618×  513× 540 wys.od pod³. 1990  fronty:1 [(597, 509)]  szuflady:0 pó³ki:0
+nadstawka            618×  513× 540 wys.od pod³. 1990  fronty:1 [(597, 509)]  szuflady:0 pó³ki:0
+nadstawka            618×  513× 540 wys.od pod³. 1990  fronty:1 [(597, 509)]  szuflady:0 pó³ki:0
+nadstawka            618×  513× 540 wys.od pod³. 1990  fronty:1 [(597, 509)]  szuflady:0 pó³ki:0
+nadstawka            402×  513× 540 wys.od pod³. 1990  fronty:1 [(379, 509)]  szuflady:0 pó³ki:0
+nadstawka            571×  418× 560 wys.od pod³. 2083  fronty:1 [(568, 410)]  szuflady:0 pó³ki:0
+nadstawka            589×  418× 560 wys.od pod³. 2083  fronty:1 [(568, 410)]  szuflady:0 pó³ki:0
+nadstawka            589×  418× 560 wys.od pod³. 2083  fronty:1 [(568, 410)]  szuflady:0 pó³ki:0
+nadstawka            589×  418× 560 wys.od pod³. 2083  fronty:1 [(568, 410)]  szuflady:0 pó³ki:0
+nadstawka            589×  418× 560 wys.od pod³. 2083  fronty:1 [(568, 410)]  szuflady:0 pó³ki:0
+nadstawka           1163×  418× 560 wys.od pod³. 2083  fronty:2 [(568, 410), (568, 410)]  szuflady:0 pó³ki:0
+nadstawka            930×  309× 682 wys.od pod³. 2194  fronty:0 []  szuflady:0 pó³ki:0
+nadstawka na blat    598× 1075× 540 wys.od pod³.  915  fronty:2 [(594, 552), (594, 512)]  szuflady:0 pó³ki:0
+s³upek               600× 1833× 510 wys.od pod³.  157  fronty:3 [(597, 512), (597, 355), (597, 355)]  szuflady:2 pó³ki:0
+s³upek               619× 1833× 510 wys.od pod³.  157  fronty:2 [(597, 714), (597, 1111)]  szuflady:5 pó³ki:0
+s³upek               400× 1833× 510 wys.od pod³.  157  fronty:2 [(379, 714), (379, 1111)]  szuflady:0 pó³ki:0
+28 szafek; boki bez pary: []

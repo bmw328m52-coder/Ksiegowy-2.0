@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserSettingsOrDefault } from "./user_settings";
 import { pitFor, type TaxForm } from "@/lib/tax";
 import { pitMonthlyDeadline, vatDeadline, zusDeadline } from "@/lib/taxDeadlines";
-import { zusForMonth } from "@/lib/zus";
+import { zusForMonth, ZUS_PHASE_LABELS, type ZusPhase } from "@/lib/zus";
 
 export type PeriodTotals = {
   revenueNet: number;
@@ -63,6 +63,16 @@ export type RevenueSplit = {
   uninvoicedCount: number;
 };
 
+export type ZusInfo = {
+  phase: ZusPhase;
+  phaseLabel: string;
+  social: number;
+  health: number;
+  total: number;
+  deadline: string;
+  periodLabel: string;
+};
+
 export type DashboardData = {
   ytd: PeriodTotals & { pit: number };
   month: PeriodTotals;
@@ -75,6 +85,7 @@ export type DashboardData = {
   monthlyTrend: MonthlyPoint[];
   costsByCategoryMonth: CategoryBreakdownRow[];
   reminders: ReminderItem[];
+  zus: ZusInfo | null;
   settings: {
     tax_form: TaxForm;
     vat_period: "monthly" | "quarterly";
@@ -210,18 +221,13 @@ const MONTH_NAMES_PL = [
   "Grudzień",
 ];
 
-export async function getDashboardData(now: Date = new Date()): Promise<DashboardData> {
+async function loadRaw(year: number): Promise<RawData> {
   const supabase = await createClient();
   const settings = await getUserSettingsOrDefault();
 
-  const year = now.getFullYear();
-  const monthIdx = now.getMonth();
 
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
-  const monthStart = `${year}-${String(monthIdx + 1).padStart(2, "0")}-01`;
-  const monthEndDate = new Date(year, monthIdx + 1, 0);
-  const monthEnd = isoDate(monthEndDate);
 
   const [jobsRes, openJobsRes, costsRes, sales] = await Promise.all([
     supabase
@@ -267,6 +273,40 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
   if (openJobsRes.error && openJobsRes.error.code !== "42703") {
     throw openJobsRes.error;
   }
+
+  return { settings, year, sales, linkedJobIds, jobs, hasInvoicedCol, openDepositJobs, costs, yearSales };
+}
+
+type RawData = {
+  settings: Awaited<ReturnType<typeof getUserSettingsOrDefault>>;
+  year: number;
+  sales: SalesRow[];
+  linkedJobIds: Set<string>;
+  jobs: JobRow[];
+  hasInvoicedCol: boolean;
+  openDepositJobs: JobRow[];
+  costs: CostRow[];
+  yearSales: SalesRow[];
+};
+
+export async function getDashboardData(now: Date = new Date()): Promise<DashboardData> {
+  const raw = await loadRaw(now.getFullYear());
+  return computeDashboard(raw, now.getMonth());
+}
+
+/** Dwanaście miesięcy roku z jednego pobrania danych (do przewijanego bilansu). */
+export async function getYearDashboards(year: number): Promise<DashboardData[]> {
+  const raw = await loadRaw(year);
+  return Array.from({ length: 12 }, (_, m) => computeDashboard(raw, m));
+}
+
+function computeDashboard(raw: RawData, monthIdx: number): DashboardData {
+  const { settings, year, sales, linkedJobIds, jobs, hasInvoicedCol, openDepositJobs, costs, yearSales } = raw;
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
+  const monthStart = `${year}-${String(monthIdx + 1).padStart(2, "0")}-01`;
+  const monthEndDate = new Date(year, monthIdx + 1, 0);
+  const monthEnd = isoDate(monthEndDate);
 
   const openDepositsTotal = openDepositJobs.reduce(
     (acc, j) => acc + toNum(j.deposit_amount ?? 0),
@@ -538,6 +578,17 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     monthlyTrend,
     costsByCategoryMonth,
     reminders,
+    zus: zusCalc
+      ? {
+          phase: zusCalc.phase,
+          phaseLabel: ZUS_PHASE_LABELS[zusCalc.phase],
+          social: zusCalc.social,
+          health: zusCalc.health,
+          total: zusCalc.total,
+          deadline: isoDate(zusDl.due),
+          periodLabel: `${MONTH_NAMES_PL[monthIdx]} ${year}`,
+        }
+      : null,
     settings: {
       tax_form: settings.tax_form,
       vat_period: settings.vat_period,

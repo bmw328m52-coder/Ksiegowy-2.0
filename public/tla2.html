@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LUVIANO — jasne tła, propozycje</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Inter, system-ui, sans-serif;
+    background: #e9e9e7;
+    color: #2a2620;
+    padding: 20px 14px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 19px; text-align: center; margin-bottom: 4px; letter-spacing: .3px; }
+  .sub { text-align: center; font-size: 12.5px; color: #6b665e; margin-bottom: 22px; line-height:1.4; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    max-width: 1220px;
+    margin: 0 auto;
+  }
+  .wrap { display: flex; flex-direction: column; gap: 7px; }
+  .name { font-size: 13.5px; font-weight: 700; text-align: center; }
+  .mood { font-size: 11px; color: #6b665e; text-align: center; margin-top: -3px; }
+  .phone {
+    border-radius: 24px;
+    padding: 15px 13px 13px;
+    box-shadow: 0 8px 26px rgba(0,0,0,.16);
+    aspect-ratio: 9/16.5;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+  .brand { text-align: center; margin-top: 3px; }
+  .brand .lv { font-size: 21px; font-weight: 800; letter-spacing: 3px; color: var(--accent); }
+  .brand .mf { font-size: 8.5px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+  .row { display: flex; gap: 9px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    padding: 10px 11px;
+    flex: 1;
+    box-shadow: var(--shadow);
+  }
+  .card .lab { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .card .val { font-size: 16px; font-weight: 700; margin-top: 4px; }
+  .card.accent { border-color: var(--accentline); background: var(--accentbg); }
+  .card.accent .val { color: var(--accent); }
+  .pill { display:inline-block; font-size:9.5px; font-weight:600; background: var(--accent); color:#fff; padding: 3px 9px; border-radius: 999px; margin-top:6px; }
+  .list .item { display:flex; justify-content:space-between; align-items:center; padding: 8px 2px; font-size: 11.5px; border-bottom: 1px solid var(--line); }
+  .list .item:last-child { border-bottom: 0; }
+  .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--accent); display:inline-block; margin-right:6px; }
+  .nav { margin-top: auto; display:flex; justify-content: space-around; background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 8px 0; font-size: 8.5px; color: var(--muted); }
+  .nav b { color: var(--accent); font-weight: 700; }
+  .hex { font-size: 9.5px; color: #8a857c; text-align: center; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+  <h1>LUVIANO — jasne tła, do wyboru</h1>
+  <div class="sub">Wszystkie jasne, każdy ma inny „podkład" (ciepły / neutralny / chłodny).<br>Napisz mi numer albo nazwę, który Ci siada.</div>
+  <div class="grid" id="grid"></div>
+
+<script>
+const gold = "#a06f3f";
+const themes = [
+  { key:"biel", name:"1 · Biel studio (obecne)", mood:"neutralne szarości",
+    bg:"#f3f3f1", card:"#ffffff", text:"#23211f", muted:"#8f8b84", line:"#eaeae7",
+    accent:gold, accentbg:"#faf7f2", accentline:"#e7d8c2", shadow:"none" },
+
+  { key:"snieg", name:"2 · Śnieżna biel", mood:"czyste · jasne · maksymalny kontrast",
+    bg:"#fbfbfa", card:"#ffffff", text:"#1f1d1b", muted:"#8d8a85", line:"#ededea",
+    accent:gold, accentbg:"#fbf5ed", accentline:"#ecdcc5", shadow:"0 1px 3px rgba(0,0,0,.05)" },
+
+  { key:"perla", name:"3 · Perła", mood:"delikatnie ciepłe · miękkie · eleganckie",
+    bg:"#f7f5f1", card:"#ffffff", text:"#25221e", muted:"#928c82", line:"#ece7df",
+    accent:gold, accentbg:"#faf4ea", accentline:"#ecdcc5", shadow:"0 1px 2px rgba(40,34,26,.04)" },
+
+  { key:"kosc", name:"4 · Kość słoniowa", mood:"ciepła biel · przytulne · meblarskie",
+    bg:"#f5f1e9", card:"#fffefb", text:"#2a251d", muted:"#948b7c", line:"#e9e1d2",
+    accent:gold, accentbg:"#f8efe0", accentline:"#e6d3b8", shadow:"0 1px 2px rgba(42,37,29,.05)" },
+
+  { key:"chlod", name:"5 · Chłodna biel", mood:"nowoczesne · świeże · lekko błękitne",
+    bg:"#f2f5f6", card:"#ffffff", text:"#1e2224", muted:"#848a8d", line:"#e4eaec",
+    accent:gold, accentbg:"#faf5ee", accentline:"#e7d8c2", shadow:"0 1px 3px rgba(20,30,35,.05)" },
+
+  { key:"mgla", name:"6 · Jasna mgła (greige)",
+    mood:"szaro-beżowe · stonowane · drogie",
+    bg:"#f1eee9", card:"#fbfaf7", text:"#2a2723", muted:"#8f887d", line:"#e6e0d6",
+    accent:gold, accentbg:"#f8f1e6", accentline:"#e8d9c1", shadow:"0 1px 2px rgba(40,36,30,.04)" },
+
+  { key:"len", name:"7 · Ciepły len (stare)", mood:"to co było przed zmianą",
+    bg:"#f4eee2", card:"#faf7f2", text:"#282624", muted:"#8f887d", line:"#e6dcc7",
+    accent:gold, accentbg:"#f1e5d2", accentline:"#e3d4b6", shadow:"none" },
+];
+
+const grid = document.getElementById("grid");
+for (const t of themes) {
+  const wrap = document.createElement("div");
+  wrap.className = "wrap";
+  wrap.innerHTML = `
+    <div class="name">${t.name}</div>
+    <div class="mood">${t.mood}</div>
+    <div class="phone" style="
+      --bg:${t.bg}; --card:${t.card}; --text:${t.text}; --muted:${t.muted};
+      --line:${t.line}; --accent:${t.accent}; --accentbg:${t.accentbg};
+      --accentline:${t.accentline}; --shadow:${t.shadow};">
+      <div class="brand"><div class="lv">LV&nbsp;LUVIANO</div><div class="mf">Manager firmy</div></div>
+      <div class="row">
+        <div class="card"><div class="lab">Faktury</div><div class="val">1 240 zł</div></div>
+        <div class="card"><div class="lab">Klienci</div><div class="val">12</div></div>
+      </div>
+      <div class="card accent">
+        <div class="lab">Rentowność — Kuchnia Kowalscy</div>
+        <div class="val">+43,5 %</div>
+        <span class="pill">marża OK</span>
+      </div>
+      <div class="card list">
+        <div class="item"><span><span class="dot"></span>Pomiar — Nowak</span><span>pt</span></div>
+        <div class="item"><span><span class="dot"></span>Wycena — Zielińscy</span><span>wt</span></div>
+        <div class="item"><span><span class="dot"></span>VAT do zapłaty</span><span>25.—</span></div>
+      </div>
+      <div class="nav"><span><b>Start</b></span><span>Zlecenia</span><span>Finanse</span><span>Więcej</span></div>
+    </div>
+    <div class="hex">tło ${t.bg} · karty ${t.card}</div>
+  `;
+  grid.appendChild(wrap);
+}
+</script>
+</body>
+</html>

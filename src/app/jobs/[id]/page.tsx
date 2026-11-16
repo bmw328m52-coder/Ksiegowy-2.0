@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import PageHeader from "@/components/PageHeader";
-import PhaseStepper from "@/components/job/PhaseStepper";
+import JobHero, { parseJobView } from "@/components/job/JobHero";
 import PhaseNowCard from "@/components/job/PhaseNowCard";
 import StageActionBar from "@/components/job/StageActionBar";
 import JobMenu from "@/components/job/JobMenu";
-import { phaseOfStatus, type PhaseContext } from "@/lib/jobPhases";
+import { PHASES, phaseOfStatus, type PhaseContext } from "@/lib/jobPhases";
 import { listMaterialsByJob } from "@/lib/dao/material_catalog";
 import { getJob } from "@/lib/dao/jobs";
 import { JOB_STATUS_LABELS, JOB_STATUS_WORKFLOW, type JobStatus, type CalcQuote } from "@/lib/dao/jobs.types";
@@ -28,8 +27,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: job?.title ?? "Zlecenie" };
 }
 
-export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function JobDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ faza?: string }>;
+}) {
   const { id } = await params;
+  const { faza } = await searchParams;
   const job = await getJob(id);
   if (!job) notFound();
 
@@ -39,12 +45,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     listMaterialsByJob(id),
   ]);
   const stages = buildStages(job);
-  const phase = phaseOfStatus(job.status);
-  // Pomiar i skan są „na wierzchu” w fazach Pomiar i Wycena, potem zwijają się do jednego wiersza.
-  const measureOpen = phase === "pomiar" || phase === "wycena";
-  const showMoney = phase !== "pomiar"; // pieniądze od fazy Wycena wzwyż
-  // W fazach Pomiar i Wycena te same wejścia są już zadaniami na karcie „Teraz”.
-  const showQuickLinks = phase !== "pomiar" && phase !== "wycena";
+  const currentPhase = phaseOfStatus(job.status) ?? "pomiar";
+  const view = parseJobView(faza, currentPhase);
+  const isCurrent = view === currentPhase;
 
   const phaseCtx: PhaseContext = {
     jobId: id,
@@ -69,12 +72,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const isCancelled = job.status === "cancelled";
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md sm:max-w-lg mx-auto">
-        <PageHeader
+    <main className="flex flex-1 flex-col px-4 py-5">
+      <div className="lj-wrap">
+        <JobHero
+          jobId={id}
+          clientId={job.client_id}
+          clientName={job.client_name}
           title={job.title}
-          back={{ href: `/clients/${job.client_id}` }}
-          action={
+          status={job.status}
+          amountGross={Number(job.amount_gross) || 0}
+          dueDate={job.due_date}
+          view={view}
+          menu={
             <JobMenu
               jobId={id}
               status={job.status}
@@ -85,72 +94,106 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           }
         />
 
-        <p className="-mt-2 mb-4 text-sm text-[var(--muted)]">
-          <Link
-            href={`/clients/${job.client_id}`}
-            className="inline-flex items-center min-h-11 underline-offset-2 hover:underline"
-          >
-            {job.client_name}
-          </Link>
-        </p>
+        <div className="lj-body">
+          {/* „Teraz” — tylko w bieżącym kroku, w pozostałych to podgląd kroku */}
+          {isCurrent && <PhaseNowCard ctx={phaseCtx} />}
+          {!isCurrent && view !== "finanse" && (
+            <p className="lj-peek">
+              Podgląd kroku. Bieżący krok zlecenia to{" "}
+              <Link href={`/jobs/${id}`}>{PHASES.find((p) => p.key === currentPhase)?.label}</Link>.
+            </p>
+          )}
 
-        <PhaseStepper status={job.status} />
-        <PhaseNowCard ctx={phaseCtx} />
+          {view === "pomiar" && (
+            <div id="skan" className="space-y-4">
+              <ProjectFilesSection jobId={id} />
+              <ScanStatusCard jobId={id} scans={scans} />
+              <PomiarSection jobId={id} brief={brief} scanned={scans.length > 0} />
+              <RoomScanSection jobId={id} scans={scans} />
+            </div>
+          )}
 
-        {showQuickLinks && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <QuickLink href={`/jobs/${id}/wycena`} title="Wycena" hint="Pozycje i materiały, potem cena i rentowność" wide />
-            <QuickLink href={`/jobs/${id}/zakupy`} title="Lista zakupów" hint="Co kupić, wg dostawcy" wide />
-          </div>
-        )}
+          {view === "wycena" && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <QuickLink href={`/jobs/${id}/wycena`} title="Wycena" hint="Pozycje i materiały, potem cena i rentowność" />
+                <QuickLink href={`/calculator?job=${id}`} title="Kalkulator" hint="Kwota na rękę i rentowność" />
+              </div>
+              {job.calc_quote ? (
+                <CalcQuoteCard q={job.calc_quote} />
+              ) : (
+                <p className="lj-peek">Wycena z kalkulatora pojawi się tu po zapisaniu.</p>
+              )}
+              {scans.length > 0 && <ScanStatusCard jobId={id} scans={scans} />}
+            </>
+          )}
 
-        {showMoney && !isCancelled && <MarginSection job={job} />}
+          {view === "akceptacja" && (
+            <>
+              {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <QuickLink href={`/jobs/${id}/wycena`} title="Wycena" hint="Zobacz lub popraw pozycje" />
+                <QuickLink href={`/jobs/${id}?faza=finanse#plan`} title="Zaliczka i plan" hint="Plan z kalkulatora kontra wykonanie" />
+              </div>
+            </>
+          )}
 
-        {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
+          {view === "produkcja" && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <QuickLink href={`/jobs/${id}/zakupy`} title="Lista zakupów" hint="Co kupić, wg dostawcy" />
+                <QuickLink href={`/jobs/${id}/wycena`} title="Pozycje i okucia" hint="Co dokładnie jest w zleceniu" />
+              </div>
+              {!isCancelled && (
+                <LaborSection jobId={id} defaultDate={job.completed_date ?? new Date().toISOString().slice(0, 10)} />
+              )}
+            </>
+          )}
 
-        {!isCancelled && job.calc_quote?.plan?.input && (
-          <div id="plan">
-            <PlanSection job={job} plan={job.calc_quote.plan} savedAt={job.calc_quote.savedAt} />
-          </div>
-        )}
+          {view === "montaz" && (
+            <>
+              {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
+              <QuickLink href={`/jobs/${id}?faza=finanse#faktura`} title="Faktura i rozliczenie" hint="Wystaw fakturę, zaznacz płatność" wide />
+            </>
+          )}
 
-        <details id="skan" open={measureOpen} className="group mt-4">
-          <FoldSummary>Pomiar, skan i projekt</FoldSummary>
-          <ProjectFilesSection jobId={id} />
-          {(scans.length > 0 || phase === "pomiar") && <ScanStatusCard jobId={id} scans={scans} />}
-          <PomiarSection jobId={id} brief={brief} scanned={scans.length > 0} />
-          <RoomScanSection jobId={id} scans={scans} />
-        </details>
+          {view === "finanse" && (
+            <div className="space-y-4">
+              {!isCancelled && <MarginSection job={job} />}
+              {job.calc_quote && <CalcQuoteCard q={job.calc_quote} />}
+              {!isCancelled && job.calc_quote?.plan?.input && (
+                <div id="plan">
+                  <PlanSection job={job} plan={job.calc_quote.plan} savedAt={job.calc_quote.savedAt} />
+                </div>
+              )}
+              <div id="faktura">
+                <InvoiceSection
+                  jobId={id}
+                  invoiced={job.invoiced}
+                  invoiceNumber={job.invoice_number}
+                  invoiceDate={job.invoice_date}
+                  amountGross={Number(job.amount_gross) || 0}
+                  status={job.status}
+                />
+              </div>
+              {!isCancelled && (
+                <LaborSection jobId={id} defaultDate={job.completed_date ?? new Date().toISOString().slice(0, 10)} />
+              )}
+            </div>
+          )}
 
-        <details id="finanse" open={phase === "montaz"} className="group mt-4">
-          <FoldSummary>Finanse zlecenia: faktura i czas pracy</FoldSummary>
-        <div id="faktura">
-          <InvoiceSection
-            jobId={id}
-            invoiced={job.invoiced}
-            invoiceNumber={job.invoice_number}
-            invoiceDate={job.invoice_date}
-            amountGross={Number(job.amount_gross) || 0}
-            status={job.status}
-          />
+          {job.notes && view !== "finanse" && (
+            <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+              <p className="text-[11px] font-semibold text-[var(--muted)] mb-2">Notatki</p>
+              <p className="whitespace-pre-wrap text-sm text-[var(--ink-2)]">{job.notes}</p>
+            </section>
+          )}
+
+          <details className="group">
+            <FoldSummary>Historia etapów</FoldSummary>
+            <StageTimeline stages={stages} />
+          </details>
         </div>
-
-        {!isCancelled && (
-          <LaborSection jobId={id} defaultDate={job.completed_date ?? new Date().toISOString().slice(0, 10)} />
-        )}
-        </details>
-
-        {job.notes && (
-          <section className="mt-4 rounded-xl border border-[#ededea] bg-white p-4">
-            <p className="text-[11px] font-semibold text-[#8d8a85] mb-2">Notatki</p>
-            <p className="whitespace-pre-wrap text-sm text-[#6f6c66]">{job.notes}</p>
-          </section>
-        )}
-
-        <details className="group mt-4">
-          <FoldSummary>Historia etapów</FoldSummary>
-          <StageTimeline stages={stages} />
-        </details>
 
         <StageActionBar
           jobId={id}

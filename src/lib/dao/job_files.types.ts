@@ -8,8 +8,9 @@ export type JobFileExt = (typeof JOB_FILE_EXTS)[number];
 
 export type PenMark = { id: string; t: "pen"; c: string; w: number; pts: number[] };
 export type LineMark = { id: string; t: "line"; c: string; w: number; x1: number; y1: number; x2: number; y2: number };
-/** x,y = lewy górny róg tekstu; s = wysokość pisma; bg = białe tło (zakrywa stary wymiar). */
-export type TextMark = { id: string; t: "text"; c: string; s: number; x: number; y: number; text: string; bg: boolean };
+/** x,y = lewy górny róg widocznego prostokąta tekstu; v = pismo pionowe (czytane od dołu); */
+/** s = wysokość pisma; bg = białe tło (zakrywa stary wymiar). */
+export type TextMark = { id: string; t: "text"; c: string; s: number; x: number; y: number; text: string; bg: boolean; v?: boolean };
 export type FileMark = PenMark | LineMark | TextMark;
 
 export type JobFile = {
@@ -48,7 +49,7 @@ export function parseMarks(raw: unknown): FileMark[] {
       out.push({ id, t: "line", c, w: r1(o.w), x1: r1(o.x1), y1: r1(o.y1), x2: r1(o.x2), y2: r1(o.y2) });
     } else if (o.t === "text" && num(o.s) && num(o.x) && num(o.y) && typeof o.text === "string") {
       const text = o.text.slice(0, 500).trim();
-      if (text) out.push({ id, t: "text", c, s: r1(o.s), x: r1(o.x), y: r1(o.y), text, bg: o.bg !== false });
+      if (text) out.push({ id, t: "text", c, s: r1(o.s), x: r1(o.x), y: r1(o.y), text, bg: o.bg !== false, ...(o.v === true ? { v: true } : {}) });
     }
   }
   return out;

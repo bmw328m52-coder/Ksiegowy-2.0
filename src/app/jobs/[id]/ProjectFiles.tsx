@@ -100,6 +100,35 @@ async function preparePdf(file: File): Promise<Prepared[]> {
   return out;
 }
 
+// Czysta kartka (jak w Skanerze): biały arkusz A4 poziomo, opcjonalnie z jasną kratką 10 mm.
+const SHEET_W = 3200;
+const SHEET_H = 2264;
+async function blankSheet(name: string, grid: boolean): Promise<Prepared> {
+  const canvas = document.createElement("canvas");
+  canvas.width = SHEET_W;
+  canvas.height = SHEET_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Przeglądarka nie pozwala przygotować kartki.");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, SHEET_W, SHEET_H);
+  if (grid) {
+    const step = SHEET_W / 29.7; // A4 poziomo ≈ 29,7 cm → kratka co 1 cm
+    ctx.strokeStyle = "#dcdcda";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = step; x < SHEET_W; x += step) {
+      ctx.moveTo(Math.round(x), 0);
+      ctx.lineTo(Math.round(x), SHEET_H);
+    }
+    for (let y = step; y < SHEET_H; y += step) {
+      ctx.moveTo(0, Math.round(y));
+      ctx.lineTo(SHEET_W, Math.round(y));
+    }
+    ctx.stroke();
+  }
+  return { name, blob: await toJpeg(canvas), width: SHEET_W, height: SHEET_H };
+}
+
 const isPdf = (f: File) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
 const isImage = (f: File) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(f.name);
 
@@ -119,6 +148,8 @@ export default function ProjectFiles({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [openTool, setOpenTool] = useState<"pan" | "pen">("pan");
   const requested = useRef(new Set<string>());
   const objectUrls = useRef<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -176,10 +207,45 @@ export default function ProjectFiles({
     }
     setError(null);
     try {
-      const supabase = createClient();
       for (const f of picked) {
         setBusy(`Przygotowuję: ${f.name}`);
-        const prepared = isPdf(f) ? await preparePdf(f) : [await prepareImage(f)];
+        await uploadPrepared(isPdf(f) ? await preparePdf(f) : [await prepareImage(f)]);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udało się wgrać pliku.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function pickFile() {
+    setMenuOpen(false);
+    inputRef.current?.click();
+  }
+
+  async function addSheet(grid: boolean) {
+    setMenuOpen(false);
+    setError(null);
+    try {
+      setBusy("Przygotowuję kartkę");
+      const n = files.filter((f) => /^Kartka \d+$/.test(f.name)).length + 1;
+      const [file] = await uploadPrepared([await blankSheet(`Kartka ${n}`, grid)]);
+      if (file) {
+        setOpenTool("pen");
+        setOpenId(file.id);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udało się dodać kartki.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function uploadPrepared(prepared: Prepared[]): Promise<JobFile[]> {
+    const added: JobFile[] = [];
+    const supabase = createClient();
+    {
+      {
         for (const [i, p] of prepared.entries()) {
           setBusy(prepared.length > 1 ? `Wgrywam: ${p.name} (${i + 1}/${prepared.length})` : `Wgrywam: ${p.name}`);
           const target = await createJobFileUploadAction(jobId, extOf(p.blob));
@@ -200,13 +266,11 @@ export default function ProjectFiles({
           void cacheImage(file, p.blob);
           showImage(file.id, p.blob);
           setFiles((prev) => [...prev, file]);
+          added.push(file);
         }
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udało się wgrać pliku.");
-    } finally {
-      setBusy(null);
     }
+    return added;
   }
 
   // Ctrl+V ze zrzutem ekranu (np. Wycinanie w Windows po zaznaczeniu widoku w PRO100).
@@ -293,15 +357,32 @@ export default function ProjectFiles({
           );
         })}
 
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => inputRef.current?.click()}
-          className="flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] text-sm font-medium text-[#6f6c66] active:bg-[#f0f0ee] disabled:opacity-60"
-        >
-          <span className="text-xl leading-none">+</span>
-          <span>{busy ? "Wgrywam…" : "Dodaj"}</span>
-        </button>
+        {menuOpen && busy === null ? (
+          <div className="flex aspect-[4/3] flex-col gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-1.5">
+            <button type="button" onClick={() => void addSheet(false)} className="flex-1 rounded-md bg-white text-xs font-medium text-[#282624] shadow-sm active:bg-[#f0f0ee]">
+              Czysta kartka
+            </button>
+            <button type="button" onClick={() => void addSheet(true)} className="flex-1 rounded-md bg-white text-xs font-medium text-[#282624] shadow-sm active:bg-[#f0f0ee]">
+              Kartka w kratkę
+            </button>
+            <button type="button" onClick={pickFile} className="flex-1 rounded-md bg-white text-xs font-medium text-[#282624] shadow-sm active:bg-[#f0f0ee]">
+              Plik / zdjęcie / PDF
+            </button>
+            <button type="button" onClick={() => setMenuOpen(false)} className="text-[11px] text-[#8d8a85]">
+              Anuluj
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => setMenuOpen(true)}
+            className="flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] text-sm font-medium text-[#6f6c66] active:bg-[#f0f0ee] disabled:opacity-60"
+          >
+            <span className="text-xl leading-none">+</span>
+            <span>{busy ? "Wgrywam…" : "Dodaj"}</span>
+          </button>
+        )}
       </div>
 
       <input
@@ -328,10 +409,14 @@ export default function ProjectFiles({
       {open && openSrc && (
         <ProjectFileEditor
           key={open.id}
+          initialTool={openTool}
           file={open}
           src={openSrc}
           onMarks={setMarks}
-          onClose={() => setOpenId(null)}
+          onClose={() => {
+            setOpenId(null);
+            setOpenTool("pan");
+          }}
           onDelete={remove}
         />
       )}

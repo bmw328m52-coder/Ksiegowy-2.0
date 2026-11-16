@@ -130,6 +130,65 @@ export default async function InvoiceDetailPage({
           </section>
         )}
 
+        {invoice.ocr_status === "done" && !invoice.ksef_number && (() => {
+          const raw = (invoice.ocr_raw ?? {}) as {
+            document_type?: string;
+            buyer_nip?: string | null;
+            supplier_address?: { street?: string | null; postal_code?: string | null; city?: string | null } | null;
+            warnings?: string[];
+          };
+          const isReceipt = raw.document_type === "paragon" || invoice.doc_source === "receipt";
+          const empty = (v: unknown) => v === null || v === undefined || String(v).trim() === "";
+          const missing: string[] = [];
+          if (empty(invoice.supplier_name)) missing.push("Nazwa sprzedawcy");
+          if (empty(invoice.supplier_nip)) missing.push("NIP sprzedawcy");
+          if (empty(invoice.invoice_number)) missing.push(isReceipt ? "Numer paragonu (na paragonie może go nie być)" : "Numer faktury");
+          if (empty(invoice.issue_date)) missing.push("Data dokumentu");
+          if (empty(invoice.amount_gross)) missing.push("Kwota brutto");
+          if (empty(invoice.amount_net)) missing.push("Kwota netto");
+          if (empty(invoice.amount_vat)) missing.push("Kwota VAT");
+          if (empty(invoice.vat_rate)) missing.push("Stawka VAT");
+          if (isReceipt && empty(raw.buyer_nip)) missing.push("NIP nabywcy");
+          if (raw.supplier_address === undefined) missing.push("Adres sprzedawcy (starszy skan, zeskanuj ponownie, żeby go odczytać)");
+          else if (raw.supplier_address && (empty(raw.supplier_address.street) || empty(raw.supplier_address.postal_code) || empty(raw.supplier_address.city)))
+            missing.push("Adres sprzedawcy (niepełny)");
+          else if (raw.supplier_address === null) missing.push("Adres sprzedawcy");
+          const notes = (raw.warnings ?? []).filter((w) => !w.startsWith("Brak NIP") && !w.startsWith("Brak daty") && !w.startsWith("Nie odczytano kwoty"));
+          if (missing.length === 0 && notes.length === 0) {
+            return (
+              <p className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] font-semibold text-emerald-800">
+                ✓ Odczytano komplet danych
+              </p>
+            );
+          }
+          return (
+            <section className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+              <p className="text-sm font-semibold text-amber-900">Do sprawdzenia</p>
+              {missing.length > 0 && (
+                <div>
+                  <p className="text-[12px] font-semibold text-amber-900">Nie odczytano:</p>
+                  <ul className="mt-1 list-disc pl-5 text-[13px] text-amber-900 space-y-0.5">
+                    {missing.map((m) => (
+                      <li key={m}>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {notes.length > 0 && (
+                <div>
+                  <p className="text-[12px] font-semibold text-amber-900">Uwagi z odczytu:</p>
+                  <ul className="mt-1 list-disc pl-5 text-[13px] text-amber-900 space-y-0.5">
+                    {notes.map((n) => (
+                      <li key={n}>{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="text-[12px] text-amber-800">Uzupełnij brakujące pola w formularzu poniżej.</p>
+            </section>
+          );
+        })()}
+
         {invoice.ocr_status === "failed" && (
           <p className="mb-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
             Nie udało się odczytać faktury automatycznie. Wpisz dane ręcznie poniżej.

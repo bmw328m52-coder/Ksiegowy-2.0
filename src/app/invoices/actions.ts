@@ -4,137 +4,30 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  createInvoiceRow,
   deleteInvoice as daoDeleteInvoice,
   getInvoice,
   updateInvoice,
 } from "@/lib/dao/invoices";
 import {
-  createCostLines,
   deleteCostLine as daoDeleteCostLine,
   updateCostLine,
   setInvoiceVatDeduction,
 } from "@/lib/dao/cost_lines";
 import { updateCatalogItem } from "@/lib/dao/material_catalog";
-import { suggestedVatDeduction } from "@/lib/dao/cost_lines.types";
-import { ocrInvoice, type OCRInput } from "@/lib/ocr/claude";
+import { ingestInvoiceFile } from "@/lib/invoices/ingest";
 import { parseAmount } from "@/lib/format";
 
 type Result = { error?: string };
 
-const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
-const MAX_BYTES = 10 * 1024 * 1024;
-
 export async function uploadAndOcrInvoice(_prev: Result, formData: FormData): Promise<Result> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Brak sesji." };
-
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { error: "Wybierz plik faktury (zdjęcie lub PDF)." };
   }
-  if (file.size > MAX_BYTES) return { error: "Plik za duży (maks. 10 MB)." };
-  const mime = file.type || "application/octet-stream";
-  if (!ALLOWED_MIME.has(mime)) {
-    return { error: "Akceptujemy tylko PDF, JPG, PNG, WebP." };
-  }
-
-  const ext = mime === "application/pdf" ? "pdf" : mime.split("/")[1] ?? "bin";
-  const fileId = crypto.randomUUID();
-  const filePath = `${user.id}/${fileId}.${ext}`;
-
-  const buf = Buffer.from(await file.arrayBuffer());
-
-  const { error: upErr } = await supabase.storage
-    .from("invoices")
-    .upload(filePath, buf, { contentType: mime, upsert: false });
-  if (upErr) return { error: `Nie udało się wgrać pliku: ${upErr.message}` };
-
-  let invoiceId: string;
-  try {
-    const row = await createInvoiceRow({ file_path: filePath, file_mime: mime, ocr_status: "processing" });
-    invoiceId = row.id;
-  } catch (e) {
-    await supabase.storage.from("invoices").remove([filePath]);
-    return { error: e instanceof Error ? e.message : "Nieznany błąd zapisu." };
-  }
-
-  try {
-    const ocrInput: OCRInput =
-      mime === "application/pdf"
-        ? { kind: "pdf", base64: buf.toString("base64") }
-        : {
-            kind: "image",
-            mediaType: mime as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
-            base64: buf.toString("base64"),
-          };
-
-    const ocr = await ocrInvoice(ocrInput);
-
-    await updateInvoice(invoiceId, {
-      ocr_status: "done",
-      ocr_raw: ocr,
-      supplier_name: ocr.supplier_name,
-      supplier_nip: ocr.supplier_nip,
-      invoice_number: ocr.invoice_number,
-      issue_date: ocr.issue_date,
-      payment_due: ocr.payment_due,
-      amount_net: ocr.amount_net,
-      amount_vat: ocr.amount_vat,
-      amount_gross: ocr.amount_gross,
-      vat_rate: ocr.vat_rate,
-    });
-
-    const costDate = ocr.issue_date ?? new Date().toISOString().slice(0, 10);
-    const items =
-      ocr.line_items.length > 0
-        ? ocr.line_items.map((li) => ({
-            invoice_id: invoiceId,
-            description: li.description,
-            amount_net: li.amount_net ?? 0,
-            amount_vat: li.amount_vat ?? 0,
-            amount_gross: li.amount_gross ?? 0,
-            vat_rate: li.vat_rate ?? ocr.vat_rate,
-            category: ocr.category,
-            cost_date: costDate,
-            vat_deduction: suggestedVatDeduction(ocr.category),
-          }))
-        : ocr.amount_gross && ocr.amount_gross > 0
-          ? [
-              {
-                invoice_id: invoiceId,
-                description:
-                  [ocr.supplier_name, ocr.invoice_number].filter(Boolean).join(" — ") || "Faktura",
-                amount_net: ocr.amount_net ?? 0,
-                amount_vat: ocr.amount_vat ?? 0,
-                amount_gross: ocr.amount_gross,
-                vat_rate: ocr.vat_rate,
-                category: ocr.category,
-                cost_date: costDate,
-                vat_deduction: suggestedVatDeduction(ocr.category),
-              },
-            ]
-          : [];
-
-    if (items.length > 0) await createCostLines(items);
-  } catch (e) {
-    await updateInvoice(invoiceId, {
-      ocr_status: "failed",
-      ocr_raw: { error: e instanceof Error ? e.message : String(e) },
-    });
-  }
-
+  const result = await ingestInvoiceFile(file);
   revalidatePath("/invoices");
-  redirect(`/invoices/${invoiceId}?fresh=1`);
+  if (!result.ok && !result.id) return { error: result.error };
+  redirect(`/invoices/${result.id}?fresh=1`);
 }
 
 export async function updateInvoiceAction(

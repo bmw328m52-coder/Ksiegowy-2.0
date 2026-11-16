@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import PageHeader from "@/components/PageHeader";
+import ProjectCard from "@/components/job/ProjectCard";
+import { Money } from "@/components/Money";
+import { avatarTone, clientInitials } from "@/lib/avatar";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { getClient } from "@/lib/dao/clients";
 import { listJobsByClient } from "@/lib/dao/jobs";
@@ -9,19 +11,10 @@ import { listMaterialCostsByClient } from "@/lib/dao/cost_lines";
 import { getUserSettingsOrDefault } from "@/lib/dao/user_settings";
 import { getJobMarginsMap } from "@/lib/jobMargin";
 import { getJobMaterialGrossMap } from "@/lib/dao/material_catalog";
-import { effectiveJobStatus } from "@/lib/jobStatus";
-import { jobStatusLabel, jobStatusTone } from "@/lib/jobStatusView";
+import { effectiveJobStatus, isJobOverdue } from "@/lib/jobStatus";
 import { fmtPLN, fmtDate } from "@/lib/format";
 import { deleteClientAction } from "../actions";
-import {
-  PageContainer,
-  Card,
-  SectionHeading,
-  StatCard,
-  Badge,
-  EmptyState,
-  ButtonLink,
-} from "@/components/ui";
+import { PageContainer, Badge, EmptyState } from "@/components/ui";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -109,222 +102,206 @@ export default async function ClientDetailPage({
     marginPctSum === null ? "neutral" : marginPctSum >= 20 ? "ok" : marginPctSum >= 0 ? "accent" : "warn";
 
   const deleteWithId = deleteClientAction.bind(null, id);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const tone = avatarTone(client.name);
+  const activeCount = jobs.filter((j) => !["settled", "archived", "cancelled"].includes(j.status)).length;
 
   return (
-    <PageContainer width="narrow">
-      <PageHeader
-        title={client.name}
-        back={{ href: "/clients" }}
-        action={
-          <ButtonLink href={`/clients/${id}/edit`} variant="secondary" size="sm">
-            Edytuj
-          </ButtonLink>
-        }
-      />
-
-      {/* Dane kontaktowe */}
-      <Card className="space-y-2 text-sm">
-        <p>
-          <span className="text-[#8d8a85]">Typ: </span>
-          {client.type === "company" ? "Firma" : "Osoba prywatna"}
-        </p>
-        {client.nip && (
-          <p>
-            <span className="text-[#8d8a85]">NIP: </span>
-            {client.nip}
-          </p>
-        )}
-        {client.address && (
-          <p>
-            <span className="text-[#8d8a85]">Adres: </span>
-            {client.address}
-          </p>
-        )}
-        {client.email && (
-          <p>
-            <span className="text-[#8d8a85]">E-mail: </span>
-            <a href={`mailto:${client.email}`} className="text-[#a06f3f] underline-offset-2 hover:underline">
-              {client.email}
-            </a>
-          </p>
-        )}
-        {client.phone && (
-          <p>
-            <span className="text-[#8d8a85]">Telefon: </span>
-            <a href={`tel:${client.phone}`} className="text-[#a06f3f] underline-offset-2 hover:underline">
-              {client.phone}
-            </a>
-          </p>
-        )}
-        {client.notes && <p className="whitespace-pre-wrap text-[#4a4843] pt-2">{client.notes}</p>}
-      </Card>
-
-      {/* Pomiary / zlecenia */}
-      <section>
-        <SectionHeading>Pomiary i zlecenia</SectionHeading>
-
-        {jobs.length > 0 && (
-          <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-            <StatCard label="Suma zleceń" value={fmtPLN(totalGross)} tone="neutral" money />
-            <StatCard label="Opłacone" value={fmtPLN(paidGross)} tone="ok" money />
-          </div>
-        )}
-
-        {billableJobs.length > 0 && (
-          <Card className="mb-2.5">
-            <p className="text-[11px] font-semibold text-[#9ea29c] mb-2">
-              Marża (brutto)
-              {jobs.length !== billableJobs.length && " · od zamówienia materiałów"}
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-[#8d8a85]">Przychód</p>
-                <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(revenueGrossSum)}</p>
-                {showNet && (
-                  <p className="text-[11px] text-[#8d8a85] tabular-nums">netto {fmtPLN(revenueNetSum)}</p>
-                )}
-              </div>
-              <div>
-                <p className="text-[#8d8a85]">Koszty zleceń</p>
-                <p className="font-semibold text-sm tabular-nums text-[#1f1d1b]">{fmtPLN(costsGrossSum)}</p>
-                {showNet && (
-                  <p className="text-[11px] text-[#8d8a85] tabular-nums">netto {fmtPLN(costsNetSum)}</p>
-                )}
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-[#f0efec] flex items-baseline justify-between">
-              <div>
-                <p className="text-[#8d8a85] text-xs">Zysk</p>
-                <p
-                  className={`font-bold text-base tabular-nums ${
-                    profitSum >= 0 ? "text-[#4f8a64]" : "text-[#b8523a]"
-                  }`}
-                >
-                  {fmtPLN(profitSum)}
-                </p>
-                {showNet && (
-                  <p className="text-[11px] text-[#8d8a85] tabular-nums">
-                    netto {fmtPLN(profitNetSum)} · VAT {fmtPLN(profitSum - profitNetSum)}
-                  </p>
-                )}
-              </div>
-              {marginPctSum !== null && (
-                <Badge tone={marginTone}>{marginPctSum.toFixed(1)}%</Badge>
+    <PageContainer width="wide" className="lv-home">
+      <header className="lc-hero">
+        <div className="lc-hero-top">
+          <Link href="/jobs?v=klienci" aria-label="Wstecz do listy" className="lj-back">
+            ←
+          </Link>
+          <span className="lj-avatar lc-avatar" style={{ background: tone.bg, color: tone.fg }} aria-hidden>
+            {clientInitials(client.name)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="lj-client">{client.type === "company" ? "Firma" : "Osoba prywatna"}</p>
+            <h1 className="lj-title">{client.name}</h1>
+            <div className="lc-chips">
+              {client.phone && (
+                <a href={`tel:${client.phone}`} className="lc-chip">
+                  ☎ {client.phone}
+                </a>
               )}
+              {client.email && (
+                <a href={`mailto:${client.email}`} className="lc-chip">
+                  ✉ {client.email}
+                </a>
+              )}
+              {client.nip && <span className="lc-chip" data-static="true">NIP {client.nip}</span>}
             </div>
-          </Card>
-        )}
-
-        <div className="flex justify-end mb-2">
-          <ButtonLink href={`/jobs/new?clientId=${id}`} size="sm" icon={<span className="text-[15px] leading-none">+</span>}>
-            Nowy pomiar
-          </ButtonLink>
+            {client.address && <p className="lc-address">{client.address}</p>}
+          </div>
+          <Link href={`/clients/${id}/edit`} className="lc-edit">
+            Edytuj
+          </Link>
         </div>
 
-        {jobs.length === 0 ? (
-          <EmptyState
-            icon={<JobsGlyph />}
-            title="Brak zleceń"
-            hint="Zaplanuj pierwszy pomiar dla tego klienta."
-            cta={{ href: `/jobs/new?clientId=${id}`, label: "+ Nowy pomiar" }}
-            tone="accent"
-          />
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {jobs.map((j) => {
-              const m = marginByJob.get(j.id);
-              const status = effectiveJobStatus(j);
-              return (
-                <li key={j.id}>
-                  <Card href={`/jobs/${j.id}`} padded={false} className="p-3.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-[14px] text-[#1f1d1b] truncate">{j.title}</p>
-                        <p className="text-[11px] text-[#8d8a85] mt-0.5">
-                          {fmtPLN(j.amount_gross)}{(j.due_date ?? j.start_date) ? ` · termin ${fmtDate(j.due_date ?? j.start_date)}` : ""}
-                        </p>
-                      </div>
-                      <Badge tone={jobStatusTone(status)}>{jobStatusLabel(status)}</Badge>
-                    </div>
-                    {m && (
-                      <div className="mt-2 flex items-center gap-2 text-[11px] flex-wrap">
-                        <span className="text-[#8d8a85] tabular-nums">koszt {fmtPLN(m.costsGross)}</span>
-                        <span
-                          className={`tabular-nums font-semibold ${
-                            m.profit >= 0 ? "text-[#4f8a64]" : "text-[#b8523a]"
-                          }`}
-                        >
-                          zysk {fmtPLN(m.profit)}
-                        </span>
-                        {m.marginPct !== null && (
-                          <span className="text-[#8d8a85] tabular-nums">· {m.marginPct.toFixed(0)}%</span>
-                        )}
-                        {!m.fromInvoices && (
-                          <span className="text-[10px] text-[var(--muted)]">(koszt z wyceny)</span>
-                        )}
-                      </div>
-                    )}
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+        <dl className="lc-stats">
+          <div>
+            <dt>Zlecenia</dt>
+            <dd>
+              {jobs.length}
+              {activeCount > 0 && <small> · {activeCount} w toku</small>}
+            </dd>
+          </div>
+          <div>
+            <dt>Suma zleceń</dt>
+            <dd><Money>{fmtPLN(totalGross)}</Money></dd>
+          </div>
+          <div>
+            <dt>Opłacone</dt>
+            <dd><Money>{fmtPLN(paidGross)}</Money></dd>
+          </div>
+          {billableJobs.length > 0 && (
+            <div>
+              <dt>Zysk{marginPctSum !== null ? ` · ${marginPctSum.toFixed(0)}%` : ""}</dt>
+              <dd data-neg={profitSum < 0}>
+                <Money>{fmtPLN(profitSum)}</Money>
+              </dd>
+            </div>
+          )}
+        </dl>
+      </header>
 
-      {/* Zakupy materiałów */}
-      <section>
-        <SectionHeading>
+      <div className="lj-toolbar">
+        <h2 className="lc-h2">Zlecenia klienta</h2>
+        <Link href={`/jobs/new?clientId=${id}`} className="lj-cta">
+          + Nowe zlecenie
+        </Link>
+      </div>
+
+      {jobs.length === 0 ? (
+        <EmptyState
+          icon={null}
+          title="Brak zleceń"
+          hint="Zaplanuj pierwszy pomiar dla tego klienta."
+          cta={{ href: `/jobs/new?clientId=${id}`, label: "+ Nowe zlecenie" }}
+          tone="accent"
+        />
+      ) : (
+        <div className="lj-grid" role="list">
+          {jobs.map((j) => {
+            const m = marginByJob.get(j.id);
+            const status = effectiveJobStatus(j);
+            return (
+              <ProjectCard
+                key={j.id}
+                job={{ ...j, status, client_name: client.name }}
+                todayIso={todayIso}
+                overdue={isJobOverdue({ ...j, status }, todayIso)}
+                extra={
+                  m ? (
+                    <p className="lc-margin">
+                      <span>koszt <Money>{fmtPLN(m.costsGross)}</Money></span>
+                      <b data-neg={m.profit < 0}>
+                        zysk <Money>{fmtPLN(m.profit)}</Money>
+                        {m.marginPct !== null && ` · ${m.marginPct.toFixed(0)}%`}
+                      </b>
+                      {!m.fromInvoices && <small>koszt z wyceny</small>}
+                    </p>
+                  ) : null
+                }
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {billableJobs.length > 0 && (
+        <section className="lv-card lc-box">
+          <h2 className="lc-h2">
+            Marża (brutto)
+            {jobs.length !== billableJobs.length && <small> · od zamówienia materiałów</small>}
+          </h2>
+          <div className="lc-margin-grid">
+            <div>
+              <p>Przychód</p>
+              <b><Money>{fmtPLN(revenueGrossSum)}</Money></b>
+              {showNet && <small>netto <Money>{fmtPLN(revenueNetSum)}</Money></small>}
+            </div>
+            <div>
+              <p>Koszty zleceń</p>
+              <b><Money>{fmtPLN(costsGrossSum)}</Money></b>
+              {showNet && <small>netto <Money>{fmtPLN(costsNetSum)}</Money></small>}
+            </div>
+            <div>
+              <p>Zysk</p>
+              <b data-neg={profitSum < 0}><Money>{fmtPLN(profitSum)}</Money></b>
+              {showNet && (
+                <small>
+                  netto <Money>{fmtPLN(profitNetSum)}</Money> · VAT <Money>{fmtPLN(profitSum - profitNetSum)}</Money>
+                </small>
+              )}
+            </div>
+            {marginPctSum !== null && (
+              <div>
+                <p>Marża</p>
+                <Badge tone={marginTone}>{marginPctSum.toFixed(1)}%</Badge>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {client.notes && (
+        <section className="lv-card lc-box">
+          <h2 className="lc-h2">Notatki</h2>
+          <p className="whitespace-pre-wrap text-sm text-[var(--ink-2)]">{client.notes}</p>
+        </section>
+      )}
+
+      <details className="group">
+        <summary className="lc-fold">
           Zakupy materiałów
-        </SectionHeading>
-        {materials.length > 0 && (
-          <p className="-mt-1 mb-2 text-[13px] text-[#4a4843]">
-            Razem: <b className="tabular-nums">{fmtPLN(materialsTotalGross)}</b>
-          </p>
-        )}
-
-        {materials.length === 0 ? (
-          <EmptyState
-            icon={<BoxGlyph />}
-            title="Brak zakupów materiałów"
-            hint="Dodawane przez fakturę kosztową przypisaną do zlecenia z kategorią „materiały”."
-            tone="neutral"
-          />
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {materials.map((m) => (
-              <li key={m.id}>
-                <Card className="text-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[14px] text-[#1f1d1b] truncate">{m.description}</p>
-                      <p className="text-[11px] text-[#8d8a85] truncate mt-0.5">
-                        {fmtDate(m.cost_date)}
-                        {m.job_title && ` · ${m.job_title}`}
-                        {m.invoice_supplier && ` · ${m.invoice_supplier}`}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-semibold tabular-nums text-[#1f1d1b]">{fmtPLN(m.amount_gross)}</p>
-                      <p className="text-[11px] text-[#8d8a85] tabular-nums">netto {fmtPLN(m.amount_net)}</p>
-                    </div>
+          <span>
+            {materials.length > 0 ? `${materials.length} · ${fmtPLN(materialsTotalGross)}` : "brak"}
+          </span>
+        </summary>
+        <div className="mt-3">
+          {materials.length === 0 ? (
+            <EmptyState
+              icon={null}
+              title="Brak zakupów materiałów"
+              hint="Dodawane przez fakturę kosztową przypisaną do zlecenia z kategorią „materiały”."
+              tone="neutral"
+            />
+          ) : (
+            <ul className="lv-card lv-list">
+              {materials.map((m) => (
+                <li key={m.id} className="lc-mat">
+                  <div className="min-w-0">
+                    <p className="lc-mat-t">{m.description}</p>
+                    <p className="lc-mat-s">
+                      {fmtDate(m.cost_date)}
+                      {m.job_title && ` · ${m.job_title}`}
+                      {m.invoice_supplier && ` · ${m.invoice_supplier}`}
+                      {m.invoice_id && (
+                        <>
+                          {" · "}
+                          <Link href={`/invoices/${m.invoice_id}`} className="underline">
+                            faktura
+                          </Link>
+                        </>
+                      )}
+                    </p>
                   </div>
-                  {m.invoice_id && (
-                    <Link
-                      href={`/invoices/${m.invoice_id}`}
-                      className="text-xs text-[#a06f3f] underline-offset-2 hover:underline inline-flex items-center min-h-11"
-                    >
-                      Zobacz fakturę →
-                    </Link>
-                  )}
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  <div className="text-right shrink-0">
+                    <b className="tabular-nums"><Money>{fmtPLN(m.amount_gross)}</Money></b>
+                    <small className="block text-[11px] text-[var(--muted)] tabular-nums">
+                      netto <Money>{fmtPLN(m.amount_net)}</Money>
+                    </small>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
 
-      <form action={deleteWithId} className="mt-6">
+      <form action={deleteWithId} className="mt-2">
         <ConfirmSubmitButton
           message={
             jobs.length > 0
@@ -332,7 +309,7 @@ export default async function ClientDetailPage({
               : "Na pewno usunąć tego klienta?"
           }
           formNoValidate
-          className="w-full text-sm text-[#b8523a] py-3 active:underline"
+          className="w-full text-sm text-[var(--warn)] py-3 active:underline"
         >
           Usuń klienta
         </ConfirmSubmitButton>
@@ -348,22 +325,4 @@ function plJobs(n: number): string {
   if (lastTwo >= 12 && lastTwo <= 14) return "zleceń";
   if (last >= 2 && last <= 4) return "zlecenia";
   return "zleceń";
-}
-
-function JobsGlyph() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="4" width="16" height="18" rx="2" />
-      <path d="M9 2h6a1 1 0 0 1 1 1v3H8V3a1 1 0 0 1 1-1z" />
-      <path d="M8 12h8M8 16h5" />
-    </svg>
-  );
-}
-function BoxGlyph() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <path d="m3.27 6.96 8.73 5.05 8.73-5.05M12 22.08V12" />
-    </svg>
-  );
 }

@@ -1,415 +1,365 @@
-import PageHeader from "@/components/PageHeader";
+import Link from "next/link";
 import { PageContainer } from "@/components/ui";
+import MonthCarousel from "@/components/finance/MonthCarousel";
 import { FinTrendChart } from "../finanse/fin-ui";
 import { Money } from "@/components/Money";
-import { getDashboardData, MONTH_NAMES_PL, type ReminderItem } from "@/lib/dao/dashboard";
+import { getYearDashboards, MONTH_NAMES_PL, type DashboardData } from "@/lib/dao/dashboard";
 import { CATEGORY_COLORS } from "@/lib/dao/cost_lines.types";
 import { fmtPLN, fmtDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Podatki" };
+export const metadata = { title: "Podatki i ZUS" };
 
-export default async function DashboardPage() {
-  const d = await getDashboardData();
-  const monthName = MONTH_NAMES_PL[d.month_index];
-  const taxFormLabel = d.settings.tax_form === "skala" ? "skala 12%/32%" : "liniowy 19%";
+const SHORT = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
 
-  const vatPeriodLabel = d.settings.is_vat_payer
-    ? d.settings.vat_period === "quarterly"
-      ? "kwartalny"
-      : "miesięczny"
-    : "zwolnienie";
+function daysFromToday(iso: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((new Date(iso + "T00:00:00").getTime() - today.getTime()) / 86_400_000);
+}
+
+function whenLabel(days: number): string {
+  if (days < 0) return `${Math.abs(days)} dni po terminie`;
+  if (days === 0) return "dziś";
+  if (days === 1) return "jutro";
+  return `za ${days} dni`;
+}
+
+export default async function TaxPage({ searchParams }: { searchParams: Promise<{ rok?: string }> }) {
+  const { rok } = await searchParams;
+  const now = new Date();
+  const parsed = Number(rok);
+  const year = Number.isInteger(parsed) && parsed >= 2020 && parsed <= now.getFullYear() + 1 ? parsed : now.getFullYear();
+  const months = await getYearDashboards(year);
+  const curIdx = year === now.getFullYear() ? now.getMonth() : year < now.getFullYear() ? 11 : 0;
+  const cur = months[curIdx];
+  const s = cur.settings;
+  const taxFormLabel = s.tax_form === "skala" ? "skala 12% / 32%" : "liniowy 19%";
+  const vatLabel = s.is_vat_payer ? (s.vat_period === "quarterly" ? "VAT kwartalny" : "VAT miesięczny") : "zwolnienie z VAT";
+
+  // Najbliższe terminy: obowiązki za poprzedni i bieżący miesiąc (płatne w przyszłym), bez duplikatów.
+  const upcoming: { key: string; label: string; period: string; deadline: string; days: number; amount: number | null }[] = [];
+  const seen = new Set<string>();
+  if (year === now.getFullYear()) {
+    for (const mi of [Math.max(0, curIdx - 1), curIdx]) {
+      for (const r of months[mi].reminders) {
+        const k = `${r.kind}-${r.deadline}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const days = daysFromToday(r.deadline);
+        if (days < 0) continue;
+        upcoming.push({ key: k, label: r.label, period: r.periodLabel, deadline: r.deadline, days, amount: r.amount });
+      }
+    }
+    upcoming.sort((a, b) => a.days - b.days);
+  }
+
+  const hasYearData = cur.ytd.revenueNet > 0 || cur.ytd.costsNet > 0;
   const hasCashAlerts =
-    (d.uninvoicedMonth && d.uninvoicedMonth.count > 0) ||
-    d.pendingRevenueGross > 0 ||
-    d.openDepositsTotal > 0;
-  const hasYearData = d.ytd.revenueNet > 0 || d.ytd.costsNet > 0;
+    (cur.uninvoicedMonth && cur.uninvoicedMonth.count > 0) || cur.pendingRevenueGross > 0 || cur.openDepositsTotal > 0;
 
   return (
-    <PageContainer width="narrow">
-      <div className="space-y-4">
-        <PageHeader title="Podatki" back={{ href: "/finanse" }} />
-
-        <RemindersBanner reminders={d.reminders} />
-
-        <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
-          <header className="px-4 pt-4 pb-2">
-            <p className="text-[12px] font-semibold text-[#8d8a85]">
-              Bilans podatkowy
+    <PageContainer className="lv-home">
+      <header className="lf-hero">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="lv-eyebrow">Podatki i ZUS</p>
+            <h1 className="lf-hero-big ld-year">
+              <Link href={`/dashboard?rok=${year - 1}`} aria-label={`Rok ${year - 1}`} className="ld-yarrow">
+                ‹
+              </Link>
+              {year}
+              <Link href={`/dashboard?rok=${year + 1}`} aria-label={`Rok ${year + 1}`} className="ld-yarrow">
+                ›
+              </Link>
+            </h1>
+            <p className="lf-hero-sub">
+              {taxFormLabel} · {vatLabel}
             </p>
-            <h2 className="text-sm font-semibold text-[#1f1d1b]">
-              {monthName} {d.year}
-            </h2>
-          </header>
+          </div>
+        </div>
+        {upcoming.length > 0 && (
+          <div className="ld-due">
+            {upcoming.slice(0, 4).map((u) => (
+              <div key={u.key} data-urgent={u.days <= 7}>
+                <small>
+                  {u.label} · {u.period}
+                </small>
+                <b>{u.amount !== null ? <Money>{fmtPLN(u.amount)}</Money> : "—"}</b>
+                <span>
+                  do {fmtDate(new Date(u.deadline + "T00:00:00"))} · {whenLabel(u.days)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </header>
 
-          {d.vat && (
-            <BalanceBlock
-              title="VAT"
-              periodLabel={d.vat.label}
-              deadline={d.vat.deadline}
-              rows={[
-                { label: "VAT należny (sprzedaż)", value: fmtPLN(d.vat.vatDue) },
-                { label: "VAT naliczony (koszty)", value: `− ${fmtPLN(d.vat.vatInput)}` },
-                ...(d.vat.vatGrantInput > 0
-                  ? [{ label: "w tym z zakupów z dotacji (do zwrotu do PUP)", value: fmtPLN(d.vat.vatGrantInput), sub: true }]
-                  : []),
-              ]}
-              total={
-                d.vat.vatToReclaim > 0
-                  ? { label: "Do odzyskania (przeniesienie/zwrot)", value: fmtPLN(d.vat.vatToReclaim), tone: "ok" }
-                  : { label: "Do zapłaty", value: fmtPLN(d.vat.vatToPay) }
-              }
+      <section>
+        <p className="ld-hint">Przesuń palcem w lewo lub w prawo, żeby zobaczyć kolejne miesiące.</p>
+        <MonthCarousel
+          labels={SHORT}
+          initial={curIdx}
+          markers={year === now.getFullYear() ? { [now.getMonth()]: "dziś" } : undefined}
+        >
+          {months.map((d) => (
+            <MonthPanel key={d.month_index} d={d} isCurrent={year === now.getFullYear() && d.month_index === now.getMonth()} />
+          ))}
+        </MonthCarousel>
+      </section>
+
+      <section className="lv-card ld-box">
+        <h2 className="lc-h2">Cały rok {year}</h2>
+        {!hasYearData ? (
+          <p className="ld-empty">Brak danych w {year}. Dodaj zlecenia z fakturą i faktury kosztowe.</p>
+        ) : (
+          <>
+            <FinTrendChart data={cur.monthlyTrend} highlightMonth={year === now.getFullYear() ? now.getMonth() : undefined} />
+            <div className="ld-rows">
+              <Row label="Przychód netto od początku roku" value={fmtPLN(cur.ytd.revenueNet)} />
+              <Row label="Koszty netto od początku roku" value={fmtPLN(cur.ytd.costsNet)} />
+              <Row label="Dochód od początku roku" value={fmtPLN(cur.ytd.profit)} strong tone={cur.ytd.profit >= 0 ? "gold" : "neg"} />
+              <Row label="Zaliczki PIT razem (z faktur)" value={fmtPLN(cur.ytd.pit)} />
+            </div>
+          </>
+        )}
+      </section>
+
+      {hasCashAlerts && (
+        <section className="lv-card lv-list">
+          <h2 className="lc-h2 ld-pad">Pieniądze w drodze</h2>
+          {cur.uninvoicedMonth && cur.uninvoicedMonth.count > 0 && (
+            <CashRow
+              title={`Bez faktury (${cur.uninvoicedMonth.count})`}
+              amount={cur.uninvoicedMonth.amountGross}
+              hint={`Zlecenia z ${MONTH_NAMES_PL[curIdx].toLowerCase()} bez wystawionej faktury.`}
             />
           )}
-
-          <BalanceBlock
-            title="PIT"
-            periodLabel={`Zaliczka · ${d.pit.monthLabel}`}
-            deadline={d.pit.deadline}
-            rows={[
-              { label: "Dochód miesiąca (z faktur)", value: fmtPLN(d.pit.profitMonth) },
-              { label: `Dochód YTD (${taxFormLabel})`, value: fmtPLN(d.pit.profitYtd), sub: true },
-              { label: "PIT YTD razem", value: fmtPLN(d.pit.pitYtd), sub: true },
-            ]}
-            total={{ label: "Zaliczka miesięczna", value: fmtPLN(d.pit.pitMonth) }}
-            isLast
-          />
-        </section>
-
-        <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-4">
-          <div>
-            <p className="text-[12px] font-semibold text-[#8d8a85]">
-              Bieżący miesiąc
-            </p>
-            <h2 className="text-sm font-semibold text-[#1f1d1b]">{monthName}</h2>
-          </div>
-          <div className="space-y-2">
-            <Row label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
-            {d.monthRevenueSplit && (
-              <div className="space-y-1 pl-3 border-l-2 border-[#eeeeed]">
-                <Row
-                  label={`z faktur${d.monthRevenueSplit.invoicedCount > 0 ? ` (${d.monthRevenueSplit.invoicedCount})` : ""}`}
-                  value={fmtPLN(d.monthRevenueSplit.invoicedNet)}
-                  sub
-                />
-                <Row
-                  label={`bez faktury${d.monthRevenueSplit.uninvoicedCount > 0 ? ` (${d.monthRevenueSplit.uninvoicedCount})` : ""}`}
-                  value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)}
-                  sub
-                />
-              </div>
-            )}
-            <Row label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
-            <Divider />
-            <Row label="Dochód" value={fmtPLN(d.month.profit)} highlight={d.month.profit >= 0 ? "gold" : "negative"} />
-          </div>
-          {d.costsByCategoryMonth.length > 0 && (
-            <div className="pt-3 border-t border-[#eeeeed] space-y-2">
-              <p className="text-[12px] font-semibold text-[#8d8a85] ">
-                Rozkład kosztów
-              </p>
-              <CategoryBars rows={d.costsByCategoryMonth} />
-            </div>
+          {cur.pendingRevenueGross > 0 && (
+            <CashRow title="Czeka na zapłatę" amount={cur.pendingRevenueGross} hint="Zamontowane, jeszcze nieopłacone." />
+          )}
+          {cur.openDepositsTotal > 0 && (
+            <CashRow title="Zaliczki w otwartych zleceniach" amount={cur.openDepositsTotal} hint="Nie wchodzą jeszcze do przychodu." />
           )}
         </section>
+      )}
 
-        <section className="rounded-xl border border-[#ededea] bg-white p-4 space-y-4">
-          <div>
-            <p className="text-[12px] font-semibold text-[#8d8a85]">
-              Rok
-            </p>
-            <h2 className="text-sm font-semibold text-[#1f1d1b]">{d.year}</h2>
-          </div>
-          {!hasYearData ? (
-            <p className="text-[13px] text-[#8d8a85] py-4 text-center">
-              Brak danych w {d.year}. Dodaj zlecenia (status „Opłacone”) i faktury kosztowe.
-            </p>
-          ) : (
-            <>
-              <FinTrendChart data={d.monthlyTrend} highlightMonth={d.month_index} />
-              <div className="space-y-2 pt-3 border-t border-[#eeeeed]">
-                <Row label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />
-                <Row label="Koszty netto YTD" value={fmtPLN(d.ytd.costsNet)} />
-                <Row label="Dochód YTD" value={fmtPLN(d.ytd.profit)} highlight={d.ytd.profit >= 0 ? "gold" : "negative"} />
-                <Row label="Zaliczka PIT YTD (z faktur)" value={fmtPLN(d.ytd.pit)} />
-              </div>
-            </>
-          )}
-        </section>
-
-        {hasCashAlerts && (
-          <section className="rounded-xl border border-[#ededea] bg-white overflow-hidden">
-            <div className="px-4 pt-4 pb-2">
-              <p className="text-[12px] font-semibold text-[#8d8a85]">
-                Cash flow
-              </p>
-              <h2 className="text-sm font-semibold text-[#1f1d1b]">Alerty kasowe</h2>
-            </div>
-            {d.uninvoicedMonth && d.uninvoicedMonth.count > 0 && (
-              <CashAlertRow
-                tone="neutral"
-                title={`Niefakturowane (${d.uninvoicedMonth.count})`}
-                amount={d.uninvoicedMonth.amountGross}
-                hint={`Zlecenia ukończone/opłacone w ${monthName} bez wystawionej faktury.`}
-              />
-            )}
-            {d.pendingRevenueGross > 0 && (
-              <CashAlertRow
-                tone="warn"
-                title="Oczekuje na zapłatę"
-                amount={d.pendingRevenueGross}
-                hint="Zlecenia „Zakończone”, jeszcze nieopłacone."
-              />
-            )}
-            {d.openDepositsTotal > 0 && (
-              <CashAlertRow
-                tone="info"
-                title="Zaliczki — otwarte zlecenia"
-                amount={d.openDepositsTotal}
-                hint="Otrzymane zaliczki — nie wchodzą jeszcze do przychodu."
-              />
-            )}
-          </section>
-        )}
-
-        <p className="text-[12px] text-[#8d8a85] text-center pt-2">
-          Forma: {taxFormLabel} · VAT: {vatPeriodLabel}
-          <br />
-          PIT, ZUS i VAT liczone tylko ze zleceń z fakturą. Zlecenia bez faktury to symulacja —
-          widoczne w przychodzie i rentowności, ale poza podatkiem.
-        </p>
-      </div>
+      <p className="ld-foot">
+        PIT, ZUS i VAT liczymy tylko ze zleceń z fakturą. Zlecenia bez faktury są symulacją: widać je w przychodzie
+        i rentowności, ale poza podatkiem. Terminy każdego miesiąca dotyczą płatności w miesiącu następnym.
+      </p>
     </PageContainer>
   );
 }
 
-function CashAlertRow({
-  tone,
-  title,
-  amount,
-  hint,
-}: {
-  tone: "neutral" | "warn" | "info";
-  title: string;
-  amount: number;
-  hint: string;
-}) {
-  const accent = {
-    neutral: "text-[#1f1d1b]",
-    warn: "text-[#a06f3f]",
-    info: "text-[#5a7898]",
-  }[tone];
+function MonthPanel({ d, isCurrent }: { d: DashboardData; isCurrent: boolean }) {
+  const monthName = MONTH_NAMES_PL[d.month_index];
+  const empty = d.month.revenueNet === 0 && d.month.costsNet === 0;
+  const quarterly = d.settings.vat_period === "quarterly";
+  const quarterEnd = d.month_index % 3 === 2;
+  const vatSettledHere = !quarterly || quarterEnd;
+  const vatAmount = d.vat ? d.vat.vatToPay : 0;
+  const pitAmount = d.pit.pitMonth;
+  const zusAmount = d.zus?.total ?? d.reminders.find((r) => r.kind === "zus")?.amount ?? 0;
+  const total = (vatSettledHere ? vatAmount : 0) + pitAmount + zusAmount;
+  const taxFormLabel = d.settings.tax_form === "skala" ? "skala" : "liniowy";
+
   return (
-    <div className="px-4 py-3 border-t border-[#eeeeed] first:border-t-0">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className={`text-sm font-medium ${accent}`}>{title}</p>
-        <Money className={`text-base font-semibold tabular-nums ${accent}`}>
-          {fmtPLN(amount)}
-        </Money>
+    <article className="ld-panel" aria-label={`${monthName} ${d.year}`}>
+      <div className="ld-panel-head">
+        <h2>
+          {monthName} {d.year}
+        </h2>
+        {isCurrent && <span className="ld-tag">bieżący miesiąc</span>}
+        {empty && !isCurrent && <span className="ld-tag" data-muted="true">brak danych</span>}
       </div>
-      <p className="text-[12px] text-[#8d8a85] mt-0.5">{hint}</p>
-    </div>
+
+      <div className="ld-total">
+        <small>Do zapłaty za {monthName.toLowerCase()}</small>
+        <b>
+          <Money>{fmtPLN(total)}</Money>
+        </b>
+        <span>VAT + PIT + ZUS, płatne w następnym miesiącu</span>
+      </div>
+
+      <div className="ld-taxes">
+        {d.vat && (
+          <TaxCard
+            title="VAT"
+            sub={d.vat.label}
+            amount={vatSettledHere ? (d.vat.vatToReclaim > 0 ? d.vat.vatToReclaim : vatAmount) : null}
+            amountNote={vatSettledHere ? (d.vat.vatToReclaim > 0 ? "do odzyskania" : "do zapłaty") : undefined}
+            tone={vatSettledHere && d.vat.vatToReclaim > 0 ? "ok" : undefined}
+            deadline={d.vat.deadline}
+            rows={[
+              { label: "VAT należny (sprzedaż)", value: fmtPLN(d.vat.vatDue) },
+              { label: "VAT naliczony (koszty)", value: `− ${fmtPLN(d.vat.vatInput)}` },
+              ...(d.vat.vatGrantInput > 0
+                ? [{ label: "w tym z dotacji (do zwrotu do PUP)", value: fmtPLN(d.vat.vatGrantInput), sub: true }]
+                : []),
+            ]}
+            note={!vatSettledHere ? `VAT kwartalny: ${d.vat.label} rozliczysz po zamknięciu kwartału.` : undefined}
+          />
+        )}
+        <TaxCard
+          title="PIT"
+          sub={`zaliczka · ${taxFormLabel}`}
+          amount={pitAmount}
+          deadline={d.pit.deadline}
+          rows={[
+            { label: "Dochód miesiąca (z faktur)", value: fmtPLN(d.pit.profitMonth) },
+            { label: "Dochód od początku roku", value: fmtPLN(d.pit.profitYtd), sub: true },
+            { label: "PIT narastająco", value: fmtPLN(d.pit.pitYtd), sub: true },
+          ]}
+        />
+        <TaxCard
+          title="ZUS"
+          sub={d.zus ? d.zus.phaseLabel : "składka"}
+          amount={zusAmount}
+          deadline={d.zus?.deadline ?? d.reminders.find((r) => r.kind === "zus")?.deadline ?? d.pit.deadline}
+          rows={
+            d.zus
+              ? [
+                  { label: "Społeczne", value: fmtPLN(d.zus.social) },
+                  { label: "Zdrowotna", value: fmtPLN(d.zus.health) },
+                ]
+              : []
+          }
+          note={!d.zus ? "Ustaw datę startu działalności w Ustawieniach, a policzę składki dokładnie." : undefined}
+        />
+      </div>
+
+      <div className="lv-card ld-box">
+        <h3 className="ld-h3">Bilans miesiąca</h3>
+        <div className="ld-rows">
+          <Row label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
+          {d.monthRevenueSplit && (
+            <>
+              <Row
+                label={`z fakturą${d.monthRevenueSplit.invoicedCount > 0 ? ` (${d.monthRevenueSplit.invoicedCount})` : ""}`}
+                value={fmtPLN(d.monthRevenueSplit.invoicedNet)}
+                sub
+              />
+              <Row
+                label={`bez faktury${d.monthRevenueSplit.uninvoicedCount > 0 ? ` (${d.monthRevenueSplit.uninvoicedCount})` : ""}`}
+                value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)}
+                sub
+              />
+            </>
+          )}
+          <Row label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
+          <Row label="Dochód" value={fmtPLN(d.month.profit)} strong tone={d.month.profit >= 0 ? "gold" : "neg"} />
+        </div>
+        {d.costsByCategoryMonth.length > 0 && (
+          <div className="ld-cats">
+            <h3 className="ld-h3">Na co poszły koszty</h3>
+            <CategoryBars rows={d.costsByCategoryMonth} />
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 
-function BalanceBlock({
+function TaxCard({
   title,
-  periodLabel,
+  sub,
+  amount,
+  amountNote,
+  tone,
   deadline,
   rows,
-  total,
-  isLast = false,
+  note,
 }: {
   title: string;
-  periodLabel: string;
+  sub: string;
+  amount: number | null;
+  amountNote?: string;
+  tone?: "ok";
   deadline: string;
   rows: { label: string; value: string; sub?: boolean }[];
-  total: { label: string; value: string; tone?: "gold" | "ok" };
-  isLast?: boolean;
+  note?: string;
 }) {
-  return (
-    <div className={`px-4 py-3 ${isLast ? "" : "border-b border-[#eeeeed]"}`}>
-      <div className="flex items-baseline justify-between gap-2 mb-2">
-        <div className="flex items-baseline gap-2">
-          <span className="text-base font-semibold text-[#1f1d1b]">{title}</span>
-          <span className="text-[12px] text-[#8d8a85]">{periodLabel}</span>
-        </div>
-        <DeadlinePill deadline={deadline} />
-      </div>
-      <div className="space-y-1">
-        {rows.map((r, i) => (
-          <div key={i} className="flex items-center justify-between gap-3">
-            <span className={`text-sm ${r.sub ? "text-[#8d8a85]" : "text-[#6f6c66]"}`}>
-              {r.label}
-            </span>
-            <Money className={`text-sm tabular-nums ${r.sub ? "text-[#8d8a85]" : "text-[#3a3633]"}`}>
-              {r.value}
-            </Money>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-[#eeeeed]">
-        <span className="text-sm font-medium text-[#1f1d1b]">{total.label}</span>
-        <Money
-          className={`text-lg font-semibold tabular-nums ${
-            total.tone === "ok" ? "text-[#3a6b4d]" : "text-[#a06f3f]"
-          }`}
-        >
-          {total.value}
-        </Money>
-      </div>
-    </div>
-  );
-}
-
-function DeadlinePill({ deadline }: { deadline: string }) {
-  const d = new Date(deadline + "T00:00:00");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  const overdue = days < 0;
+  const days = daysFromToday(deadline);
   const urgent = days >= 0 && days <= 7;
-  const cls = overdue
-    ? "bg-[var(--warn-soft)] text-[var(--warn)] border-[var(--warn)]"
-    : urgent
-      ? "bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]"
-      : "bg-[var(--surface-2)] text-[#8d8a85] border-[#ededea]";
-  const suffix = overdue
-    ? `${Math.abs(days)} dni po terminie`
-    : days === 0
-      ? "dziś"
-      : days === 1
-        ? "jutro"
-        : `za ${days} dni`;
+  const overdue = days < 0;
   return (
-    <span className={`text-[12px] px-2.5 py-0.5 rounded-full border ${cls} whitespace-nowrap`}>
-      do {fmtDate(d)} · {suffix}
-    </span>
+    <section className="ld-tax" data-tone={tone}>
+      <div className="ld-tax-top">
+        <div>
+          <h3>{title}</h3>
+          <small>{sub}</small>
+        </div>
+        <span className="ld-pill" data-s={overdue ? "late" : urgent ? "urgent" : "ok"}>
+          do {fmtDate(new Date(deadline + "T00:00:00"))} · {whenLabel(days)}
+        </span>
+      </div>
+      <p className="ld-tax-amount">
+        {amount === null ? <span className="ld-dash">—</span> : <Money>{fmtPLN(amount)}</Money>}
+        {amountNote && <small>{amountNote}</small>}
+      </p>
+      {rows.length > 0 && (
+        <div className="ld-rows">
+          {rows.map((r, i) => (
+            <Row key={i} label={r.label} value={r.value} sub={r.sub} />
+          ))}
+        </div>
+      )}
+      {note && <p className="ld-note">{note}</p>}
+    </section>
   );
 }
 
 function Row({
   label,
   value,
-  bold,
-  highlight,
   sub,
+  strong,
+  tone,
 }: {
   label: string;
   value: string;
-  bold?: boolean;
-  highlight?: "gold" | "negative";
   sub?: boolean;
+  strong?: boolean;
+  tone?: "gold" | "neg";
 }) {
-  const valueCls =
-    highlight === "gold"
-      ? "text-[#a06f3f] font-semibold"
-      : highlight === "negative"
-        ? "text-[#b8523a] font-semibold"
-        : bold
-          ? "font-semibold text-[#1f1d1b]"
-          : sub
-            ? "text-[#8d8a85]"
-            : "text-[#3a3633]";
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className={`${sub ? "text-[13px] text-[#8d8a85]" : "text-sm text-[#6f6c66]"}`}>{label}</span>
-      <Money className={`${sub ? "text-[13px]" : "text-sm"} tabular-nums ${valueCls}`}>{value}</Money>
+    <div className="ld-row" data-sub={sub} data-strong={strong} data-tone={tone}>
+      <span>{label}</span>
+      <Money>{value}</Money>
     </div>
   );
 }
 
-function Divider() {
-  return <div className="h-px bg-[var(--surface-2)]" />;
-}
-
-function RemindersBanner({ reminders }: { reminders: ReminderItem[] }) {
-  const visible = reminders
-    .filter((r) => r.daysUntil <= 14)
-    .sort((a, b) => a.daysUntil - b.daysUntil);
-  if (visible.length === 0) return null;
-
-  const overdue = visible.filter((r) => r.daysUntil < 0);
-  const urgent = visible.filter((r) => r.daysUntil >= 0 && r.daysUntil <= 7);
-  const upcoming = visible.filter((r) => r.daysUntil > 7);
-
+function CashRow({ title, amount, hint }: { title: string; amount: number; hint: string }) {
   return (
-    <div className="space-y-2">
-      {overdue.map((r) => (
-        <ReminderRow key={r.kind} item={r} tone="overdue" />
-      ))}
-      {urgent.map((r) => (
-        <ReminderRow key={r.kind} item={r} tone="urgent" />
-      ))}
-      {upcoming.map((r) => (
-        <ReminderRow key={r.kind} item={r} tone="upcoming" />
-      ))}
-    </div>
-  );
-}
-
-function ReminderRow({
-  item,
-  tone,
-}: {
-  item: ReminderItem;
-  tone: "overdue" | "urgent" | "upcoming";
-}) {
-  const tones = {
-    overdue: "border-[var(--warn)] bg-[var(--warn-soft)] text-[var(--warn)]",
-    urgent: "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-2)]",
-    upcoming: "border-[#ededea] bg-white text-[#3a3633]",
-  } as const;
-  const days = item.daysUntil;
-  const suffix =
-    days < 0
-      ? `${Math.abs(days)} dni po terminie`
-      : days === 0
-        ? "dziś"
-        : days === 1
-          ? "jutro"
-          : `za ${days} dni`;
-  return (
-    <div className={`rounded-xl border ${tones[tone]} px-3 py-2 flex items-center justify-between gap-3`}>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold leading-tight">
-          {item.label} · {item.periodLabel}
-        </p>
-        <p className="text-[12px] opacity-80">do {fmtDate(new Date(item.deadline + "T00:00:00"))} · {suffix}</p>
+    <div className="ld-cash">
+      <div className="flex items-baseline justify-between gap-3">
+        <p>{title}</p>
+        <Money className="tabular-nums font-semibold">{fmtPLN(amount)}</Money>
       </div>
-      {item.amount !== null && (
-        <Money className="text-sm font-semibold tabular-nums shrink-0">
-          {fmtPLN(item.amount)}
-        </Money>
-      )}
+      <small>{hint}</small>
     </div>
   );
 }
 
-function CategoryBars({
-  rows,
-}: {
-  rows: { category: string; amountNet: number; share: number }[];
-}) {
+function CategoryBars({ rows }: { rows: { category: string; amountNet: number; share: number }[] }) {
   const max = rows[0]?.amountNet ?? 0;
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-2.5">
       {rows.map((r) => {
         const color = CATEGORY_COLORS[r.category] ?? "#8d8a85";
-        const widthPct = max > 0 ? Math.max(2, (r.amountNet / max) * 100) : 0;
+        const w = max > 0 ? Math.max(2, (r.amountNet / max) * 100) : 0;
         return (
-          <li key={r.category} className="space-y-1">
-            <div className="flex items-baseline justify-between gap-2 text-[13px]">
-              <span className="text-[#3a3633] capitalize">{r.category}</span>
-              <Money className="tabular-nums text-[#6f6c66]">
-                {fmtPLN(r.amountNet)} <span className="text-[#8d8a85]">· {Math.round(r.share * 100)}%</span>
+          <li key={r.category}>
+            <div className="flex items-baseline justify-between gap-2 text-[13.5px]">
+              <span className="capitalize">{r.category}</span>
+              <Money className="tabular-nums text-[var(--muted)]">
+                {fmtPLN(r.amountNet)} · {Math.round(r.share * 100)}%
               </Money>
             </div>
-            <div className="h-2 rounded-full bg-[var(--surface-2)] overflow-hidden">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${widthPct}%`, backgroundColor: color }}
-              />
+            <div className="ld-bar">
+              <div style={{ width: `${w}%`, backgroundColor: color }} />
             </div>
           </li>
         );

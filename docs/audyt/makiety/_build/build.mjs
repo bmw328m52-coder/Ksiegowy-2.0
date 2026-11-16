@@ -1,0 +1,13 @@
+import fs from "node:fs";
+import { createRequire } from "node:module";
+const require = createRequire("C:/Cloude/meble-app/package.json");
+const postcss = require("postcss");
+const tw = require("@tailwindcss/postcss");
+const root = "C:/Cloude/meble-app";
+const dir = root + "/docs/audyt/makiety/_build";
+const theme = fs.readFileSync(root + "/src/app/globals.css", "utf8").replace('@import "tailwindcss";', "");
+const css = `@import "tailwindcss" source(none);\n@source "./app.src.html";\n${theme}`;
+const r = await postcss([tw()]).process(css, { from: dir + "/in.css" });
+const html = fs.readFileSync(dir + "/app.src.html", "utf8").replace("/*CSS*/", () => r.css);
+fs.writeFileSync(root + "/docs/audyt/makiety/kalkulator-podglad-app.html", html);
+console.log("ok", html.length);

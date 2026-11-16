@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { usePrivateMode } from "./PrivateModeProvider";
 import {
   PRIMARY_NAV,
-  FINANCE_CHILDREN,
   TOOLS_CHILDREN,
   type NavChild,
 } from "./nav/navConfig";
@@ -145,11 +144,7 @@ export default function Sidebar() {
             const active = item.match(pathname);
             const Icon = item.icon;
             const children =
-              item.key === "finanse"
-                ? FINANCE_CHILDREN
-                : item.key === "wiecej"
-                  ? TOOLS_CHILDREN
-                  : null;
+              item.key === "wiecej" ? TOOLS_CHILDREN : null;
             return (
               <div key={item.key}>
                 <Link

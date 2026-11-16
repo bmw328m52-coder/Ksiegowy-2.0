@@ -42,16 +42,6 @@ function JobsIcon({ active }: IconProps) {
     </svg>
   );
 }
-function ClientsIcon({ active }: IconProps) {
-  return (
-    <svg {...svg} fill={active ? "currentColor" : "none"} stroke="currentColor">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}
 function FinanceIcon({ active }: IconProps) {
   return (
     <svg {...svg} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8}>
@@ -99,16 +89,9 @@ export const PRIMARY_NAV: NavItem[] = [
   {
     key: "zlecenia",
     href: "/jobs",
-    label: "Zlecenia",
+    label: "Zlecenia i klienci",
     icon: JobsIcon,
-    match: (p) => p.startsWith("/jobs") || p.startsWith("/briefs"),
-  },
-  {
-    key: "klienci",
-    href: "/clients",
-    label: "Klienci",
-    icon: ClientsIcon,
-    match: (p) => p.startsWith("/clients"),
+    match: (p) => p.startsWith("/jobs") || p.startsWith("/briefs") || p.startsWith("/clients"),
   },
   {
     key: "finanse",
@@ -124,17 +107,6 @@ export const PRIMARY_NAV: NavItem[] = [
     icon: MoreIcon,
     match: (p) => startsAny(p, MORE_PATHS),
   },
-];
-
-/** Podstrony obszaru Finanse (pokazywane w sidebarze i na hubie /finanse). */
-export const FINANCE_CHILDREN: NavChild[] = [
-  { href: "/finanse", label: "Pulpit" },
-  { href: "/dashboard", label: "Podatki (VAT/PIT)" },
-  { href: "/invoices", label: "Faktury" },
-  { href: "/finanse/rentownosc", label: "Rentowność" },
-  { href: "/finanse/ksiegowosc", label: "Księgowość ING" },
-  { href: "/finanse/terminy", label: "Terminy" },
-  { href: "/finanse/raporty", label: "Raporty" },
 ];
 
 /** Narzędzia i ustawienia (obszar „Więcej"). */

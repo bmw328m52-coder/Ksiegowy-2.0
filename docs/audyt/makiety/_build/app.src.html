@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kalkulator — podgląd układu (dane przykładowe)</title>
+<style>/*CSS*/</style></head>
+<body class="min-h-full text-[#1f1d1b] bg-[#f2f2f1]">
+<div class="flex flex-col min-h-full md:max-w-[1500px] md:mx-auto md:p-[18px] md:grid md:gap-[18px] md:items-start md:[grid-template-columns:auto_minmax(0,1fr)]">
+  <aside class="hidden md:flex md:flex-col md:sticky md:top-[18px] md:h-[calc(100vh-36px)] md:rounded-[18px] md:border md:border-[#ededea] md:bg-white md:py-5 md:w-[240px] md:px-3">
+    <div class="px-3 pb-4 text-[18px] font-bold tracking-wide">LUVIANO</div>
+    <nav class="flex flex-col gap-1 text-[14px] text-[#494743]">
+      <span class="rounded-xl px-3 py-2.5">Dziś</span><span class="rounded-xl px-3 py-2.5">Zlecenia</span><span class="rounded-xl px-3 py-2.5">Klienci</span><span class="rounded-xl px-3 py-2.5">Finanse</span>
+      <span class="rounded-xl px-3 py-2.5 bg-[#fbf5ed] font-semibold text-[#7d5530]">Więcej › Kalkulator</span>
+    </nav>
+  </aside>
+  <div class="flex flex-col min-w-0">
+  <main class="flex flex-1 flex-col px-4 py-5 sm:px-6 lg:px-8">
+  <div class="w-full max-w-[1200px] mx-auto flex flex-col gap-5">
+  <div class="mx-auto flex w-full max-w-[640px] flex-col gap-5 xl:max-w-none">
+    <h1 class="text-2xl">← Kalkulator</h1>
+    <div class="mb-3 rounded-xl border border-[#f1e5d2] bg-[#faf5e9] px-3.5 py-2.5 flex items-baseline justify-between gap-3">
+      <div class="min-w-0"><p class="text-xs uppercase tracking-wide font-semibold text-[#6f6c66]">Wycena dla zlecenia</p>
+      <p class="text-sm font-medium truncate">Kuchnia na wymiar — przykład</p><p class="text-xs text-[#6f6c66] truncate">Jan Kowalski (dane przykładowe)</p></div>
+      <span class="shrink-0 text-xs font-medium text-[#a06f3f]">← do zlecenia</span></div>
+
+    <div class="flex flex-col gap-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6">
+      <div class="flex min-w-0 flex-col gap-5">
+        <section class="flex flex-col gap-3"><h2 class="text-sm font-semibold">Tryb rozliczenia</h2>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="rounded-lg border p-3 text-left border-[#a06f3f] bg-zinc-50"><div class="text-sm font-medium">Z fakturą</div><div class="text-xs text-zinc-600">VAT, PIT, ZUS</div></button>
+            <button class="rounded-lg border p-3 text-left border-zinc-200 bg-white"><div class="text-sm font-medium">Bez faktury</div><div class="text-xs text-zinc-600">kasa do ręki</div></button>
+          </div></section>
+        <section class="flex flex-col gap-3"><h2 class="text-sm font-semibold">Kwota zlecenia</h2>
+          <label class="flex flex-col gap-1.5"><span class="text-xs text-zinc-600">Kwota brutto (PLN)</span><input class="input" value="48 000"></label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex flex-col gap-1.5"><span class="text-xs text-zinc-600">Stawka VAT (%)</span><select class="input"><option>23%</option></select></label>
+            <label class="flex flex-col gap-1.5"><span class="text-xs text-zinc-600">VAT-owiec</span><span class="flex items-center gap-2 h-11 px-3 rounded-lg border border-zinc-200 bg-white"><input type="checkbox" checked class="h-5 w-5 shrink-0 accent-[#a06f3f]"><span class="text-sm">Tak</span></span></label>
+          </div></section>
+        <section class="flex flex-col gap-3"><h2 class="text-sm font-semibold">Koszty</h2>
+          <label class="flex items-center gap-2 text-xs text-zinc-700 select-none min-h-11 mt-1"><input type="checkbox" checked class="h-5 w-5 shrink-0 accent-[#a06f3f]"><span>Rozpisz koszty po pozycjach (BOM)</span></label>
+          <div class="rounded-lg border border-zinc-200 bg-white p-3 space-y-2">
+            <div class="flex gap-2 items-start"><div class="flex-1 min-w-0"><input class="input" value="Płyty i okleiny"></div><div class="w-28 shrink-0"><input class="input text-right" value="9 200"></div><button class="h-11 w-11 shrink-0 rounded-lg border border-zinc-200 text-zinc-600">×</button></div>
+            <div class="flex gap-2 items-start"><div class="flex-1 min-w-0"><input class="input" value="Okucia Blum / Hettich"></div><div class="w-28 shrink-0"><input class="input text-right" value="6 400"></div><button class="h-11 w-11 shrink-0 rounded-lg border border-zinc-200 text-zinc-600">×</button></div>
+            <button class="w-full rounded-lg border border-dashed border-zinc-300 text-sm py-2 text-zinc-600">+ Dodaj pozycję</button>
+          </div></section>
+        <section class="flex flex-col gap-3"><h2 class="text-sm font-semibold">Czas pracy i cel zarobku</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex flex-col gap-1.5"><span class="text-xs text-zinc-600">Godziny pracy</span><input class="input" value="225"></label>
+            <label class="flex flex-col gap-1.5"><span class="text-xs text-zinc-600">Cel na rękę (zł/h)</span><input class="input" value="100"></label></div>
+          <div class="flex flex-wrap gap-1.5">
+            <button class="rounded-lg border px-3 py-2 text-xs tabular-nums border-[#a06f3f] bg-[#a06f3f] text-white font-medium">80 zł/h</button>
+            <button class="rounded-lg border px-3 py-2 text-xs tabular-nums border-zinc-200 bg-white text-zinc-600">100 zł/h</button>
+            <button class="rounded-lg border px-3 py-2 text-xs tabular-nums border-zinc-200 bg-white text-zinc-600">120 zł/h</button></div>
+          <label class="flex items-center gap-2 text-sm text-zinc-700 select-none min-h-11"><input type="checkbox" checked class="h-5 w-5 shrink-0 accent-[#a06f3f]"><span>Rezerwa na urlop</span></label>
+          <label class="flex items-center gap-2 text-sm text-zinc-700 select-none min-h-11"><input type="checkbox" class="h-5 w-5 shrink-0 accent-[#a06f3f]"><span>Rezerwa na L4</span></label>
+        </section>
+      </div>
+
+      <div class="flex min-w-0 flex-col gap-5 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1">
+        <section class="space-y-3"><div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p class="text-xs font-medium uppercase tracking-wide text-emerald-700">Na czysto (po VAT, PIT, ZUS)</p>
+          <p class="text-3xl font-bold tabular-nums text-emerald-900 mt-1">21 340,00 zł</p>
+          <p class="text-xs text-emerald-800 mt-1">wartości przykładowe — nie są wynikiem obliczeń</p></div></section>
+        <section class="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+          <div class="px-4 py-3 border-b border-zinc-200 bg-zinc-50"><p class="text-xs font-medium uppercase tracking-wide text-zinc-600">Rentowność zlecenia · prognoza</p>
+            <p class="text-sm font-semibold mt-0.5">Poniżej celu: 94,84 zł/h na rękę <span class="font-normal text-zinc-600">· cel 100 zł/h · minimum 80 zł/h</span></p></div>
+          <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-zinc-100"><span class="text-sm text-zinc-700">Cena brutto</span><span class="tabular-nums font-medium">48 000,00 zł</span></div>
+          <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-zinc-100"><span class="text-sm text-zinc-600">Netto (bez VAT)</span><span class="tabular-nums font-medium">39 024,39 zł</span></div>
+          <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-zinc-100 bg-zinc-50"><span class="text-sm text-zinc-700">Na rękę (po podatkach, ZUS, warsztacie)</span><span class="tabular-nums text-base font-semibold">21 340,00 zł</span></div>
+          <div class="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-zinc-600 bg-zinc-50 border-b border-zinc-100">Cel</div>
+          <div class="flex items-center justify-between gap-3 px-4 py-3"><span class="text-sm text-zinc-700">Cel na rękę (100 zł/h × 225 h)</span><span class="tabular-nums font-medium">22 500,00 zł</span></div>
+        </section>
+        <div class="rounded-xl border border-[#ededea] bg-white p-3 flex flex-col gap-2">
+          <button class="w-full inline-flex items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white bg-[#a06f3f]"><span>Przenieś wycenę do zlecenia</span><span>→</span></button>
+          <div class="text-xs text-[#6f6c66] space-y-0.5"><div class="flex justify-between"><span>Kwota zlecenia</span><span class="tabular-nums text-[#3a3633] font-medium">48 000,00 zł</span></div><div class="flex justify-between"><span>Koszty</span><span class="tabular-nums">15 600,00 zł</span></div></div>
+          <p class="text-xs text-[#6f6c66]">Ta wycena pojawi się na karcie zlecenia 1:1.</p></div>
+        <p class="text-xs text-zinc-600 text-center">To prognoza, nie porada podatkowa.</p>
+      </div>
+    </div>
+  </div></div></main></div></div>
+<style>.input{width:100%;height:44px;padding:0 12px;border-radius:.5rem;border:1px solid #e4e4e7;background:#fff;font-size:16px}</style>
+</body></html>

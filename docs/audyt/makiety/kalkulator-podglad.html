@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kalkulator — podgląd pion / poziom</title>
+<style>
+  body{margin:0;background:#d9d8d4;font:14px system-ui,sans-serif;color:#1f1d1b}
+  header{padding:14px 20px;background:#282624;color:#fff}
+  header p{margin:4px 0 0;font-size:13px;color:#d8d7d3}
+  .tabs{display:flex;gap:8px;padding:12px 20px}
+  button{font:inherit;padding:10px 16px;border-radius:10px;border:1px solid #bbb;background:#fff;cursor:pointer}
+  button.on{background:#a06f3f;color:#fff;border-color:#a06f3f}
+  .stage{padding:0 20px 30px;overflow:auto}
+  .frame{transform-origin:top left;border:10px solid #282624;border-radius:22px;background:#fff;display:block}
+  .note{padding:0 20px 8px;font-size:13px;color:#4a4843}
+</style></head><body>
+<header><strong>Podgląd układu kalkulatora LUVIANO</strong>
+<p>Makieta ze stylami projektu i danymi przykładowymi — bez bazy, bez logowania, bez obliczeń. Sprawdza tylko układ.</p></header>
+<div class="tabs">
+  <button data-w="1032" data-h="1376" class="on">iPad Pro 13" — pion (1032×1376)</button>
+  <button data-w="1376" data-h="1032">iPad Pro 13" — poziom (1376×1032)</button>
+  <button data-w="390" data-h="844">Telefon (390×844)</button>
+</div>
+<p class="note" id="note"></p>
+<div class="stage"><iframe id="f" class="frame" src="kalkulator-podglad-app.html" title="podgląd"></iframe></div>
+<script>
+const f=document.getElementById('f'),note=document.getElementById('note');
+function show(w,h){
+  const avail=Math.min(window.innerWidth-60,1500), s=Math.min(1,avail/(w+20));
+  f.style.width=w+'px';f.style.height=h+'px';f.style.transform='scale('+s+')';
+  f.parentElement.style.height=((h+20)*s+10)+'px';
+  note.textContent='Szerokość '+w+' px, skala podglądu '+Math.round(s*100)+'%. '+(w>=1280?'Układ dwukolumnowy (od 1280 px).':'Układ jednokolumnowy.');
+}
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');show(+b.dataset.w,+b.dataset.h);});
+window.onresize=()=>{const b=document.querySelector('button.on');show(+b.dataset.w,+b.dataset.h)};
+show(1032,1376);
+</script></body></html>

@@ -13,15 +13,19 @@ function lineWidth(text: string, s: number): number {
   return measureCtx.measureText(text).width;
 }
 
-/** Prostokąt zajmowany przez tekst (bez marginesu tła), w pikselach obrazu. */
-export function textBox(m: TextMark): { x: number; y: number; w: number; h: number } {
+/** Rozmiar tekstu przed obrotem. */
+function flatSize(m: Pick<TextMark, "text" | "s">): { w: number; h: number } {
   const lines = m.text.split("\n");
   return {
-    x: m.x,
-    y: m.y,
     w: Math.max(...lines.map((l) => lineWidth(l, m.s)), m.s * 0.5),
     h: lines.length * m.s * LINE_HEIGHT,
   };
+}
+
+/** Widoczny prostokąt tekstu (bez marginesu tła), w pikselach obrazu; dla pionowego — po obrocie. */
+export function textBox(m: Pick<TextMark, "text" | "s" | "x" | "y" | "v">): { x: number; y: number; w: number; h: number } {
+  const f = flatSize(m);
+  return m.v ? { x: m.x, y: m.y, w: f.h, h: f.w } : { x: m.x, y: m.y, ...f };
 }
 
 function segDist(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
@@ -55,18 +59,21 @@ function Mark({ m }: { m: FileMark }) {
     return <line x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} stroke={m.c} strokeWidth={m.w} strokeLinecap="round" />;
   }
   const b = textBox(m);
+  const f = flatSize(m);
   const pad = m.s * 0.22;
+  // Rysujemy w układzie nieobróconym; pionowy tekst obracamy o -90° wokół środka prostokąta.
+  const transform = m.v ? `translate(${b.x + b.w / 2} ${b.y + b.h / 2}) rotate(-90) translate(${-f.w / 2} ${-f.h / 2})` : `translate(${b.x} ${b.y})`;
   return (
-    <g>
+    <g transform={transform}>
       {m.bg && (
         <rect
-          x={b.x - pad}
-          y={b.y - pad}
-          width={b.w + 2 * pad}
-          height={b.h + 2 * pad}
+          x={-pad}
+          y={-pad}
+          width={f.w + 2 * pad}
+          height={f.h + 2 * pad}
           rx={pad}
           fill="#ffffff"
-          fillOpacity={0.95}
+          fillOpacity={0.97}
           stroke={m.c}
           strokeWidth={m.s * 0.05}
         />
@@ -74,8 +81,8 @@ function Mark({ m }: { m: FileMark }) {
       {m.text.split("\n").map((line, i) => (
         <text
           key={i}
-          x={m.x}
-          y={m.y + i * m.s * LINE_HEIGHT + m.s * 0.92}
+          x={0}
+          y={i * m.s * LINE_HEIGHT + m.s * 0.92}
           fontSize={m.s}
           fontWeight={700}
           fontFamily={FONT}

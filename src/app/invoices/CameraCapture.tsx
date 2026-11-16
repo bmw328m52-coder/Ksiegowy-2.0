@@ -5,9 +5,13 @@ import { useEffect, useRef, useState } from "react";
 type Props = {
   onCapture: (file: File) => void;
   onClose: () => void;
+  /** Tryb serii: aparat zostaje otwarty po każdym zdjęciu, a licznik pokazuje ile zrobiono. */
+  multi?: boolean;
+  shots?: number;
 };
 
-export default function CameraCapture({ onCapture, onClose }: Props) {
+export default function CameraCapture({ onCapture, onClose, multi = false, shots = 0 }: Props) {
+  const [flash, setFlash] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
@@ -141,6 +145,12 @@ export default function CameraCapture({ onCapture, onClose }: Props) {
     }
     const file = new File([blob], `faktura-${Date.now()}.jpg`, { type: blob.type || "image/jpeg" });
     onCapture(file);
+    if (multi) {
+      setFlash(true);
+      setTimeout(() => setFlash(false), 140);
+      if (navigator.vibrate) navigator.vibrate(30);
+      setBusy(false);
+    }
   };
 
   return (
@@ -168,6 +178,18 @@ export default function CameraCapture({ onCapture, onClose }: Props) {
             autoPlay
             className="absolute inset-0 w-full h-full object-cover bg-black"
           />
+          {multi && (
+            <div
+              className="absolute left-0 right-0 top-0 flex flex-col items-center gap-1 px-4 pt-4 text-center text-white bg-gradient-to-b from-black/70 to-transparent"
+              style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)", paddingBottom: 24 }}
+            >
+              <p className="text-sm font-semibold">
+                {shots === 0 ? "Połóż dokument płasko i zrób zdjęcie" : `Zrobiono: ${shots}. Kolejny dokument lub „Gotowe”`}
+              </p>
+              <p className="text-xs opacity-80">Cały dokument w kadrze, NIP i suma czytelne</p>
+            </div>
+          )}
+          {flash && <div className="absolute inset-0 bg-white/70 pointer-events-none" />}
           <div
             className="absolute left-0 right-0 bottom-0 flex justify-between items-center px-8 pt-6 gap-4 bg-gradient-to-t from-black/80 to-transparent"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
@@ -177,7 +199,7 @@ export default function CameraCapture({ onCapture, onClose }: Props) {
               onClick={onClose}
               className="text-white text-base font-medium px-3 py-2"
             >
-              Anuluj
+              {multi && shots > 0 ? `Gotowe (${shots})` : "Anuluj"}
             </button>
             <button
               type="button"

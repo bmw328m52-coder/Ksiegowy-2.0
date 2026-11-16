@@ -8,8 +8,21 @@ import {
   type AccountingStatus,
 } from "@/lib/dao/invoices.types";
 import { fmtPLN, fmtDate } from "@/lib/format";
-import { setAccountingStatusAction, setPaymentStatusAction } from "../actions";
+import { markScannedPaidAction, setAccountingStatusAction, setPaymentStatusAction } from "../actions";
 import ExportMonthCard from "@/app/invoices/ExportMonthCard";
+import { createClient } from "@/lib/supabase/server";
+import SendToIng, { type IngDoc } from "./SendToIng";
+
+function slug(v: string): string {
+  return (
+    v
+      .normalize("NFKD")
+      .replace(/[^\w\s.-]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 40) || "dokument"
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Księgowość ING" };
@@ -53,9 +66,48 @@ export default async function KsiegowoscPage({
     .filter((i) => i.accounting_status === "not_sent" || i.accounting_status === "ready")
     .reduce((a, i) => a + (Number(i.amount_gross) || 0), 0);
 
+  const unpaidScanned = all.filter((i) => i.payment_status !== "paid" && !i.ksef_number);
+
+  // Dokumenty do wgrania do ING: ze skanera/zdjęcia/PDF (nie z KSeF), jeszcze nieprzekazane.
+  const toUpload = all.filter(
+    (i) =>
+      (i.accounting_status === "not_sent" || i.accounting_status === "ready") &&
+      !i.ksef_number &&
+      i.doc_source !== "ksef" &&
+      !!i.file_path
+  );
+  let ingDocs: IngDoc[] = [];
+  if (toUpload.length > 0) {
+    const supabase = await createClient();
+    const { data: signed } = await supabase.storage
+      .from("invoices")
+      .createSignedUrls(
+        toUpload.map((i) => i.file_path),
+        3600
+      );
+    const urlByPath = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
+    ingDocs = toUpload
+      .filter((i) => urlByPath.get(i.file_path))
+      .map((i) => {
+        const raw = i.ocr_raw as { document_type?: string; buyer_nip?: string | null } | null;
+        const ext = i.file_path.split(".").pop() || "jpg";
+        const gross = Number(i.amount_gross) || 0;
+        return {
+          id: i.id,
+          filename: `${i.issue_date ?? "bez-daty"}_${slug(i.supplier_name ?? "dokument")}_${gross.toFixed(2).replace(".", "-")}_${i.id.slice(0, 4)}.${ext}`,
+          url: urlByPath.get(i.file_path)!,
+          supplier: i.supplier_name ?? "Dokument bez sprzedawcy",
+          date: i.issue_date,
+          gross,
+          kind: raw?.document_type === "paragon" || i.doc_source === "receipt" ? "paragon" : raw?.document_type === "inne" ? "inne" : "faktura",
+          buyerNip: !!raw?.buyer_nip,
+        } satisfies IngDoc;
+      });
+  }
+
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md mx-auto space-y-4">
+      <div className="w-full max-w-3xl mx-auto space-y-4">
         <PageHeader title="Księgowość ING" back={{ href: "/finanse" }} />
 
         <section className="rounded-2xl border border-[#ededea] bg-white p-4">
@@ -70,6 +122,22 @@ export default async function KsiegowoscPage({
             </Money>
           </div>
         </section>
+
+        {unpaidScanned.length > 0 && (
+          <section className="lv-card lc-box lg-box">
+            <p className="text-sm">
+              <b>{unpaidScanned.length}</b> {unpaidScanned.length === 1 ? "dokument ze skanera ma" : "dokumentów ze skanera ma"} status
+              „niezapłacone”. Nowe skany są teraz od razu zapłacone.
+            </p>
+            <form action={markScannedPaidAction} className="mt-3">
+              <button type="submit" className="ls-cta">
+                Oznacz wszystkie jako zapłacone
+              </button>
+            </form>
+          </section>
+        )}
+
+        <SendToIng docs={ingDocs} />
 
         <ExportMonthCard />
 

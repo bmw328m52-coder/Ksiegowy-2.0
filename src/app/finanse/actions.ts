@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  markScannedInvoicesPaid,
   setInvoiceAccountingStatus,
   setInvoicePayment,
 } from "@/lib/dao/invoices";
@@ -23,6 +24,23 @@ export async function setAccountingStatusAction(formData: FormData) {
   revalidatePath("/finanse/ksiegowosc");
   revalidatePath("/finanse");
   revalidatePath(`/invoices/${id}`);
+}
+
+/** Po wgraniu paczki do ING: oznacza zaznaczone dokumenty jako przekazane („W ING”). */
+export async function markSentToIngAction(ids: string[]) {
+  const clean = ids.filter((x) => typeof x === "string" && x.length > 0).slice(0, 200);
+  for (const id of clean) await setInvoiceAccountingStatus(id, "entered");
+  revalidatePath("/finanse/ksiegowosc");
+  revalidatePath("/finanse");
+  revalidatePath("/invoices");
+}
+
+/** Wszystkie dokumenty spoza KSeF, które mają status „niezapłacone”, oznacza jako zapłacone. */
+export async function markScannedPaidAction() {
+  await markScannedInvoicesPaid();
+  revalidatePath("/finanse/ksiegowosc");
+  revalidatePath("/finanse");
+  revalidatePath("/invoices");
 }
 
 export async function setPaymentStatusAction(formData: FormData) {

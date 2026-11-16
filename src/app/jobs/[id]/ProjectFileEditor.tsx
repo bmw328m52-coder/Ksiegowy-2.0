@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FileMark, JobFile, TextMark } from "@/lib/dao/job_files.types";
-import { MarksLayer, markHit } from "./FileMarks";
+import { MarksLayer, markHit, textBox } from "./FileMarks";
 import { saveJobFileMarksAction } from "./fileActions";
 import { clearLocalMarks, writeLocalMarks } from "./fileStore";
 
@@ -10,7 +10,8 @@ type Tool = "pan" | "pen" | "line" | "text" | "erase";
 type View = { x: number; y: number; k: number };
 type Pt = { x: number; y: number };
 type SaveState = "saved" | "saving" | "offline";
-type TextDraft = { id: string | null; x: number; y: number; text: string; bg: boolean };
+// Nowy tekst: (x,y) = środek, w który stuknięto; istniejący: lewy górny róg.
+type TextDraft = { id: string | null; x: number; y: number; text: string; bg: boolean; v: boolean };
 
 type Gesture =
   | { kind: "pan"; sx: number; sy: number; view: View }
@@ -38,12 +39,14 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 export default function ProjectFileEditor({
   file,
   src,
+  initialTool = "pan",
   onMarks,
   onClose,
   onDelete,
 }: {
   file: JobFile;
   src: string;
+  initialTool?: Tool;
   onMarks: (id: string, marks: FileMark[]) => void;
   onClose: () => void;
   onDelete: (id: string) => void;
@@ -55,9 +58,9 @@ export default function ProjectFileEditor({
   const [marks, setMarks] = useState<FileMark[]>(file.marks);
   const [undo, setUndo] = useState<FileMark[][]>([]);
   const [draft, setDraft] = useState<FileMark | null>(null);
-  const [tool, setTool] = useState<Tool>("pan");
+  const [tool, setTool] = useState<Tool>(initialTool);
   const [color, setColor] = useState(COLORS[0]);
-  const [size, setSize] = useState(1);
+  const [size, setSize] = useState(0);
   const [view, setView] = useState<View | null>(null);
   const [textDraft, setTextDraft] = useState<TextDraft | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -69,7 +72,9 @@ export default function ProjectFileEditor({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const penWidth = (longEdge / 900) * [1, 2, 4][size];
-  const textSize = (longEdge / 90) * [1, 1.5, 2.3][size];
+  // S ≈ pismo wymiarów z PRO100, żeby nowy wymiar przykrył stary i nie sąsiednie.
+  const textSize = (longEdge / 160) * [1, 1.5, 2.3][size];
+  const lastVertical = useRef(false);
 
   const fitView = (sw: number, sh: number): View => {
     const k = Math.min(sw / W, sh / H) * 0.98;
@@ -288,8 +293,8 @@ export default function ProjectFileEditor({
       const hit = [...marks].reverse().find((m): m is TextMark => m.t === "text" && markHit(m, p.x, p.y, hitTol(view)));
       setTextDraft(
         hit
-          ? { id: hit.id, x: hit.x, y: hit.y, text: hit.text, bg: hit.bg }
-          : { id: null, x: r1(p.x), y: r1(p.y - textSize / 2), text: "", bg: true },
+          ? { id: hit.id, x: hit.x, y: hit.y, text: hit.text, bg: hit.bg, v: !!hit.v }
+          : { id: null, x: r1(p.x), y: r1(p.y), text: "", bg: true, v: lastVertical.current },
       );
     }
   }
@@ -307,14 +312,25 @@ export default function ProjectFileEditor({
     const text = textDraft.text.trim();
     if (textDraft.id) {
       const next = text
-        ? marks.map((m) => (m.id === textDraft.id && m.t === "text" ? { ...m, text, bg: textDraft.bg } : m))
+        ? marks.map((m) => {
+            if (m.id !== textDraft.id || m.t !== "text") return m;
+            // Zmiana pozycji/pionu zachowuje środek napisu.
+            const before = textBox(m);
+            const upd = { ...m, text, bg: textDraft.bg, v: textDraft.v || undefined };
+            const after = textBox(upd);
+            return {
+              ...upd,
+              x: r1(before.x + before.w / 2 - after.w / 2),
+              y: r1(before.y + before.h / 2 - after.h / 2),
+            };
+          })
         : marks.filter((m) => m.id !== textDraft.id);
       commit(next);
     } else if (text) {
-      commit([
-        ...marks,
-        { id: newId(), t: "text", c: color, s: r1(textSize), x: textDraft.x, y: textDraft.y, text, bg: textDraft.bg },
-      ]);
+      lastVertical.current = textDraft.v;
+      const m: TextMark = { id: newId(), t: "text", c: color, s: r1(textSize), x: 0, y: 0, text, bg: textDraft.bg, ...(textDraft.v ? { v: true } : {}) };
+      const b = textBox(m);
+      commit([...marks, { ...m, x: r1(textDraft.x - b.w / 2), y: r1(textDraft.y - b.h / 2) }]);
     }
     setTextDraft(null);
   }
@@ -400,7 +416,7 @@ export default function ProjectFileEditor({
             onPointerDown={(e) => e.stopPropagation()}
           >
             <p className="mb-1.5 text-xs font-semibold text-[#6f6c66]">
-              {textDraft.id ? "Popraw tekst" : "Nowy wymiar / notatka"}
+              {textDraft.id ? "Popraw tekst" : "Nowy wymiar — stuknij w stary numer"}
             </p>
             <textarea
               autoFocus
@@ -417,6 +433,14 @@ export default function ProjectFileEditor({
               placeholder="np. 2345"
               className="w-full select-text rounded-lg border border-zinc-300 px-3 py-2 text-base outline-none focus:border-[#a06f3f]"
             />
+            <label className="mt-2 flex items-center gap-2 text-xs text-[#6f6c66]">
+              <input
+                type="checkbox"
+                checked={textDraft.v}
+                onChange={(e) => setTextDraft({ ...textDraft, v: e.target.checked })}
+              />
+              Pionowo (wymiar pionowy)
+            </label>
             <label className="mt-2 flex items-center gap-2 text-xs text-[#6f6c66]">
               <input
                 type="checkbox"

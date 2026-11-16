@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LUVIANO — kafelek rentowności, kolory</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Inter, system-ui, sans-serif;
+    background: #e9e9e7;
+    color: #2a2620;
+    padding: 20px 14px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 19px; text-align: center; margin-bottom: 4px; letter-spacing: .3px; }
+  .sub { text-align: center; font-size: 12.5px; color: #6b665e; margin-bottom: 22px; line-height:1.4; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; max-width: 1220px; margin: 0 auto; }
+  .wrap { display: flex; flex-direction: column; gap: 7px; }
+  .name { font-size: 13.5px; font-weight: 700; text-align: center; }
+  .mood { font-size: 11px; color: #6b665e; text-align: center; margin-top: -3px; }
+  /* Baza: Śnieżna biel */
+  .phone {
+    border-radius: 24px; padding: 15px 13px 13px; box-shadow: 0 8px 26px rgba(0,0,0,.16);
+    aspect-ratio: 9/16.5; display: flex; flex-direction: column; gap: 11px; overflow: hidden;
+    background: #fbfbfa; color: #1f1d1b; border: 1px solid #ededea;
+  }
+  .brand { text-align: center; margin-top: 3px; }
+  .brand .lv { font-size: 21px; font-weight: 800; letter-spacing: 3px; color: #a06f3f; }
+  .brand .mf { font-size: 8.5px; letter-spacing: 4px; text-transform: uppercase; color: #8d8a85; margin-top: 3px; }
+  .row { display: flex; gap: 9px; }
+  .card { background: #ffffff; border: 1px solid #ededea; border-radius: 13px; padding: 10px 11px; flex: 1; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .card .lab { font-size: 9.5px; color: #8d8a85; text-transform: uppercase; letter-spacing: .5px; }
+  .card .val { font-size: 16px; font-weight: 700; margin-top: 4px; }
+  /* Kafelek rentowności — kolory ze zmiennych */
+  .card.rent { background: var(--rbg); border-color: var(--rline); }
+  .card.rent .lab { color: var(--rlab); }
+  .card.rent .val { color: var(--rval); }
+  .pill { display:inline-block; font-size:9.5px; font-weight:600; background: var(--rpill); color: var(--rpilltext); padding: 3px 9px; border-radius: 999px; margin-top:6px; }
+  .list .item { display:flex; justify-content:space-between; align-items:center; padding: 8px 2px; font-size: 11.5px; border-bottom: 1px solid #ededea; }
+  .list .item:last-child { border-bottom: 0; }
+  .dot { width: 7px; height: 7px; border-radius: 999px; background: #a06f3f; display:inline-block; margin-right:6px; }
+  .nav { margin-top: auto; display:flex; justify-content: space-around; background: #ffffff; border: 1px solid #ededea; border-radius: 13px; padding: 8px 0; font-size: 8.5px; color: #8d8a85; }
+  .nav b { color: #a06f3f; font-weight: 700; }
+  .hex { font-size: 9.5px; color: #8a857c; text-align: center; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+  <h1>LUVIANO — kolor kafelka „Rentowność"</h1>
+  <div class="sub">Tło apki takie samo (Śnieżna biel #2). Zmienia się tylko wyróżniony kafelek.<br>Napisz mi literę.</div>
+  <div class="grid" id="grid"></div>
+
+<script>
+const variants = [
+  { key:"A", name:"A · Złoto (jak teraz)", mood:"spójne z akcentem",
+    rbg:"#fbf5ed", rline:"#ecdcc5", rlab:"#8d8a85", rval:"#a06f3f", rpill:"#a06f3f", rpilltext:"#fff" },
+  { key:"B", name:"B · Miętowa zieleń", mood:"zysk / na plus",
+    rbg:"#eef6f0", rline:"#cfe6d6", rlab:"#6f8a79", rval:"#3f8a64", rpill:"#3f8a64", rpilltext:"#fff" },
+  { key:"C", name:"C · Chłodny błękit", mood:"spokojny, nowoczesny",
+    rbg:"#eef3f8", rline:"#cfe0ee", rlab:"#728295", rval:"#3a648f", rpill:"#3a648f", rpilltext:"#fff" },
+  { key:"D", name:"D · Grafit (ciemny)", mood:"premium, złoto świeci",
+    rbg:"#242220", rline:"#242220", rlab:"#b7ad9f", rval:"#d0a765", rpill:"#a06f3f", rpilltext:"#fff" },
+  { key:"E", name:"E · Czysta biel", mood:"minimal, sama ramka",
+    rbg:"#ffffff", rline:"#a06f3f", rlab:"#8d8a85", rval:"#a06f3f", rpill:"#a06f3f", rpilltext:"#fff" },
+  { key:"F", name:"F · Ciepły piasek", mood:"delikatne, przytulne",
+    rbg:"#f7f0e6", rline:"#e8d9c1", rlab:"#948b7c", rval:"#8a5f34", rpill:"#8a5f34", rpilltext:"#fff" },
+];
+
+const grid = document.getElementById("grid");
+for (const v of variants) {
+  const wrap = document.createElement("div");
+  wrap.className = "wrap";
+  wrap.innerHTML = `
+    <div class="name">${v.name}</div>
+    <div class="mood">${v.mood}</div>
+    <div class="phone" style="
+      --rbg:${v.rbg}; --rline:${v.rline}; --rlab:${v.rlab}; --rval:${v.rval};
+      --rpill:${v.rpill}; --rpilltext:${v.rpilltext};">
+      <div class="brand"><div class="lv">LV&nbsp;LUVIANO</div><div class="mf">Manager firmy</div></div>
+      <div class="row">
+        <div class="card"><div class="lab">Faktury</div><div class="val">1 240 zł</div></div>
+        <div class="card"><div class="lab">Klienci</div><div class="val">12</div></div>
+      </div>
+      <div class="card rent">
+        <div class="lab">Rentowność — Kuchnia Kowalscy</div>
+        <div class="val">+43,5 %</div>
+        <span class="pill">marża OK</span>
+      </div>
+      <div class="card list">
+        <div class="item"><span><span class="dot"></span>Pomiar — Nowak</span><span>pt</span></div>
+        <div class="item"><span><span class="dot"></span>Wycena — Zielińscy</span><span>wt</span></div>
+        <div class="item"><span><span class="dot"></span>VAT do zapłaty</span><span>25.—</span></div>
+      </div>
+      <div class="nav"><span><b>Start</b></span><span>Zlecenia</span><span>Finanse</span><span>Więcej</span></div>
+    </div>
+    <div class="hex">kafelek: ${v.rbg}</div>
+  `;
+  grid.appendChild(wrap);
+}
+</script>
+</body>
+</html>

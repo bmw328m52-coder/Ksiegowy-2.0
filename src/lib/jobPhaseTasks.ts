@@ -34,7 +34,7 @@ export function getPhaseCard(ctx: PhaseContext): PhaseCard | null {
               ctx.scanCount > 0
                 ? `${ctx.scanCount} ${ctx.scanCount === 1 ? "skan" : "skanów"}`
                 : undefined,
-            href: "#skan",
+            href: `/jobs/${ctx.jobId}?faza=pomiar#skan`,
             actionLabel: "Skanuj",
           },
           {
@@ -56,7 +56,7 @@ export function getPhaseCard(ctx: PhaseContext): PhaseCard | null {
             label: "Cena ze skanu",
             state: st(ctx.scanCount > 0),
             meta: ctx.scanCount > 0 ? "gotowa" : undefined,
-            href: "#skan",
+            href: `/jobs/${ctx.jobId}?faza=pomiar#skan`,
             actionLabel: "Otwórz",
           },
           {
@@ -85,7 +85,7 @@ export function getPhaseCard(ctx: PhaseContext): PhaseCard | null {
             label: "Zaliczka",
             state: st(ctx.depositAmount > 0),
             meta: ctx.depositAmount > 0 ? fmtPLN(ctx.depositAmount) : undefined,
-            href: "#plan",
+            href: `/jobs/${ctx.jobId}?faza=finanse#plan`,
             actionLabel: "Dodaj",
           },
         ],
@@ -138,7 +138,7 @@ export function getPhaseCard(ctx: PhaseContext): PhaseCard | null {
             label: "Faktura",
             state: st(ctx.invoiced),
             meta: ctx.invoiced && ctx.invoiceNumber ? ctx.invoiceNumber : undefined,
-            href: "#faktura",
+            href: `/jobs/${ctx.jobId}?faza=finanse#faktura`,
             actionLabel: "Wystaw",
           },
           {
