@@ -52,7 +52,7 @@ Schema:
   "amount_vat": number | null,
   "amount_gross": number | null,
   "vat_rate": number | null,
-  "category": "płyty/drewno" | "okucia" | "materiały" | "narzędzia" | "usługi" | "transport" | "paliwo" | "biuro" | "inne" | null,
+  "category": "płyty/drewno" | "okucia" | "materiały" | "narzędzia" | "usługi" | "transport" | "paliwo" | "samochód" | "biuro" | "inne" | null,
   "line_items": [
     { "description": string, "amount_net": number | null, "amount_vat": number | null, "amount_gross": number, "vat_rate": number | null }
   ]
@@ -86,6 +86,7 @@ category (kontekst: produkcja mebli):
   · "narzędzia": elektronarzędzia, ostrza, frezy, tarcze, akcesoria warsztatowe.
   · "transport": kurier, przewóz, dostawa.
   · "paliwo": stacje benzynowe (Orlen/Shell/BP/Lotos/Circle K/MOL/Moya).
+  · "samochód": eksploatacja auta poza paliwem: opony, wulkanizacja, serwis, części i akcesoria samochodowe, mycie, płyny eksploatacyjne, wymiana oleju.
   · "biuro": papier, druk, internet, telefon, kasy fiskalne, oprogramowanie.
   · "usługi": podwykonawcy, lakiernia zewnętrzna, cięcie na CNC, montaż.
   · "materiały": wyłącznie gdy nie pasuje "płyty/drewno" ani "okucia" (np. taśmy, materiały eksploatacyjne, chemia, artykuły z marketu budowlanego).

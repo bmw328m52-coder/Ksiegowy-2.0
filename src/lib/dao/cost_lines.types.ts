@@ -28,19 +28,24 @@ export const VAT_DEDUCTION_LABELS: Record<VatDeduction, string> = {
   0: "Nie odliczam",
 };
 
+/** Wydatki na samochód z umowy użyczenia: paliwo oraz eksploatacja (opony, wulkanizacja, serwis, mycie). */
+export function isVehicleCategory(category: string | null | undefined): boolean {
+  return category === "paliwo" || category === "samochód";
+}
+
 // Kategorie kosztów samochodowych → domyślnie 50% VAT do odliczenia.
 export function suggestedVatDeduction(category: string | null | undefined): VatDeduction {
-  return category === "paliwo" ? 50 : 100;
+  return isVehicleCategory(category) ? 50 : 100;
 }
 
 /**
  * Samochód z umowy użyczenia, użytkowany także prywatnie, bez ewidencji przebiegu:
- * w koszty PIT idzie 75% wydatku (paliwo), a VAT odliczamy w 50%.
+ * w koszty PIT idzie 75% wydatku (paliwo, eksploatacja), a VAT odliczamy w 50%.
  */
 export const VEHICLE_PIT_SHARE = 0.75;
 
 export function pitCostShare(category: string | null | undefined): number {
-  return category === "paliwo" ? VEHICLE_PIT_SHARE : 1;
+  return isVehicleCategory(category) ? VEHICLE_PIT_SHARE : 1;
 }
 
 /**
@@ -82,6 +87,7 @@ export const COST_CATEGORIES = [
   "usługi",
   "transport",
   "paliwo",
+  "samochód",
   "biuro",
   "inne",
 ] as const;
@@ -96,6 +102,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   usługi: "#15803d",
   transport: "#c2410c",
   paliwo: "#b91c1c",
+  samochód: "#be185d",
   biuro: "#9d174d",
   inne: "#71717a",
 };

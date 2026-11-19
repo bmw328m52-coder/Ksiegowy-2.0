@@ -315,6 +315,7 @@ function ChipCopy({
 export function ingCategory(category: string | null): string {
   switch (category) {
     case "paliwo":
+    case "samochód":
       return "Koszty samochodu - KUP 75%";
     case "płyty/drewno":
     case "okucia":
@@ -334,7 +335,7 @@ export function ingCategory(category: string | null): string {
 
 /** Podpowiedzi księgowe dla dokumentu: rodzaj w ING, kategoria, odliczenie VAT, udział w kosztach PIT. */
 function Accounting({ d }: { d: DeckDoc }) {
-  const car = d.category === "paliwo";
+  const car = d.category === "paliwo" || d.category === "samochód";
   const noVat = d.kind === "paragon" && !d.buyerNip;
   const vat = noVat ? 0 : d.vatDeduction;
   const rows: [string, string][] = [
