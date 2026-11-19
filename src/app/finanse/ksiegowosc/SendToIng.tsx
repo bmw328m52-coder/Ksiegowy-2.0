@@ -26,6 +26,16 @@ async function fetchFile(d: IngDoc): Promise<File> {
   return new File([blob], d.filename, { type: blob.type || "image/jpeg" });
 }
 
+type Format = "pdf" | "png" | "orig";
+
+async function fetchClean(d: IngDoc, format: "pdf" | "png"): Promise<File> {
+  const res = await fetch(`/api/invoices/clean-scan?id=${d.id}&format=${format}`);
+  if (!res.ok) throw new Error(`Obróbka nie wyszła: ${d.supplier}`);
+  const blob = await res.blob();
+  const base = d.filename.replace(/\.[^.]+$/, "");
+  return new File([blob], `${base}.${format}`, { type: format === "pdf" ? "application/pdf" : "image/png" });
+}
+
 /**
  * Jedna paczka plików dla ING Księgowość (skanowanie OCR przyjmuje wiele plików naraz: PDF/JPG/PNG/TIFF).
  * Komputer: zapis wszystkich plików do wybranego folderu jednym kliknięciem. iPad: arkusz udostępniania.
@@ -41,30 +51,42 @@ export default function SendToIng({ docs }: { docs: IngDoc[] }) {
   const chosen = docs.filter((d) => selected.has(d.id));
   const sum = chosen.reduce((a, d) => a + d.gross, 0);
 
-  // Pliki pobieramy z góry. iPad (Safari) pozwala na „Udostępnij” tylko tuż po stuknięciu,
+  // Pliki przygotowujemy z góry. iPad (Safari) pozwala na „Udostępnij” tylko tuż po stuknięciu,
   // więc przy kliknięciu nie możemy już niczego pobierać — inaczej: „request is not allowed…”.
+  const [format, setFormat] = useState<Format>("pdf");
   const cache = useRef<Map<string, File>>(new Map());
   const [ready, setReady] = useState<Set<string>>(new Set());
+  const [fallbacks, setFallbacks] = useState(0);
   const [prefetchError, setPrefetchError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      for (const d of docs) {
-        if (cancelled) return;
-        if (cache.current.has(d.id)) continue;
+    const queue = docs.filter((d) => selected.has(d.id) && !cache.current.has(`${format}:${d.id}`));
+    const worker = async () => {
+      for (;;) {
+        const d = queue.shift();
+        if (!d || cancelled) return;
+        const key = `${format}:${d.id}`;
         try {
-          cache.current.set(d.id, await fetchFile(d));
-        } catch (e) {
-          if (!cancelled) setPrefetchError(e instanceof Error ? e.message : "Nie udało się pobrać zdjęć.");
+          cache.current.set(key, format === "orig" ? await fetchFile(d) : await fetchClean(d, format));
+        } catch {
+          // Obróbka nie wyszła: wgrywamy oryginalne zdjęcie, żeby nic nie zginęło.
+          try {
+            cache.current.set(key, await fetchFile(d));
+            if (format !== "orig" && !cancelled) setFallbacks((n) => n + 1);
+          } catch (e) {
+            if (!cancelled) setPrefetchError(e instanceof Error ? e.message : "Nie udało się pobrać zdjęć.");
+          }
         }
         if (!cancelled) setReady(new Set(cache.current.keys()));
       }
-    })();
+    };
+    void Promise.all(Array.from({ length: format === "orig" ? 4 : 3 }, worker));
     return () => {
       cancelled = true;
     };
-  }, [docs]);
-  const allReady = chosen.every((d) => ready.has(d.id));
+  }, [docs, selected, format]);
+  const readyChosen = chosen.filter((d) => ready.has(`${format}:${d.id}`)).length;
+  const allReady = readyChosen === chosen.length;
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -96,7 +118,7 @@ export default function SendToIng({ docs }: { docs: IngDoc[] }) {
   const prepare = () => {
     setError(null);
     if (chosen.length === 0) return;
-    const files = chosen.map((d) => cache.current.get(d.id)).filter((f): f is File => !!f);
+    const files = chosen.map((d) => cache.current.get(`${format}:${d.id}`)).filter((f): f is File => !!f);
     if (files.length !== chosen.length) {
       setError("Zdjęcia jeszcze się pobierają. Poczekaj chwilę i stuknij ponownie.");
       return;
@@ -210,6 +232,36 @@ export default function SendToIng({ docs }: { docs: IngDoc[] }) {
 
       {phase !== "saved" && phase !== "marked" && (
         <>
+        <fieldset className="mt-3">
+          <legend className="text-[13px] font-semibold text-[#1f1d1b]">Format plików dla ING</legend>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {(
+              [
+                ["pdf", "PDF · czysty skan (zalecany)"],
+                ["png", "PNG · czysty skan"],
+                ["orig", "Oryginalne zdjęcia (JPG)"],
+              ] as [Format, string][]
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setFormat(k)}
+                aria-pressed={format === k}
+                className={`text-[13px] px-3.5 min-h-[44px] rounded-full font-semibold ${
+                  format === k ? "bg-[#a06f3f] text-white" : "bg-white border border-[#ededea] text-[#6f6c66]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {format !== "orig" && (
+            <p className="mt-1.5 text-[12px] text-[#6f6c66]">
+              Paragon wycięty z tła, szary, z podbitym kontrastem i powiększony — ING czyta takie pliki dużo lepiej niż zdjęcia.
+              {fallbacks > 0 ? ` Dla ${fallbacks} dok. obróbka się nie udała, pójdzie oryginał.` : ""}
+            </p>
+          )}
+        </fieldset>
         <button
           type="button"
           className="ls-cta lg-btn"
@@ -219,7 +271,7 @@ export default function SendToIng({ docs }: { docs: IngDoc[] }) {
           {phase === "saving"
             ? "Przygotowuję pliki…"
             : !allReady
-              ? `Pobieram zdjęcia… ${ready.size}/${docs.length}`
+              ? `${format === "orig" ? "Pobieram zdjęcia" : "Przygotowuję czyste skany"}… ${readyChosen}/${chosen.length}`
               : `Przygotuj ${chosen.length} plików dla ING`}
         </button>
         {prefetchError && <p className="ls-err mt-3">{prefetchError}</p>}
