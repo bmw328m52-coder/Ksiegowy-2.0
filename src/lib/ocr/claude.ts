@@ -20,6 +20,8 @@ export type OCRResult = {
   supplier_name: string | null;
   supplier_nip: string | null;
   invoice_number: string | null;
+  /** Nr zamówienia z paragonu (np. Action) - w ING osobne pole Numer zamówienia. */
+  order_number: string | null;
   issue_date: string | null;
   payment_due: string | null;
   amount_net: number | null;
@@ -46,6 +48,7 @@ Schema:
   "supplier_name": string | null,
   "supplier_nip": string | null,
   "invoice_number": string | null,
+  "order_number": string | null,
   "issue_date": "YYYY-MM-DD" | null,
   "payment_due": "YYYY-MM-DD" | null,
   "amount_net": number | null,
@@ -72,6 +75,7 @@ PARAGON FISKALNY:
 - document_type = "paragon". Sprzedawca to nagłówek na górze (nazwa, adres, "NIP xxx-xxx-xx-xx" sprzedawcy).
 - Jeśli na paragonie jest "NIP nabywcy" / "NIP:" w dolnej części / linia z NIP po pozycjach, to jest to NIP NABYWCY (firmy kupującej) i trafia do buyer_nip. NIP sprzedawcy nigdy nie wpisuj do buyer_nip i odwrotnie.
 - invoice_number dla paragonu, w tej kolejności: (1) "Nr wydruku" / "Nr paragonu" / "Nr transakcji"; (2) numer w formacie litera+cyfry/cyfry (np. "F0571/126", "F1304/619") w linii BEZPOŚREDNIO NAD napisem "NIP nabywcy" — to jest numer paragonu (po nim bywa "#A013103" i "***": te dopiski pomiń, zwróć samo "F0571/126"); (3) jeśli nie ma ani (1) ani (2): "Nr zamówienia" (krótki numer cyfrowy, np. 10483948; przy dwóch numerach zamówienia weź ten krótszy, cyfrowy); (4) jeśli i tego nie ma: długi unikalny "Numer" z dołu paragonu. Nie bierz numeru kasy ani sklepu, numeru urządzenia fiskalnego "EBI 2101…", kodu skrótu (ciąg hex nad "EBI") ani kodu z QR. Gdy użyłeś (3) lub (4), dopisz do "uncertain": "Brak numeru paragonu, użyto numeru zamówienia". Jeśli nie ma żadnego numeru: null.
+- order_number: jeśli na paragonie jest "Nr zamówienia" (krótki numer cyfrowy, np. 10403948; przy dwóch weź cyfrowy, nie długi kod z literami), wpisz go TU zawsze, także gdy invoice_number jest już ustawiony z innego pola. Gdy go nie ma: null.
 - Stawki VAT na paragonie oznaczone literami: A = 23%, B = 8%, C = 5%, D = 0%, E/F = zwolniona. Podsumowanie "Sprzedaż opodatkowana A/B/C" i "Podatek PTU A/B/C" pozwala policzyć amount_vat (suma podatków PTU) oraz amount_net = amount_gross - amount_vat.
 - amount_gross to "SUMA PLN" / "DO ZAPŁATY" (nie kwota wpłacona gotówką ani reszta).
 - Daty paragonu: data sprzedaży na wydruku.
@@ -172,6 +176,7 @@ function normalize(r: OCRResult): OCRResult {
     supplier_name: nullableStr(r.supplier_name),
     supplier_nip: digits(r.supplier_nip),
     invoice_number: nullableStr(r.invoice_number),
+    order_number: nullableStr(r.order_number),
     issue_date: nullableStr(r.issue_date),
     payment_due: nullableStr(r.payment_due),
     amount_net: numOrNull(r.amount_net),

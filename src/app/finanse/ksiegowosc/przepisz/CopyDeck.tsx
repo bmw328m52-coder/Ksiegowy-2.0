@@ -11,6 +11,8 @@ export type DeckDoc = {
   supplier: string;
   nip: string;
   buyerNip: string;
+  /** Nr zamówienia z paragonu - w ING pole Numer zamówienia (sekcja Wydruk). */
+  orderNumber: string;
   street: string;
   postal: string;
   city: string;
@@ -32,7 +34,6 @@ export type DeckDoc = {
 
 /** Kwota do wklejenia w polskim formularzu: 1234,50 (bez spacji tysięcy). */
 const money = (n: number | null) => (n === null ? "" : n.toFixed(2).replace(".", ","));
-const plDate = (iso: string | null) => (iso ? iso.split("-").reverse().join(".") : "");
 const rateLabel = (r: number | null) => (r === null ? "" : `${Math.round(r * 100)}%`);
 
 type Field = { key: string; label: string; value: string; hint?: string };
@@ -51,10 +52,17 @@ function productFields(d: DeckDoc): Field[] {
   return [{ key: "item", label: "Nazwa produktu", value: d.itemName }];
 }
 function headerFields(d: DeckDoc): Field[] {
+  const month = d.date ? d.date.slice(0, 7) : "";
   return [
-    { key: "date", label: "Data wystawienia", value: plDate(d.date), hint: "dd.mm.rrrr, daty wykonania i wpływu zwykle te same" },
-    { key: "number", label: d.kind === "paragon" ? "Numer (paragonu / wydruku)" : "Numer", value: d.number },
+    { key: "date", label: "Data wystawienia", value: d.date ?? "", hint: "ING przyjmuje rrrr-mm-dd" },
+    { key: "date2", label: "Data wykonania usługi lub dostawy", value: d.date ?? "", hint: "ta sama" },
+    { key: "date3", label: "Data wpływu", value: d.date ?? "", hint: "ta sama" },
+    { key: "month", label: "Miesiąc księgowy", value: month, hint: "lista rozwijana, wybierz ten miesiąc" },
+    { key: "number", label: d.kind === "paragon" ? "Numer (paragonu / wydruku)" : "Numer", value: d.number, hint: "na dole nagłówka" },
   ];
+}
+function printFields(d: DeckDoc): Field[] {
+  return d.orderNumber ? [{ key: "order", label: "Numer zamówienia", value: d.orderNumber, hint: "sekcja Wydruk po prawej" }] : [];
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -208,7 +216,11 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
             </div>
           </Step>
 
-          <Step n={3} title="Nagłówek">
+          <Step
+            n={3}
+            title="Nagłówek"
+            note="Oznaczenia JPK_V7 (KSeF, rodzaj transakcji, oznaczenie dokumentu) zostaw na „Brak”. Numer KSeF zostaw pusty. Kategoria: „Zmień” i wybierz tę z bloku Księgowanie."
+          >
             <FieldList fields={headerFields(d)} copied={copied} onCopy={copy} />
           </Step>
 
@@ -217,7 +229,7 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
             title="Płatność"
             note={
               d.kind === "paragon"
-                ? "Paragon jest zapłacony przy zakupie: zaznacz „Zapłacono w całości”."
+                ? "Paragon jest zapłacony przy zakupie: w „Sposób płatności” zmień „Przelew” na gotówkę lub kartę (jak na paragonie), wpisz kwotę i zaznacz „Zapłacono w całości”."
                 : "Ustaw termin i zapłatę zgodnie z dokumentem."
             }
           >
@@ -238,6 +250,12 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
               </p>
             )}
           </Step>
+
+          {printFields(d).length > 0 && (
+            <Step n={5} title="Wydruk" note="Sekcja po prawej stronie formularza.">
+              <FieldList fields={printFields(d)} copied={copied} onCopy={copy} />
+            </Step>
+          )}
 
           <div className="lp-actions">
             <button type="button" className="ls-cta" disabled={pending} onClick={finish}>

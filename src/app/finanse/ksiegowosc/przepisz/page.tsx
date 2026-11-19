@@ -73,6 +73,7 @@ export default async function CopyToIngPage() {
       const raw = i.ocr_raw as {
         document_type?: string;
         buyer_nip?: string | null;
+        order_number?: string | null;
         category?: string | null;
         warnings?: string[];
         supplier_address?: { street: string | null; postal_code: string | null; city: string | null } | null;
@@ -84,6 +85,7 @@ export default async function CopyToIngPage() {
         supplier: i.supplier_name ?? "",
         nip: i.supplier_nip ?? "",
         buyerNip: raw?.buyer_nip ?? "",
+        orderNumber: raw?.order_number ?? "",
         street: raw?.supplier_address?.street ?? "",
         postal: raw?.supplier_address?.postal_code ?? "",
         city: raw?.supplier_address?.city ?? "",
