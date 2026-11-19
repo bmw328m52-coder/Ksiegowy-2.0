@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { markSentToIngAction } from "../actions";
 
 export type IngDoc = {
@@ -41,6 +41,31 @@ export default function SendToIng({ docs }: { docs: IngDoc[] }) {
   const chosen = docs.filter((d) => selected.has(d.id));
   const sum = chosen.reduce((a, d) => a + d.gross, 0);
 
+  // Pliki pobieramy z góry. iPad (Safari) pozwala na „Udostępnij” tylko tuż po stuknięciu,
+  // więc przy kliknięciu nie możemy już niczego pobierać — inaczej: „request is not allowed…”.
+  const cache = useRef<Map<string, File>>(new Map());
+  const [ready, setReady] = useState<Set<string>>(new Set());
+  const [prefetchError, setPrefetchError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const d of docs) {
+        if (cancelled) return;
+        if (cache.current.has(d.id)) continue;
+        try {
+          cache.current.set(d.id, await fetchFile(d));
+        } catch (e) {
+          if (!cancelled) setPrefetchError(e instanceof Error ? e.message : "Nie udało się pobrać zdjęć.");
+        }
+        if (!cancelled) setReady(new Set(cache.current.keys()));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [docs]);
+  const allReady = chosen.every((d) => ready.has(d.id));
+
   const toggle = (id: string) =>
     setSelected((prev) => {
       const n = new Set(prev);
@@ -49,56 +74,82 @@ export default function SendToIng({ docs }: { docs: IngDoc[] }) {
       return n;
     });
 
-  const prepare = async () => {
+  const done = (msg: string) => {
+    setHow(msg);
+    setPhase("saved");
+  };
+
+  /** Pobranie plików jeden po drugim (gdy arkusz udostępniania nie działa). */
+  const downloadAll = async (files: File[]) => {
+    for (const f of files) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(f);
+      a.download = f.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      await new Promise((r) => setTimeout(r, 450));
+    }
+    done(`Pobrano ${files.length} plików do folderu Pobrane.`);
+  };
+
+  const prepare = () => {
     setError(null);
     if (chosen.length === 0) return;
-    setPhase("saving");
-    try {
-      type DirPicker = () => Promise<{
-        getFileHandle: (n: string, o: { create: boolean }) => Promise<{
-          createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }>;
-        }>;
-        name: string;
-      }>;
-      const picker = (window as unknown as { showDirectoryPicker?: DirPicker }).showDirectoryPicker;
-
-      if (picker) {
-        // Komputer (Chrome/Edge): wszystkie pliki do jednego folderu.
-        const dir = await picker();
-        for (const d of chosen) {
-          const f = await fetchFile(d);
-          const h = await dir.getFileHandle(f.name, { create: true });
-          const w = await h.createWritable();
-          await w.write(f);
-          await w.close();
-        }
-        setHow(`Zapisano ${chosen.length} plików w folderze „${dir.name}”.`);
-      } else {
-        const files: File[] = [];
-        for (const d of chosen) files.push(await fetchFile(d));
-        if (navigator.canShare?.({ files })) {
-          // iPad / telefon: arkusz udostępniania (Zapisz w Plikach, AirDrop na komputer).
-          await navigator.share({ files, title: "Dokumenty do ING" });
-          setHow("Pliki wysłane przez arkusz udostępniania.");
-        } else {
-          for (const f of files) {
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(f);
-            a.download = f.name;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            await new Promise((r) => setTimeout(r, 450));
-          }
-          setHow(`Pobrano ${files.length} plików do folderu Pobrane.`);
-        }
-      }
-      setPhase("saved");
-    } catch (e) {
-      const aborted = e instanceof DOMException && e.name === "AbortError";
-      setPhase("idle");
-      if (!aborted) setError(e instanceof Error ? e.message : "Nie udało się przygotować plików.");
+    const files = chosen.map((d) => cache.current.get(d.id)).filter((f): f is File => !!f);
+    if (files.length !== chosen.length) {
+      setError("Zdjęcia jeszcze się pobierają. Poczekaj chwilę i stuknij ponownie.");
+      return;
     }
+
+    type DirPicker = () => Promise<{
+      getFileHandle: (n: string, o: { create: boolean }) => Promise<{
+        createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }>;
+      }>;
+      name: string;
+    }>;
+    const picker = (window as unknown as { showDirectoryPicker?: DirPicker }).showDirectoryPicker;
+
+    const fail = (e: unknown) => {
+      setPhase("idle");
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setError(e instanceof Error ? e.message : "Nie udało się przygotować plików.");
+    };
+
+    setPhase("saving");
+
+    if (picker) {
+      // Komputer (Chrome/Edge): wszystkie pliki do jednego folderu.
+      void (async () => {
+        try {
+          const dir = await picker();
+          for (const f of files) {
+            const h = await dir.getFileHandle(f.name, { create: true });
+            const w = await h.createWritable();
+            await w.write(f);
+            await w.close();
+          }
+          done(`Zapisano ${files.length} plików w folderze „${dir.name}”.`);
+        } catch (e) {
+          fail(e);
+        }
+      })();
+      return;
+    }
+
+    // iPad / telefon: arkusz udostępniania. share() MUSI ruszyć od razu, w obsłudze stuknięcia.
+    if (navigator.canShare?.({ files })) {
+      navigator
+        .share({ files, title: "Dokumenty do ING" })
+        .then(() => done("Pliki wysłane przez arkusz udostępniania."))
+        .catch((e) => {
+          if (e instanceof DOMException && e.name === "AbortError") return fail(e);
+          // Safari odmówił (NotAllowedError) albo za dużo plików: zwykłe pobieranie.
+          void downloadAll(files).catch(fail);
+        });
+      return;
+    }
+    void downloadAll(files).catch(fail);
   };
 
   const mark = () =>
@@ -158,9 +209,21 @@ export default function SendToIng({ docs }: { docs: IngDoc[] }) {
       </Link>
 
       {phase !== "saved" && phase !== "marked" && (
-        <button type="button" className="ls-cta lg-btn" disabled={chosen.length === 0 || phase === "saving"} onClick={prepare}>
-          {phase === "saving" ? "Przygotowuję pliki…" : `Przygotuj ${chosen.length} plików dla ING`}
+        <>
+        <button
+          type="button"
+          className="ls-cta lg-btn"
+          disabled={chosen.length === 0 || phase === "saving" || !allReady}
+          onClick={prepare}
+        >
+          {phase === "saving"
+            ? "Przygotowuję pliki…"
+            : !allReady
+              ? `Pobieram zdjęcia… ${ready.size}/${docs.length}`
+              : `Przygotuj ${chosen.length} plików dla ING`}
         </button>
+        {prefetchError && <p className="ls-err mt-3">{prefetchError}</p>}
+        </>
       )}
 
       {error && <p className="ls-err mt-3">{error}</p>}
