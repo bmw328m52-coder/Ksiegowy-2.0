@@ -27,6 +27,8 @@ export type DeckDoc = {
   kind: "paragon" | "faktura";
   category: string | null;
   itemName: string;
+  /** Pozycje dokumentu (cost_lines) - w ING każda jako osobny wiersz „Nazwa produktu”. */
+  lines: { name: string; qty: number; rate: number | null; net: number; vat: number; gross: number }[];
   breakdown: { rate: number | null; net: number; vat: number; gross: number }[];
   warnings: string[];
   /** % VAT do odliczenia (100 / 50 / 0) i udział kosztu w PIT (1 albo 0,75 dla paliwa). */
@@ -223,25 +225,25 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
           >
             <FieldList fields={productFields(d)} copied={copied} onCopy={copy} />
             <div className="lp-rates">
-              {ratesOf(d).map((r, k) => (
-                <div key={k} className="lp-rate-row">
-                  <span className="lp-rate-tag">Pozycja {k + 1} · {rateLabel(r.rate) || "stawka?"}</span>
-                  {ratesOf(d).length > 1 && (
-                    <ChipCopy
-                      id={`r${k}-name`}
-                      label="nazwa"
-                      value={`${d.itemName.slice(0, 70)} (${rateLabel(r.rate) || "VAT"})`}
-                      copied={copied}
-                      onCopy={copy}
-                    />
-                  )}
-                  <ChipCopy id={`r${k}-qty`} label="ilość" value="1" copied={copied} onCopy={copy} />
-                  <ChipCopy id={`r${k}-gross`} label="cena brutto" value={money(r.gross)} copied={copied} onCopy={copy} />
-                  <ChipCopy id={`r${k}-rate`} label="stawka VAT" value={rateLabel(r.rate).replace("%", "")} copied={copied} onCopy={copy} />
-                  <ChipCopy id={`r${k}-net`} label="netto (kontrola)" value={money(r.net)} copied={copied} onCopy={copy} />
-                  <ChipCopy id={`r${k}-vat`} label="VAT (kontrola)" value={money(r.vat)} copied={copied} onCopy={copy} />
-                </div>
-              ))}
+              {d.lines.length > 0
+                ? d.lines.map((l, k) => (
+                    <div key={k} className="lp-rate-row">
+                      <span className="lp-rate-tag">Pozycja {k + 1} · {rateLabel(l.rate) || "stawka?"}</span>
+                      <ChipCopy id={`l${k}-name`} label="nazwa" value={l.name || d.itemName} copied={copied} onCopy={copy} />
+                      <ChipCopy id={`l${k}-qty`} label="ilość" value={String(l.qty).replace(".", ",")} copied={copied} onCopy={copy} />
+                      <ChipCopy id={`l${k}-gross`} label="cena brutto (za 1)" value={money(l.gross / l.qty)} copied={copied} onCopy={copy} />
+                      <ChipCopy id={`l${k}-rate`} label="stawka VAT" value={rateLabel(l.rate).replace("%", "")} copied={copied} onCopy={copy} />
+                      <ChipCopy id={`l${k}-sum`} label="wartość brutto (kontrola)" value={money(l.gross)} copied={copied} onCopy={copy} />
+                    </div>
+                  ))
+                : ratesOf(d).map((r, k) => (
+                    <div key={k} className="lp-rate-row">
+                      <span className="lp-rate-tag">Pozycja {k + 1} · {rateLabel(r.rate) || "stawka?"}</span>
+                      <ChipCopy id={`r${k}-qty`} label="ilość" value="1" copied={copied} onCopy={copy} />
+                      <ChipCopy id={`r${k}-gross`} label="cena brutto" value={money(r.gross)} copied={copied} onCopy={copy} />
+                      <ChipCopy id={`r${k}-rate`} label="stawka VAT" value={rateLabel(r.rate).replace("%", "")} copied={copied} onCopy={copy} />
+                    </div>
+                  ))}
               <p className="lp-check">
                 Kontrola w ING: netto <b>{money(d.net)}</b> · VAT <b>{money(d.vat)}</b> · brutto <b>{money(d.gross)}</b>
               </p>

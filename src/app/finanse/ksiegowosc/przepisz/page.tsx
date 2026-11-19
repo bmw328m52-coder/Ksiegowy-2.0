@@ -15,6 +15,7 @@ type LineRow = {
   amount_net: string | number;
   amount_vat: string | number;
   amount_gross: string | number;
+  qty: string | number | null;
   vat_deduction: number | null;
   category: string | null;
 };
@@ -51,7 +52,7 @@ export default async function CopyToIngPage() {
       ),
       supabase
         .from("cost_lines")
-        .select("invoice_id, description, vat_rate, amount_net, amount_vat, amount_gross, vat_deduction, category")
+        .select("invoice_id, description, vat_rate, amount_net, amount_vat, amount_gross, qty, vat_deduction, category")
         .in(
           "invoice_id",
           pending.map((i) => i.id)
@@ -115,6 +116,14 @@ export default async function CopyToIngPage() {
         })(),
         vatDeduction: Math.min(...(linesByInvoice.get(i.id) ?? [{ vat_deduction: 100 }]).map((l) => l.vat_deduction ?? 100)),
         pitShare: Math.min(...(linesByInvoice.get(i.id) ?? [{ category: raw?.category ?? null }]).map((l) => pitCostShare(l.category ?? raw?.category ?? null))),
+        lines: (linesByInvoice.get(i.id) ?? []).map((l) => ({
+          name: (l.description ?? "").slice(0, 200),
+          qty: Number(l.qty) > 0 ? Number(l.qty) : 1,
+          rate: l.vat_rate === null ? null : Number(l.vat_rate),
+          net: Number(l.amount_net) || 0,
+          vat: Number(l.amount_vat) || 0,
+          gross: Number(l.amount_gross) || 0,
+        })),
         breakdown: Array.from(byInvoice.get(i.id)?.values() ?? []).sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0)),
         warnings: raw?.warnings ?? [],
       };
