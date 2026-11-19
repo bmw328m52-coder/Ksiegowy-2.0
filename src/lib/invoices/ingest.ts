@@ -142,6 +142,24 @@ export async function ingestInvoiceFile(file: File): Promise<IngestResult> {
           };
 
     const ocr = await ocrInvoice(ocrInput);
+
+    // To nie dokument (zdjęcie z obiektu, zrzut ekranu): model nic nie odczytał i nie rozpoznał
+    // faktury ani paragonu. Nie zostawiamy po tym śladu w fakturach.
+    const nothingRead =
+      ocr.document_type === "inne" &&
+      (ocr.amount_gross === null || ocr.amount_gross <= 0) &&
+      !ocr.supplier_nip &&
+      !ocr.supplier_name &&
+      !ocr.issue_date;
+    if (nothingRead) {
+      await supabase.from("invoices").delete().eq("id", invoiceId);
+      await supabase.storage.from("invoices").remove([filePath]);
+      return {
+        ok: false,
+        error: "To nie wygląda na fakturę ani paragon, więc go nie zapisałem. Zdjęcia z obiektu wgraj do zlecenia.",
+      };
+    }
+
     const warnings = buildWarnings(ocr);
     const duplicateOf = await findDuplicate(invoiceId, ocr);
     if (duplicateOf) warnings.unshift("Taki dokument już jest w aplikacji (ten sam sprzedawca i numer lub data i kwota).");
