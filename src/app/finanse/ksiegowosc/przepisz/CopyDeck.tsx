@@ -179,17 +179,27 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
           <Step
             n={2}
             title="Produkt"
-            note="Ustaw: ceny brutto, „Wprowadź wg: stawek VAT”. Potem wpisz każdą stawkę z kwotami poniżej."
+            note="Ustaw: „Wystawiam w cenach: brutto” i „Wprowadź wg: pozycji” (przy „stawek VAT” ING chowa kolumnę Nazwa produktu). Jedna pozycja = jedna stawka VAT: nazwa, ilość 1, cena brutto i stawka z poniższych pól."
           >
             <FieldList fields={productFields(d)} copied={copied} onCopy={copy} />
             <div className="lp-rates">
               {ratesOf(d).map((r, k) => (
                 <div key={k} className="lp-rate-row">
-                  <span className="lp-rate-tag">{rateLabel(r.rate) || "stawka?"}</span>
-                  <ChipCopy id={`r${k}-rate`} label="stawka" value={rateLabel(r.rate).replace("%", "")} copied={copied} onCopy={copy} />
-                  <ChipCopy id={`r${k}-net`} label="netto" value={money(r.net)} copied={copied} onCopy={copy} />
-                  <ChipCopy id={`r${k}-vat`} label="VAT" value={money(r.vat)} copied={copied} onCopy={copy} />
-                  <ChipCopy id={`r${k}-gross`} label="brutto" value={money(r.gross)} copied={copied} onCopy={copy} />
+                  <span className="lp-rate-tag">Pozycja {k + 1} · {rateLabel(r.rate) || "stawka?"}</span>
+                  {ratesOf(d).length > 1 && (
+                    <ChipCopy
+                      id={`r${k}-name`}
+                      label="nazwa"
+                      value={`${d.itemName.slice(0, 70)} (${rateLabel(r.rate) || "VAT"})`}
+                      copied={copied}
+                      onCopy={copy}
+                    />
+                  )}
+                  <ChipCopy id={`r${k}-qty`} label="ilość" value="1" copied={copied} onCopy={copy} />
+                  <ChipCopy id={`r${k}-gross`} label="cena brutto" value={money(r.gross)} copied={copied} onCopy={copy} />
+                  <ChipCopy id={`r${k}-rate`} label="stawka VAT" value={rateLabel(r.rate).replace("%", "")} copied={copied} onCopy={copy} />
+                  <ChipCopy id={`r${k}-net`} label="netto (kontrola)" value={money(r.net)} copied={copied} onCopy={copy} />
+                  <ChipCopy id={`r${k}-vat`} label="VAT (kontrola)" value={money(r.vat)} copied={copied} onCopy={copy} />
                 </div>
               ))}
               <p className="lp-check">
