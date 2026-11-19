@@ -50,8 +50,12 @@ export default async function CopyToIngPage({ searchParams }: { searchParams: Pr
   const counts = new Map<string, number>();
   for (const i of allPending) counts.set(monthOf(i), (counts.get(monthOf(i)) ?? 0) + 1);
   const months = Array.from(counts.keys()).sort();
-  // Domyślnie najstarszy miesiąc z dokumentami do przepisania; ?m=rrrr-mm wybiera inny.
-  const month = m && counts.has(m) ? m : (months[0] ?? "");
+  // Domyślnie miesiąc księgowy, który się właśnie zamyka (poprzedni kalendarzowy), jeśli ma dokumenty;
+  // inaczej najstarszy z dokumentami. ?m=rrrr-mm wybiera inny.
+  const now = new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+  const month = m && counts.has(m) ? m : counts.has(prevKey) ? prevKey : (months[0] ?? "");
   const pending = allPending.filter((i) => monthOf(i) === month);
 
   let docs: DeckDoc[] = [];
