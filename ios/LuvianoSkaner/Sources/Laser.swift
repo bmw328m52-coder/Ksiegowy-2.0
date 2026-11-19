@@ -40,6 +40,7 @@ final class Laser: NSObject, ObservableObject {
     /// Start Bluetooth (pierwsze wywołanie pyta o zgodę). Z zapamiętanym dalmierzem łączy się sam.
     func start() {
         if central == nil {
+            note("Start Bluetooth")
             central = CBCentralManager(delegate: self, queue: nil)
         } else {
             resume()
@@ -145,6 +146,23 @@ final class Laser: NSObject, ObservableObject {
     /// Ostatnie zdarzenia i surowe ramki (hex) — podgląd „Diagnostyka" przy dalmierzu.
     @Published private(set) var log: [String] = []
 
+    nonisolated static func describe(_ s: CBManagerState) -> String {
+        switch s {
+        case .poweredOn: return "włączony"
+        case .poweredOff: return "WYŁĄCZONY"
+        case .unauthorized: return "BRAK ZGODY dla aplikacji (Ustawienia → LUVIANO Skaner → Bluetooth)"
+        case .unsupported: return "nieobsługiwany"
+        case .resetting: return "restartuje się"
+        default: return "nieznany"
+        }
+    }
+
+    /// Stan na teraz — widoczny na górze Diagnostyki, żeby log nigdy nie był pusty.
+    var statusLine: String {
+        guard let central else { return "Bluetooth jeszcze nie uruchomiony w aplikacji" }
+        return "Bluetooth iPada: " + Laser.describe(central.state) + " · stan: \(state)"
+    }
+
     fileprivate func note(_ line: String) {
         let t = Date().formatted(date: .omitted, time: .standard)
         log.append("\(t)  \(line)")
@@ -182,6 +200,7 @@ extension Laser: CBCentralManagerDelegate {
     nonisolated func centralManagerDidUpdateState(_ c: CBCentralManager) {
         let s = c.state
         Task { @MainActor in
+            note("Bluetooth iPada: " + Laser.describe(s))
             switch s {
             case .poweredOn:
                 state = .idle
@@ -409,7 +428,9 @@ struct LaserLogView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(laser.log.isEmpty ? "Brak danych — połącz dalmierz i zrób pomiar." : laser.log.joined(separator: "\n"))
+                Text(laser.statusLine + "\n\n" + (laser.log.isEmpty
+                     ? "Brak zdarzeń — stuknij „Połącz od nowa” i włącz Bluetooth w dalmierzu."
+                     : laser.log.joined(separator: "\n")))
                     .font(.system(size: 12, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
