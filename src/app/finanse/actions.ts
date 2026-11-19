@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  updateInvoice,
   markScannedInvoicesPaid,
   setInvoiceAccountingStatus,
   setInvoicePayment,
@@ -33,6 +34,15 @@ export async function markSentToIngAction(ids: string[]) {
   revalidatePath("/finanse/ksiegowosc");
   revalidatePath("/finanse");
   revalidatePath("/invoices");
+}
+
+const PAYMENT_METHODS = ["przelew", "gotówka", "karta", "mobilna"];
+
+/** Sposób płatności dokumentu (te same słowa co z KSeF) - kopiowany potem do pola w ING. */
+export async function setPaymentMethodAction(id: string, method: string) {
+  if (!id || !PAYMENT_METHODS.includes(method)) return;
+  await updateInvoice(id, { payment_method: method });
+  revalidatePath(`/invoices/${id}`);
 }
 
 /** Wszystkie dokumenty spoza KSeF, które mają status „niezapłacone”, oznacza jako zapłacone. */

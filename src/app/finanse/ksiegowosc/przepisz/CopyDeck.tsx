@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { markSentToIngAction } from "../../actions";
+import { markSentToIngAction, setPaymentMethodAction } from "../../actions";
 
 export type DeckDoc = {
   id: string;
@@ -17,6 +17,8 @@ export type DeckDoc = {
   postal: string;
   city: string;
   number: string;
+  /** przelew | gotówka | karta | mobilna | "" (nieustawiony). */
+  paymentMethod: string;
   date: string | null;
   net: number | null;
   vat: number | null;
@@ -58,11 +60,34 @@ function headerFields(d: DeckDoc): Field[] {
     { key: "date2", label: "Data wykonania usługi lub dostawy", value: d.date ?? "", hint: "ta sama" },
     { key: "date3", label: "Data wpływu", value: d.date ?? "", hint: "ta sama" },
     { key: "month", label: "Miesiąc księgowy", value: month, hint: "lista rozwijana, wybierz ten miesiąc" },
+    { key: "event", label: "Opis zdarzenia", value: d.itemName, hint: "rozwijane pod Kategorią, opcjonalnie" },
     { key: "number", label: d.kind === "paragon" ? "Numer (paragonu / wydruku)" : "Numer", value: d.number, hint: "na dole nagłówka" },
   ];
 }
+const PAY_OPTIONS: { key: string; label: string; ing: string }[] = [
+  { key: "przelew", label: "Przelew", ing: "Przelew na rachunek bankowy" },
+  { key: "gotówka", label: "Gotówka", ing: "Gotówka" },
+  { key: "karta", label: "Karta", ing: "Karta płatnicza" },
+  { key: "mobilna", label: "BLIK / mobilna", ing: "Płatność mobilna (BLIK)" },
+];
+
+function paymentFields(d: DeckDoc): Field[] {
+  return [
+    {
+      key: "due",
+      label: "Termin płatności",
+      value: d.kind === "paragon" ? (d.date ?? "") : "",
+      hint: d.kind === "paragon" ? "paragon: ta sama data co wystawienia" : "z faktury (data lub „7 dni”)",
+    },
+    { key: "paid", label: "Zapłacono · kwota brutto", value: money(d.gross), hint: "potem „Zapłacono w całości”" },
+  ];
+}
 function printFields(d: DeckDoc): Field[] {
-  return d.orderNumber ? [{ key: "order", label: "Numer zamówienia", value: d.orderNumber, hint: "sekcja Wydruk po prawej" }] : [];
+  if (!d.orderNumber) return [];
+  return [
+    { key: "order", label: "Numer zamówienia", value: d.orderNumber, hint: "sekcja Wydruk po prawej" },
+    { key: "orderDate", label: "Data zamówienia", value: d.date ?? "", hint: "sekcja Wydruk, rrrr-mm-dd" },
+  ];
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -91,6 +116,7 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
   const [copied, setCopied] = useState<string | null>(null);
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [zoom, setZoom] = useState(false);
+  const [payOverride, setPayOverride] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
   if (docs.length === 0) {
@@ -126,6 +152,12 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
       setCopied(key);
       setTimeout(() => setCopied((c) => (c === key ? null : c)), 1200);
     }
+  };
+
+  const payment = payOverride[d.id] ?? d.paymentMethod ?? "";
+  const choosePayment = (key: string) => {
+    setPayOverride((p) => ({ ...p, [d.id]: key }));
+    void setPaymentMethodAction(d.id, key);
   };
 
   const finish = () =>
@@ -219,8 +251,17 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
           <Step
             n={3}
             title="Nagłówek"
-            note="Oznaczenia JPK_V7 (KSeF, rodzaj transakcji, oznaczenie dokumentu) zostaw na „Brak”. Numer KSeF zostaw pusty. Kategoria: „Zmień” i wybierz tę z bloku Księgowanie."
+            note="Oznaczenia JPK_V7 (KSeF, rodzaj transakcji, oznaczenie dokumentu) zostaw na „Brak”. Numer KSeF zostaw pusty. Kategoria: „Zmień” i wybierz zaznaczoną poniżej."
           >
+            <div
+              className="rounded-xl px-3.5 py-3 mb-2.5"
+              style={{ background: "#fdf3e3", border: "2px solid #a06f3f" }}
+            >
+              <small className="block text-[12px] font-semibold text-[#8a5a2b]">
+                Kategoria w ING · „Zmień” → zaznacz → Zapisz
+              </small>
+              <b className="block text-[16px] text-[#5a3a17]">{ingCategory(d.category)}</b>
+            </div>
             <FieldList fields={headerFields(d)} copied={copied} onCopy={copy} />
           </Step>
 
@@ -229,21 +270,31 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
             title="Płatność"
             note={
               d.kind === "paragon"
-                ? "Paragon jest zapłacony przy zakupie: w „Sposób płatności” zmień „Przelew” na gotówkę lub kartę (jak na paragonie), wpisz kwotę i zaznacz „Zapłacono w całości”."
-                : "Ustaw termin i zapłatę zgodnie z dokumentem."
+                ? "Paragon jest zapłacony przy zakupie: wybierz sposób płatności poniżej, wpisz kwotę i zaznacz „Zapłacono w całości”."
+                : "Wybierz sposób płatności zgodnie z dokumentem, ustaw termin i kwotę."
             }
           >
-            <ul className="lp-list">
-              <li>
-                <div className="min-w-0">
-                  <small>Zapłacono · kwota brutto</small>
-                  <b>{money(d.gross)}</b>
-                </div>
-                <button type="button" data-ok={copied === "paid"} onClick={() => copy("paid", money(d.gross))}>
-                  {copied === "paid" ? "✓" : "Kopiuj"}
+            <div className="lp-pay mt-1.5 mb-1 flex flex-wrap gap-2" role="group" aria-label="Sposób płatności">
+              {PAY_OPTIONS.map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  aria-pressed={payment === o.key}
+                  onClick={() => choosePayment(o.key)}
+                  className={`text-[13px] px-3.5 min-h-[44px] rounded-full font-semibold ${
+                    payment === o.key ? "bg-[#a06f3f] text-white" : "bg-white border border-[#ededea] text-[#6f6c66]"
+                  }`}
+                >
+                  {o.label}
                 </button>
-              </li>
-            </ul>
+              ))}
+            </div>
+            <p className="lp-check">
+              W ING „Sposób płatności”:{" "}
+              <b>{PAY_OPTIONS.find((o) => o.key === payment)?.ing ?? "wybierz powyżej (zapamiętam dla tego dokumentu)"}</b>
+            </p>
+            <FieldList fields={paymentFields(d)} copied={copied} onCopy={copy} />
+            <p className="lp-note">„Mechanizm podzielonej płatności” i „Link do płatności” zostaw odznaczone, rachunek i BIC/SWIFT puste.</p>
             {d.kind === "paragon" && (
               <p className="lp-check">
                 NIP nabywcy na paragonie: <b>{d.buyerNip || "brak"}</b>
@@ -369,6 +420,8 @@ function Accounting({ d }: { d: DeckDoc }) {
   const rows: [string, string][] = [
     ["Rodzaj dokumentu w ING", noVat ? "Pozostały rozchód (paragon bez NIP nabywcy)" : "Faktura zakupu"],
     ["Kategoria w ING (Zmień kategorię)", ingCategory(d.category)],
+    ["Zaznaczenia na górze", "żadne: Wewnątrzwspólnotowa, Metoda kasowa VAT i PIT zostaw puste"],
+    ["Waluta · ceny · wprowadzanie", "PLN · brutto · wg pozycji"],
     ["VAT do odliczenia", `${vat}%`],
     ["Koszt w PIT", `${Math.round(d.pitShare * 100)}%`],
   ];
@@ -380,7 +433,7 @@ function Accounting({ d }: { d: DeckDoc }) {
       </h3>
       <ul className="lp-list">
         {rows.map(([label, value]) => (
-          <li key={label}>
+          <li key={label} style={label.startsWith("Kategoria") ? { background: "#fdf3e3", outline: "2px solid #a06f3f", borderRadius: 12 } : undefined}>
             <div className="min-w-0">
               <small>{label}</small>
               <b>{value}</b>

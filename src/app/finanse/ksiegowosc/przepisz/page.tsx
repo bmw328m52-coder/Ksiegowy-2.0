@@ -19,6 +19,16 @@ type LineRow = {
   category: string | null;
 };
 
+/** Stare wartości angielskie (migracja 0043) i słowa z KSeF -> jedna lista. */
+function normPayment(m: string | null): string {
+  const v = (m ?? "").toLowerCase();
+  if (v === "transfer" || v === "przelew") return "przelew";
+  if (v === "cash" || v === "gotówka") return "gotówka";
+  if (v === "card" || v === "karta") return "karta";
+  if (v === "blik" || v === "mobilna") return "mobilna";
+  return "";
+}
+
 export default async function CopyToIngPage() {
   const all = await listInvoices();
   const pending = all
@@ -89,6 +99,7 @@ export default async function CopyToIngPage() {
         street: raw?.supplier_address?.street ?? "",
         postal: raw?.supplier_address?.postal_code ?? "",
         city: raw?.supplier_address?.city ?? "",
+        paymentMethod: normPayment(i.payment_method),
         number: i.invoice_number ?? "",
         date: i.issue_date,
         net: i.amount_net === null ? null : Number(i.amount_net),
