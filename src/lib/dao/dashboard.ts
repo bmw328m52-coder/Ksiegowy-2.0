@@ -3,6 +3,7 @@ import { getUserSettingsOrDefault } from "./user_settings";
 import { pitFor, type TaxForm } from "@/lib/tax";
 import { pitMonthlyDeadline, vatDeadline, zusDeadline } from "@/lib/taxDeadlines";
 import { zusForMonth, ZUS_PHASE_LABELS, type ZusPhase } from "@/lib/zus";
+import { pitCostAmount } from "./cost_lines.types";
 
 export type PeriodTotals = {
   revenueNet: number;
@@ -195,7 +196,15 @@ function addCost(totals: PeriodTotals, c: CostRow, isVatPayer: boolean): void {
   const factor = (c.vat_deduction ?? 100) / 100;
   totals.costsGross += gross;
   totals.costsVat += vat * factor;
-  totals.costsNet += isVatPayer ? net : gross;
+  // Koszt PIT: dla paliwa 75% (samochód użyczony) i z nieodliczoną częścią VAT; reszta bez zmian.
+  totals.costsNet += pitCostAmount({
+    net,
+    vat,
+    gross,
+    vatDeduction: c.vat_deduction,
+    category: c.category,
+    isVatPayer,
+  });
 }
 
 function vatQuarter(monthIndex: number): { qStart: number; qEnd: number; label: string } {
@@ -410,7 +419,14 @@ function computeDashboard(raw: RawData, monthIdx: number): DashboardData {
       const key = (c.category && c.category.trim()) || "inne";
       const net = toNum(c.amount_net);
       const gross = toNum(c.amount_gross);
-      const eff = settings.is_vat_payer ? net : gross;
+      const eff = pitCostAmount({
+        net,
+        vat: toNum(c.amount_vat),
+        gross,
+        vatDeduction: c.vat_deduction,
+        category: c.category,
+        isVatPayer: settings.is_vat_payer,
+      });
       const cur = categoryAgg.get(key) ?? { net: 0, gross: 0 };
       cur.net += eff;
       cur.gross += gross;

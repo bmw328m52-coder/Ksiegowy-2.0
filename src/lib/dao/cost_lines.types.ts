@@ -33,6 +33,32 @@ export function suggestedVatDeduction(category: string | null | undefined): VatD
   return category === "paliwo" ? 50 : 100;
 }
 
+/**
+ * Samochód z umowy użyczenia, użytkowany także prywatnie, bez ewidencji przebiegu:
+ * w koszty PIT idzie 75% wydatku (paliwo), a VAT odliczamy w 50%.
+ */
+export const VEHICLE_PIT_SHARE = 0.75;
+
+export function pitCostShare(category: string | null | undefined): number {
+  return category === "paliwo" ? VEHICLE_PIT_SHARE : 1;
+}
+
+/**
+ * Kwota kosztu uzyskania przychodu (PIT) z jednej pozycji:
+ * VAT-owiec: netto + nieodliczona część VAT; nie-VAT-owiec: brutto. Potem udział (75% dla paliwa).
+ */
+export function pitCostAmount(c: {
+  net: number;
+  vat: number;
+  gross: number;
+  vatDeduction: number | null | undefined;
+  category: string | null | undefined;
+  isVatPayer: boolean;
+}): number {
+  const base = c.isVatPayer ? c.net + c.vat * (1 - (c.vatDeduction ?? 100) / 100) : c.gross;
+  return base * pitCostShare(c.category);
+}
+
 export type CostLineInput = {
   invoice_id?: string | null;
   job_id?: string | null;

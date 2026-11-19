@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { listInvoices } from "@/lib/dao/invoices";
 import { PageContainer } from "@/components/ui";
 import CopyDeck, { type DeckDoc } from "./CopyDeck";
+import { pitCostShare } from "@/lib/dao/cost_lines.types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Przepisz do ING" };
@@ -14,6 +15,8 @@ type LineRow = {
   amount_net: string | number;
   amount_vat: string | number;
   amount_gross: string | number;
+  vat_deduction: number | null;
+  category: string | null;
 };
 
 export default async function CopyToIngPage() {
@@ -38,7 +41,7 @@ export default async function CopyToIngPage() {
       ),
       supabase
         .from("cost_lines")
-        .select("invoice_id, description, vat_rate, amount_net, amount_vat, amount_gross")
+        .select("invoice_id, description, vat_rate, amount_net, amount_vat, amount_gross, vat_deduction, category")
         .in(
           "invoice_id",
           pending.map((i) => i.id)
@@ -48,6 +51,10 @@ export default async function CopyToIngPage() {
     const namesByInvoice = new Map<string, string[]>();
     for (const l of (lines ?? []) as LineRow[]) {
       if (l.description) namesByInvoice.set(l.invoice_id, [...(namesByInvoice.get(l.invoice_id) ?? []), l.description]);
+    }
+    const linesByInvoice = new Map<string, LineRow[]>();
+    for (const l of (lines ?? []) as LineRow[]) {
+      linesByInvoice.set(l.invoice_id, [...(linesByInvoice.get(l.invoice_id) ?? []), l]);
     }
     const byInvoice = new Map<string, Map<string, { rate: number | null; net: number; vat: number; gross: number }>>();
     for (const l of (lines ?? []) as LineRow[]) {
@@ -93,6 +100,8 @@ export default async function CopyToIngPage() {
           if (names.length === 1) return names[0].slice(0, 80);
           return raw?.category ? `Zakupy: ${raw.category}` : "Zakupy materiałowe";
         })(),
+        vatDeduction: Math.min(...(linesByInvoice.get(i.id) ?? [{ vat_deduction: 100 }]).map((l) => l.vat_deduction ?? 100)),
+        pitShare: Math.min(...(linesByInvoice.get(i.id) ?? [{ category: raw?.category ?? null }]).map((l) => pitCostShare(l.category ?? raw?.category ?? null))),
         breakdown: Array.from(byInvoice.get(i.id)?.values() ?? []).sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0)),
         warnings: raw?.warnings ?? [],
       };

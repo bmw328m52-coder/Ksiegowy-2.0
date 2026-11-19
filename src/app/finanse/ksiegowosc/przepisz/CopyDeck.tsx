@@ -25,6 +25,9 @@ export type DeckDoc = {
   itemName: string;
   breakdown: { rate: number | null; net: number; vat: number; gross: number }[];
   warnings: string[];
+  /** % VAT do odliczenia (100 / 50 / 0) i udział kosztu w PIT (1 albo 0,75 dla paliwa). */
+  vatDeduction: number;
+  pitShare: number;
 };
 
 /** Kwota do wklejenia w polskim formularzu: 1234,50 (bez spacji tysięcy). */
@@ -167,6 +170,8 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
             </ul>
           )}
 
+          <Accounting d={d} />
+
           <Step n={1} title="Kontrahent" note="Najpierw wpisz NIP w wyszukiwarce, ING może już znać tego sprzedawcę. Jeśli nie: „Nowy kontrahent”, typ „Firma”, i wklej pola poniżej. Kraj: Polska.">
             <FieldList fields={contractorFields(d)} copied={copied} onCopy={copy} />
           </Step>
@@ -303,5 +308,48 @@ function ChipCopy({
       <small>{label}</small>
       <b>{copied === id ? "✓" : value || "—"}</b>
     </button>
+  );
+}
+
+/** Podpowiedzi księgowe dla dokumentu: rodzaj w ING, kategoria, odliczenie VAT, udział w kosztach PIT. */
+function Accounting({ d }: { d: DeckDoc }) {
+  const car = d.category === "paliwo";
+  const noVat = d.kind === "paragon" && !d.buyerNip;
+  const vat = noVat ? 0 : d.vatDeduction;
+  const rows: [string, string][] = [
+    ["Rodzaj dokumentu w ING", noVat ? "Pozostały rozchód (paragon bez NIP nabywcy)" : "Faktura zakupu"],
+    ["Kategoria", d.category ? `${d.category}${car ? " — samochód" : ""}` : "dobierz w ING (Kategoria → Zmień)"],
+    ["VAT do odliczenia", `${vat}%`],
+    ["Koszt w PIT", `${Math.round(d.pitShare * 100)}%`],
+  ];
+  return (
+    <div className="lp-step">
+      <h3>
+        <span>★</span>
+        Księgowanie
+      </h3>
+      <ul className="lp-list">
+        {rows.map(([label, value]) => (
+          <li key={label}>
+            <div className="min-w-0">
+              <small>{label}</small>
+              <b>{value}</b>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {car && (
+        <p className="lp-note">
+          Samochód z umowy użyczenia, bez ewidencji przebiegu: <b>75% w koszty PIT, 50% VAT</b>. W ING wybierz (albo załóż)
+          kategorię z takimi parametrami, żeby wydatek policzył się tak samo jak w tej aplikacji.
+        </p>
+      )}
+      {noVat && (
+        <p className="lp-note">
+          Paragon bez NIP nabywcy nie daje prawa do odliczenia VAT. Cała kwota brutto idzie w koszt, jeśli wydatek jest
+          firmowy.
+        </p>
+      )}
+    </div>
   );
 }
