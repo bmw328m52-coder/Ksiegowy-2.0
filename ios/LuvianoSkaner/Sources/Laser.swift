@@ -54,8 +54,13 @@ final class Laser: NSObject, ObservableObject {
         resume()
     }
 
+    /// Urządzenia widziane w bieżącym skanie (do diagnostyki).
+    private var seen = Set<UUID>()
+
     private func scan() {
         guard let central, central.state == .poweredOn else { return }
+        seen.removeAll()
+        note("Skanuję…")
         state = .searching
         central.scanForPeripherals(withServices: nil)
     }
@@ -193,8 +198,18 @@ extension Laser: CBCentralManagerDelegate {
                                     advertisementData ad: [String: Any], rssi: NSNumber) {
         let name = (ad[CBAdvertisementDataLocalNameKey] as? String) ?? p.name ?? ""
         let services = ad[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
-        guard name.uppercased().contains("GLM") || services.contains(GLM.service) else { return }
+        let up = name.uppercased()
+        let saved = UserDefaults.standard.string(forKey: GLM.savedKey)
+        let looksLikeGLM = up.contains("GLM") || up.contains("BOSCH") || up.contains("PLR")
+            || services.contains(GLM.service) || p.identifier.uuidString == saved
+        let pid = p.identifier
+        let desc = "\(name.isEmpty ? "(bez nazwy)" : name) rssi \(rssi) usł. \(services.count)"
         Task { @MainActor in
+            // Diagnostyka: każde widziane urządzenie raz — widać, czy dalmierz w ogóle się rozgłasza.
+            if seen.insert(pid).inserted && (looksLikeGLM || seen.count <= 12) {
+                note("Widzę: \(desc)\(looksLikeGLM ? "  ← dalmierz" : "")")
+            }
+            guard looksLikeGLM else { return }
             guard state == .searching || state == .connecting else { return }
             // .connecting = szukanie zapasowe: dalmierz się rozgłasza, a wiszące żądanie go nie złapało —
             // porzucamy je i łączymy się ze świeżo znalezionym (także pod tym samym adresem).
