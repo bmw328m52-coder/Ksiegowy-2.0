@@ -311,6 +311,27 @@ function ChipCopy({
   );
 }
 
+/** Kategorie kosztów z ING Księgowość (lista „Zmień kategorię”) dopasowane do kategorii aplikacji. */
+export function ingCategory(category: string | null): string {
+  switch (category) {
+    case "paliwo":
+      return "Koszty samochodu - KUP 75%";
+    case "płyty/drewno":
+    case "okucia":
+    case "materiały":
+      return "Towary i materiały handlowe";
+    case "transport":
+      return "Koszty transportu towarów i materiałów";
+    case "narzędzia":
+    case "biuro":
+    case "usługi":
+    case "inne":
+      return "Pozostałe koszty";
+    default:
+      return "Pozostałe koszty";
+  }
+}
+
 /** Podpowiedzi księgowe dla dokumentu: rodzaj w ING, kategoria, odliczenie VAT, udział w kosztach PIT. */
 function Accounting({ d }: { d: DeckDoc }) {
   const car = d.category === "paliwo";
@@ -318,7 +339,7 @@ function Accounting({ d }: { d: DeckDoc }) {
   const vat = noVat ? 0 : d.vatDeduction;
   const rows: [string, string][] = [
     ["Rodzaj dokumentu w ING", noVat ? "Pozostały rozchód (paragon bez NIP nabywcy)" : "Faktura zakupu"],
-    ["Kategoria", d.category ? `${d.category}${car ? " — samochód" : ""}` : "dobierz w ING (Kategoria → Zmień)"],
+    ["Kategoria w ING (Zmień kategorię)", ingCategory(d.category)],
     ["VAT do odliczenia", `${vat}%`],
     ["Koszt w PIT", `${Math.round(d.pitShare * 100)}%`],
   ];
@@ -340,8 +361,8 @@ function Accounting({ d }: { d: DeckDoc }) {
       </ul>
       {car && (
         <p className="lp-note">
-          Samochód z umowy użyczenia, bez ewidencji przebiegu: <b>75% w koszty PIT, 50% VAT</b>. W ING wybierz (albo załóż)
-          kategorię z takimi parametrami, żeby wydatek policzył się tak samo jak w tej aplikacji.
+          Samochód z umowy użyczenia, bez ewidencji przebiegu: <b>75% w koszty PIT, 50% VAT</b>. W ING wybierz kategorię
+          „Koszty samochodu - KUP 75%”, a odliczenie VAT ustaw na 50%, żeby wydatek policzył się tak samo jak w tej aplikacji.
         </p>
       )}
       {noVat && (
