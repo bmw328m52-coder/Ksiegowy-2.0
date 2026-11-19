@@ -30,9 +30,13 @@ function normPayment(m: string | null): string {
   return "";
 }
 
-export default async function CopyToIngPage() {
+const MONTHS_PL = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
+const monthLabel = (m: string) => (m === "brak" ? "Bez daty" : `${MONTHS_PL[Number(m.slice(5, 7)) - 1] ?? m} ${m.slice(0, 4)}`);
+
+export default async function CopyToIngPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
+  const { m } = await searchParams;
   const all = await listInvoices();
-  const pending = all
+  const allPending = all
     .filter(
       (i) =>
         (i.accounting_status === "not_sent" || i.accounting_status === "ready") &&
@@ -41,6 +45,14 @@ export default async function CopyToIngPage() {
         Number(i.amount_gross) > 0
     )
     .sort((a, b) => (a.issue_date ?? "").localeCompare(b.issue_date ?? ""));
+
+  const monthOf = (i: { issue_date: string | null }) => (i.issue_date ? i.issue_date.slice(0, 7) : "brak");
+  const counts = new Map<string, number>();
+  for (const i of allPending) counts.set(monthOf(i), (counts.get(monthOf(i)) ?? 0) + 1);
+  const months = Array.from(counts.keys()).sort();
+  // Domyślnie najstarszy miesiąc z dokumentami do przepisania; ?m=rrrr-mm wybiera inny.
+  const month = m && counts.has(m) ? m : (months[0] ?? "");
+  const pending = allPending.filter((i) => monthOf(i) === month);
 
   let docs: DeckDoc[] = [];
   if (pending.length > 0) {
@@ -146,7 +158,23 @@ export default async function CopyToIngPage() {
           </Link>
         </div>
       </header>
-      <CopyDeck docs={docs} />
+      {months.length > 1 && (
+        <nav className="flex flex-wrap gap-2 mb-3" aria-label="Miesiąc dokumentów">
+          {months.map((mo) => (
+            <Link
+              key={mo}
+              href={`/finanse/ksiegowosc/przepisz?m=${mo}`}
+              aria-current={mo === month ? "page" : undefined}
+              className={`text-[13px] px-3.5 min-h-[44px] inline-flex items-center rounded-full font-semibold ${
+                mo === month ? "bg-[#a06f3f] text-white" : "bg-white border border-[#ededea] text-[#6f6c66]"
+              }`}
+            >
+              {monthLabel(mo)} · {counts.get(mo)}
+            </Link>
+          ))}
+        </nav>
+      )}
+      <CopyDeck key={month} docs={docs} />
     </PageContainer>
   );
 }

@@ -118,6 +118,8 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
   const [copied, setCopied] = useState<string | null>(null);
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [zoom, setZoom] = useState(false);
+  const [showOriginal, setShowOriginal] = useState<Set<string>>(new Set());
+  const [cleanFailed, setCleanFailed] = useState<Set<string>>(new Set());
   const [payOverride, setPayOverride] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
@@ -188,12 +190,40 @@ export default function CopyDeck({ docs }: { docs: DeckDoc[] }) {
               <iframe src={d.url} title="Dokument" className="lp-pdf" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={d.url} alt="Dokument" className="lp-img" data-zoom={zoom} onClick={() => setZoom((z) => !z)} />
+              <img
+                key={`${d.id}:${showOriginal.has(d.id) || cleanFailed.has(d.id)}`}
+                src={showOriginal.has(d.id) || cleanFailed.has(d.id) ? d.url : `/api/invoices/clean-scan?id=${d.id}&format=png`}
+                alt="Dokument"
+                className="lp-img"
+                data-zoom={zoom}
+                onClick={() => setZoom((z) => !z)}
+                onError={() => setCleanFailed((p) => new Set(p).add(d.id))}
+              />
             )
           ) : (
             <p className="ld-empty">Brak podglądu pliku.</p>
           )}
-          {!d.isPdf && d.url && <small className="lp-zoomhint">Dotknij zdjęcia, żeby powiększyć</small>}
+          {!d.isPdf && d.url && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <small className="lp-zoomhint">Paragon jest wycięty z tła i powiększony. Dotknij, żeby powiększyć jeszcze bardziej.</small>
+              {!cleanFailed.has(d.id) && (
+                <button
+                  type="button"
+                  className="text-[13px] px-3.5 min-h-[44px] rounded-full font-semibold bg-white border border-[#ededea] text-[#6f6c66]"
+                  onClick={() =>
+                    setShowOriginal((p) => {
+                      const n = new Set(p);
+                      if (n.has(d.id)) n.delete(d.id);
+                      else n.add(d.id);
+                      return n;
+                    })
+                  }
+                >
+                  {showOriginal.has(d.id) ? "Pokaż wycięty" : "Pokaż oryginał"}
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="lv-card lp-fields">
