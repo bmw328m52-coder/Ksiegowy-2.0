@@ -41,6 +41,17 @@ export default async function Home() {
   ]);
   const dash = dashRes.value;
   const jobs = jobsRes.value;
+  // Skrzynka faktur: zdjęcia już wgrane, którym brakuje dostawcy/kwoty (albo OCR padł).
+  const invoicesToFill = await supabase
+    .from("invoices")
+    .select("ocr_status, supplier_name, amount_gross")
+    .then(({ data }) =>
+      (data ?? []).filter((i) =>
+        i.ocr_status === "failed" ||
+        (i.ocr_status !== "pending" && i.ocr_status !== "processing" && (!i.supplier_name || !i.amount_gross)),
+      ).length,
+      () => 0,
+    );
   const loadFailed = !dashRes.ok || !jobsRes.ok;
   const activeJob = active ? await getJobMeta(active.job_id).catch(() => null) : null;
 
@@ -219,7 +230,22 @@ export default async function Home() {
         <Link href="/jobs/new">+ Nowe zlecenie</Link>
         <Link href="/clients/new">+ Klient</Link>
         <Link href="/timer">Licznik czasu</Link>
+        <Link href="/invoices/new">+ Faktura (zdjęcie)</Link>
       </div>
+      {invoicesToFill > 0 && (
+        <Link href="/invoices?filter=todo" className="lv-urgent">
+          <p>
+            {invoicesToFill}{" "}
+            {invoicesToFill === 1
+              ? "faktura czeka"
+              : invoicesToFill % 10 >= 2 && invoicesToFill % 10 <= 4 && (invoicesToFill % 100 < 10 || invoicesToFill % 100 >= 20)
+                ? "faktury czekają"
+                : "faktur czeka"}{" "}
+            na uzupełnienie
+          </p>
+          <small>Skrzynka faktur · dopisz dostawcę, kwotę i przypisz do zlecenia</small>
+        </Link>
+      )}
 
       {/* Ostatnie projekty — poziome karty */}
       <section>
