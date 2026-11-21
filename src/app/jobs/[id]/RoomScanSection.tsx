@@ -239,6 +239,30 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                               {k.label}
                               {f.access && <span className="ml-1.5 text-[10px] font-bold text-[var(--accent)]">DOSTĘP</span>}
                               {f.note && <div className="text-[11px] text-zinc-500">{f.note}</div>}
+                              {(f.photos?.length ?? 0) > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1.5">
+                                  {f.photos!.map((p) =>
+                                    photoUrls[p] ? (
+                                      <a key={p} href={photoUrls[p]} target="_blank" rel="noopener noreferrer">
+                                        {/* eslint-disable-next-line @next/next/no-img-element -- podpisany URL Storage, wygasa po 1 h */}
+                                        <img
+                                          src={photoUrls[p]}
+                                          alt={`${k.label} — zdjęcie`}
+                                          loading="lazy"
+                                          className="h-16 w-16 rounded-md border border-[#ededea] object-cover"
+                                        />
+                                      </a>
+                                    ) : (
+                                      <span
+                                        key={p}
+                                        className="flex h-16 w-16 items-center justify-center rounded-md bg-[var(--surface-2)] text-[10px] text-zinc-400"
+                                      >
+                                        brak
+                                      </span>
+                                    )
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="py-1 pr-3 font-semibold">{wi >= 0 ? wallLetter(wi) : "—"}</td>
                             <td className="py-1 pr-3 tabular-nums">{Math.round(f.width_mm)} × {Math.round(f.height_mm)}</td>
@@ -307,7 +331,17 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
                           </td>
                           <td className="py-1 pr-3 font-semibold">{wallLetter(wi)}</td>
                           <td className="py-1 pr-3 tabular-nums">
-                            {Math.round(mk.offset_mm)} / {Math.round(walls[wi].length_mm - mk.offset_mm)}
+                            {mk.width_mm && mk.kind !== "furniture_edge" ? (
+                              <>
+                                obszar {Math.round(mk.width_mm)} mm: od{" "}
+                                {Math.round(mk.offset_mm - mk.width_mm / 2)} / do{" "}
+                                {Math.round(walls[wi].length_mm - mk.offset_mm - mk.width_mm / 2)}
+                              </>
+                            ) : (
+                              <>
+                                {Math.round(mk.offset_mm)} / {Math.round(walls[wi].length_mm - mk.offset_mm)}
+                              </>
+                            )}
                           </td>
                           <td className="py-1 tabular-nums">{mk.kind === "furniture_edge" ? "—" : mm(mk.height_mm)}</td>
                         </tr>

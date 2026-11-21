@@ -112,6 +112,8 @@ export type ScanFeature = {
   /** Zabudowa musi zostawić dostęp (drzwiczki / otwierany front). */
   access?: boolean;
   note?: string;
+  /** Id zdjęć — bucket `scan-photos`. */
+  photos?: string[];
 };
 
 export type ScanObject = {
@@ -157,6 +159,8 @@ export type ScanMarker = {
   note?: string;
   /** Id zdjęć — bucket `scan-photos`, ścieżka `{user_id}/{id}.jpg` (scanPhotoPath). */
   photos?: string[];
+  /** Obszar zamiast punktu: szerokość (mm) wokół offset_mm (środek). */
+  width_mm?: number;
 };
 
 export type ScanData = {

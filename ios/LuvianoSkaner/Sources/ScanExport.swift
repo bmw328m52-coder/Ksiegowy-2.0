@@ -60,6 +60,8 @@ struct ScanMarker: Codable, Identifiable {
     var note: String?
     /// Id zdjęć (PhotoStore / bucket scan-photos `{user_id}/{id}.jpg`).
     var photos: [String]?
+    /// Obszar zamiast punktu: szerokość (mm) wokół `offsetMm` (środek) — np. strefa zaworów i odpływu.
+    var widthMm: Double?
 }
 
 struct ScanPayload: Codable {

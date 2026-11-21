@@ -5,6 +5,7 @@ import "./globals.css";
 import "./premium.css";
 import AppAppearance from "@/components/AppAppearance";
 import BottomNav from "@/components/BottomNav";
+import BackButton from "@/components/BackButton";
 import Sidebar from "@/components/Sidebar";
 import ActiveTimerBar from "@/components/ActiveTimerBar";
 import ToastContainer from "@/components/ToastContainer";
@@ -72,6 +73,7 @@ export default function RootLayout({
           </div>
           <ToastContainer />
           <ActiveTimerBar />
+          <BackButton />
           <BottomNav />
           <ServiceWorkerRegistrar />
         </PrivateModeProvider></AppAppearance>

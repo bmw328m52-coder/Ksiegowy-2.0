@@ -712,6 +712,7 @@ struct ScanResultView: View {
                 scan.markers[k].heightMm = min(max(z, 0), w.heightMm).rounded()
                 if done { dragging = false; changed() }
             },
+            onSwipe: { step($0) },
             onDragFeature: { id, t, z, done in
                 guard scan.walls.indices.contains(i), let k = scan.features.firstIndex(where: { $0.id == id }) else { return }
                 if !dragging { snapshot(); dragging = true; selectedFeature = id; selectedMarker = nil }
@@ -790,7 +791,7 @@ struct ScanResultView: View {
         if let f = pendingFeature { return "Stuknij w ścianę tam, gdzie jest: \(f.label)" }
         if pendingKind == .furnitureEdge { return "Stuknij w ścianę tam, gdzie mebel ma się zaczynać (drugi znacznik = koniec)" }
         if let k = pendingKind { return "Stuknij w ścianę tam, gdzie jest: \(k.label)" }
-        return "Stuknij wymiar → pomiar · ścianę → punkt · punkt/element przeciągnij palcem albo stuknij 2× → edycja"
+        return "Przesuń palcem w bok → inna ściana · stuknij wymiar → pomiar · ścianę → punkt · punkt/element przeciągnij albo stuknij 2× → edycja"
     }
 
     private func step(_ d: Int) {
@@ -1137,7 +1138,10 @@ struct ScanResultView: View {
                         .background(k.color, in: Circle())
                     VStack(alignment: .leading, spacing: 1) {
                         Text(k.label).font(.subheadline)
-                        Text("Ściana \(wallLetter(row.wall)) · \(Int(row.mk.offsetMm.rounded())) od lewej"
+                        Text("Ściana \(wallLetter(row.wall)) · "
+                             + ((row.mk.widthMm ?? 0) > 0 && !row.mk.isFurnitureEdge
+                                ? "obszar \(Int((row.mk.widthMm ?? 0).rounded())) mm od \(Int((row.mk.offsetMm - (row.mk.widthMm ?? 0) / 2).rounded())) od lewej"
+                                : "\(Int(row.mk.offsetMm.rounded())) od lewej")
                              + (row.mk.isFurnitureEdge ? "" : " · \(Int(row.mk.heightMm.rounded())) od podłogi"))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)

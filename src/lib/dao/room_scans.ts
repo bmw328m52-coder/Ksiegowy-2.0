@@ -2,7 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import type { RoomScan } from "./room_scans.types";
 import { SCAN_PHOTOS_BUCKET, scanPhotoPath } from "./room_scans.types";
 
-const photoIds = (scan: Pick<RoomScan, "data">) => (scan.data.markers ?? []).flatMap((mk) => mk.photos ?? []);
+const photoIds = (scan: Pick<RoomScan, "data">) => [
+  ...(scan.data.markers ?? []).flatMap((mk) => mk.photos ?? []),
+  ...(scan.data.features ?? []).flatMap((f) => f.photos ?? []),
+];
 
 export async function listScansByJob(jobId: string): Promise<RoomScan[]> {
   const supabase = await createClient();

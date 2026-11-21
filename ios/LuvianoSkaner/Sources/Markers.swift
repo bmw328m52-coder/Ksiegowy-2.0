@@ -113,12 +113,15 @@ struct MarkerSheet: View {
     @State private var offsetText: String
     @State private var heightText: String
     @State private var fromRight = false
+    /// Obszar zamiast punktu: pas o zadanej szerokości (np. 500 mm), w którym są zawory i odpływ.
+    @State private var isArea: Bool
+    @State private var widthText: String
     @EnvironmentObject private var laser: Laser
     @FocusState private var focus: Field?
     /// Pole, do którego trafi następny pomiar z dalmierza (po odległości od narożnika — wysokość).
     @State private var laserTarget: Field = .offset
 
-    private enum Field { case offset, height }
+    private enum Field { case offset, width, height }
 
     init(marker: ScanMarker, wallName: String, wallLength: Double, isNew: Bool,
          onSave: @escaping (ScanMarker) -> Void, onDelete: @escaping () -> Void) {
@@ -128,7 +131,12 @@ struct MarkerSheet: View {
         self.onSave = onSave
         self.onDelete = onDelete
         _marker = State(initialValue: marker)
-        _offsetText = State(initialValue: "\(Int(marker.offsetMm.rounded()))")
+        let area = (marker.widthMm ?? 0) > 0 && marker.kind != MarkerKind.furnitureEdge.rawValue
+        let w = marker.widthMm ?? 500
+        // Obszar edytujemy po lewej krawędzi (offsetMm w danych = środek).
+        _isArea = State(initialValue: area)
+        _widthText = State(initialValue: "\(Int(w.rounded()))")
+        _offsetText = State(initialValue: "\(Int((area ? marker.offsetMm - w / 2 : marker.offsetMm).rounded()))")
         _heightText = State(initialValue: "\(Int(marker.heightMm.rounded()))")
     }
 
@@ -137,7 +145,26 @@ struct MarkerSheet: View {
     private var isEdge: Bool { kind == .furnitureEdge }
     private var valid: Bool {
         guard let o = num(offsetText), let h = num(heightText) else { return false }
+        if isArea {
+            guard let w = num(widthText), w > 0 else { return false }
+            return o >= 0 && o + w <= wallLength + 1 && h >= 0
+        }
         return o >= 0 && o <= wallLength + 1 && h >= 0
+    }
+
+    /// Środek punktu / obszaru liczony od lewego narożnika, z bieżących pól (w zadanym trybie).
+    private func centerMm(area: Bool) -> Double? {
+        guard let o = num(offsetText) else { return nil }
+        let w = area ? (num(widthText) ?? 0) : 0
+        let left = fromRight ? wallLength - o - w : o
+        return left + w / 2
+    }
+
+    /// Wartość pola „od narożnika" dla środka `c` w danym trybie.
+    private func fieldValue(center c: Double, area: Bool) -> Double {
+        let w = area ? (num(widthText) ?? 0) : 0
+        let left = c - w / 2
+        return max(fromRight ? wallLength - left - w : left, 0)
     }
 
     var body: some View {
@@ -174,17 +201,47 @@ struct MarkerSheet: View {
                         Text("Prawego narożnika").tag(true)
                     }
                     .pickerStyle(.segmented)
-                    .onChange(of: fromRight) { _, _ in
-                        // Ten sam punkt — przeliczamy wartość na drugi narożnik.
-                        if let o = num(offsetText) { offsetText = "\(Int((wallLength - o).rounded()))" }
+                    .onChange(of: fromRight) { old, new in
+                        // Ten sam punkt / obszar — przeliczamy wartość na drugi narożnik.
+                        guard let o = num(offsetText) else { return }
+                        let w = isArea ? (num(widthText) ?? 0) : 0
+                        let left = old ? wallLength - o - w : o
+                        offsetText = "\(Int(max(new ? wallLength - left - w : left, 0).rounded()))"
+                    }
+                    if !isEdge {
+                        Toggle(isOn: $isArea) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Zaznacz obszar zamiast punktu")
+                                Text("Np. pas 500 mm, w którym są zawory i odpływ")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .onChange(of: isArea) { old, new in
+                            guard let c = centerMm(area: old) else { return }
+                            if new, num(widthText) == nil { widthText = "500" }
+                            offsetText = "\(Int(fieldValue(center: c, area: new).rounded()))"
+                        }
                     }
                     LaserHint()
-                    mmField(fromRight ? "Od prawego narożnika" : "Od lewego narożnika", text: $offsetText, field: .offset)
-                    if !isEdge { mmField("Od podłogi (środek punktu)", text: $heightText, field: .height) }
+                    if isArea {
+                        mmField(fromRight ? "Prawa krawędź od prawego narożnika" : "Początek obszaru od lewego narożnika", text: $offsetText, field: .offset)
+                        mmField("Szerokość obszaru", text: $widthText, field: .width)
+                        HStack(spacing: 8) {
+                            ForEach([300, 500, 600, 800, 1000], id: \.self) { v in
+                                Button("\(v)") { widthText = "\(v)" }
+                                    .buttonStyle(.bordered)
+                                    .font(.subheadline.monospacedDigit())
+                            }
+                        }
+                    } else {
+                        mmField(fromRight ? "Od prawego narożnika" : "Od lewego narożnika", text: $offsetText, field: .offset)
+                    }
+                    if !isEdge { mmField(isArea ? "Od podłogi (środek obszaru)" : "Od podłogi (środek punktu)", text: $heightText, field: .height) }
                 } header: {
                     Text("Położenie na ścianie \(wallName)")
                 } footer: {
                     Text("Długość ściany \(Int(wallLength.rounded())) mm. Wpisz wymiar z miarki lub dalmierza."
+                         + (isArea ? " Obszar rysuje się na ścianie jako pas — w jego świetle jest to, co opisujesz." : "")
                          + (isEdge ? " Drugi znacznik na tej samej ścianie wyznacza koniec mebla." : ""))
                 }
 
@@ -219,7 +276,14 @@ struct MarkerSheet: View {
                     Button("Zapisz") {
                         guard let o = num(offsetText), let h = num(heightText) else { return }
                         var m = marker
-                        m.offsetMm = (fromRight ? wallLength - o : o).rounded()
+                        if isArea, let w = num(widthText), w > 0 {
+                            let left = fromRight ? wallLength - o - w : o
+                            m.offsetMm = (left + w / 2).rounded()
+                            m.widthMm = w.rounded()
+                        } else {
+                            m.offsetMm = (fromRight ? wallLength - o : o).rounded()
+                            m.widthMm = nil
+                        }
                         m.heightMm = h.rounded()
                         onSave(m)
                         dismiss()
@@ -237,6 +301,10 @@ struct MarkerSheet: View {
             case .offset:
                 offsetText = v
                 guard !isEdge else { return }
+                laserTarget = isArea ? .width : .height
+                if focus != nil { focus = laserTarget }
+            case .width:
+                widthText = v
                 laserTarget = .height
                 if focus != nil { focus = .height }
             case .height:

@@ -75,12 +75,14 @@ struct ScanFeature: Codable, Identifiable, Equatable {
     /// Musi zostać dostęp przez zabudowę.
     var access: Bool?
     var note: String?
+    /// Id zdjęć (PhotoStore / bucket scan-photos).
+    var photos: [String]?
 
     var flush: Bool { depthMm < 1 }
 }
 
 extension ScanFeature {
-    private enum K: String, CodingKey { case id, kind, wallId, offsetMm, elevationMm, widthMm, heightMm, depthMm, access, note }
+    private enum K: String, CodingKey { case id, kind, wallId, offsetMm, elevationMm, widthMm, heightMm, depthMm, access, note, photos }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         id = try c.decode(String.self, forKey: .id)
@@ -93,6 +95,7 @@ extension ScanFeature {
         depthMm = try c.decodeIfPresent(Double.self, forKey: .depthMm) ?? 0
         access = try c.decodeIfPresent(Bool.self, forKey: .access)
         note = try c.decodeIfPresent(String.self, forKey: .note)
+        photos = try c.decodeIfPresent([String].self, forKey: .photos)
     }
 }
 
@@ -310,6 +313,11 @@ struct FeatureSheet: View {
                         }
                     }
                 }
+
+                MarkerPhotosSection(photos: Binding(
+                    get: { f.photos ?? [] },
+                    set: { f.photos = $0.isEmpty ? nil : $0 }
+                ))
 
                 Section("Notatka") {
                     TextField("np. zawory przy grzejniku, licznik, rewizja…", text: Binding(

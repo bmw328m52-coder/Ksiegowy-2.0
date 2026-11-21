@@ -16,7 +16,7 @@ struct SavedScan: Codable, Identifiable {
 }
 
 extension ScanPayload {
-    var photoIds: [String] { markers.flatMap { $0.photos ?? [] } }
+    var photoIds: [String] { markers.flatMap { $0.photos ?? [] } + features.flatMap { $0.photos ?? [] } }
 }
 
 /// Pliki JSON w Documents/scans — zostają po zamknięciu aplikacji i po aktualizacji przez Sideloadly.

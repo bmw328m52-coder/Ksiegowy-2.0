@@ -482,6 +482,11 @@ enum PlanDraw {
         for mk in m.markers {
             guard let g = m.walls.first(where: { $0.w.id == mk.wallId }) else { continue }
             let c = L.pt(g.at(min(max(mk.offsetMm, 0), g.len))) + CGVector(g.inN) * 13
+            if let w = mk.widthMm, w > 0, !mk.isFurnitureEdge {
+                let t0 = min(max(mk.offsetMm - w / 2, 0), g.len), t1 = min(max(mk.offsetMm + w / 2, 0), g.len)
+                ctx.stroke(Draft.line(L.pt(g.at(t0, -4)), L.pt(g.at(t1, -4))),
+                           with: .color(MarkerKind(key: mk.kind).color.opacity(0.7)), lineWidth: 5)
+            }
             MarkerDraw.badge(ctx, MarkerKind(key: mk.kind), at: c, r: 9)
         }
 

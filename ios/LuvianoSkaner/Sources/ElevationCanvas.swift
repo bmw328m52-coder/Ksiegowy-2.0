@@ -28,6 +28,8 @@ struct ElevationCanvas: View {
     /// Przeciąganie punktu instalacji / elementu palcem: nowe położenie (mm), `done` = puszczony.
     var onDragMarker: (_ id: String, _ t: Double, _ z: Double, _ done: Bool) -> Void = { _, _, _, _ in }
     var onDragFeature: (_ id: String, _ t: Double, _ z: Double, _ done: Bool) -> Void = { _, _, _, _ in }
+    /// Przesunięcie palcem po pustym tle w lewo / w prawo: +1 = następna ściana, −1 = poprzednia.
+    var onSwipe: (Int) -> Void = { _ in }
 
     /// Co jest ciągnięte: punkt czy element, id i przesunięcie palca względem punktu zaczepienia (mm).
     @State private var drag: (feature: Bool, id: String, dt: Double, dz: Double)?
@@ -72,6 +74,11 @@ struct ElevationCanvas: View {
                         if d.feature { onDragFeature(d.id, nt, nz, false) } else { onDragMarker(d.id, nt, nz, false) }
                     }
                     .onEnded { v in
+                        if drag == nil {
+                            let dx = v.translation.width, dy = v.translation.height
+                            if abs(dx) > 70, abs(dx) > abs(dy) * 1.8 { onSwipe(dx < 0 ? 1 : -1) }
+                            return
+                        }
                         guard let d = drag, let g, let L = ElevLayout(geo.size, g) else { drag = nil; return }
                         let (t, z) = L.inv(v.location)
                         let nt = ((t + d.dt) / 5).rounded() * 5, nz = ((z + d.dz) / 5).rounded() * 5
@@ -388,6 +395,20 @@ enum ElevationDraw {
                 Draft.dimension(ctx, p(mk.offsetMm, 0), p(mk.offsetMm, mk.heightMm), out: CGVector(dx: 1, dy: 0), off: 0,
                                 text: "\(Int(mk.heightMm.rounded()))", color: col, bg: Color(white: 0.97))
             }
+        }
+        // Obszary (pas o zadanej szerokości): przezroczysty pas na całą wysokość + szerokość u góry.
+        for mk in markers where (mk.widthMm ?? 0) > 0 && !mk.isFurnitureEdge {
+            let w = mk.widthMm ?? 0
+            let k = MarkerKind(key: mk.kind)
+            let a = p(max(mk.offsetMm - w / 2, 0), H), b = p(min(mk.offsetMm + w / 2, W), 0)
+            let band = CGRect(x: a.x, y: a.y, width: max(b.x - a.x, 2), height: max(b.y - a.y, 2))
+            ctx.fill(Path(band), with: .color(k.color.opacity(mk.id == selected ? 0.18 : 0.10)))
+            ctx.stroke(Path(band), with: .color(k.color.opacity(0.8)),
+                       style: StrokeStyle(lineWidth: mk.id == selected ? 2 : 1.2, dash: [6, 4]))
+            ctx.draw(Text("\(Int(w.rounded())) mm")
+                        .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                        .foregroundColor(k.color),
+                     at: CGPoint(x: band.midX, y: band.minY + 10))
         }
         for mk in markers {
             let c = p(mk.offsetMm, mk.heightMm)
