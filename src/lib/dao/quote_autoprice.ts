@@ -234,7 +234,9 @@ export async function reconcileAutoprice(jobId: string): Promise<ReconcileResult
     .from("job_materials")
     .select("id, auto_source")
     .eq("job_id", jobId)
-    .not("auto_source", "is", null);
+    .not("auto_source", "is", null)
+    // linie Projektanta kuchni (kuchnia:*) obsługuje reconcileKitchenMaterials — nie kasuj ich tutaj
+    .not("auto_source", "like", "kuchnia:%");
   if (exErr) {
     if (exErr.code === "42703") return { created: 0, updated: 0, removed: 0 };
     throw new Error(exErr.message);

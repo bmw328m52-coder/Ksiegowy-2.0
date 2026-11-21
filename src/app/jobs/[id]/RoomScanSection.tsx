@@ -1,3 +1,4 @@
+import Link from "next/link";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import type { RoomScan, ScanWallCurve } from "@/lib/dao/room_scans.types";
 import { SCAN_OBJECT_LABELS, SCAN_OPENING_LABELS } from "@/lib/dao/room_scans.types";
@@ -58,7 +59,14 @@ export default async function RoomScanSection({ jobId, scans }: { jobId: string;
           <section key={scan.id} className="mt-4 rounded-xl border border-[#ededea] bg-white p-4 space-y-3">
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="text-sm font-semibold text-zinc-700">Skan LiDAR — {scan.name}</h2>
-              <span className="text-[11px] text-zinc-500">{fmtDate(scan.created_at)}</span>
+              <span className="flex items-baseline gap-3 text-[11px] text-zinc-500">
+                {(scan.data.room_type ?? "kitchen") === "kitchen" && (
+                  <Link href={`/projektant?job=${jobId}&scan=${scan.id}`} className="text-[13px] font-semibold text-[#a06f3f]">
+                    Projektuj kuchnię →
+                  </Link>
+                )}
+                {fmtDate(scan.created_at)}
+              </span>
             </div>
 
             <RoomScanViews id={scan.id} data={scan.data} name={scan.name} />

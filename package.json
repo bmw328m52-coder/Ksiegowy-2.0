@@ -9,7 +9,8 @@
     "start": "cross-env NODE_OPTIONS=--use-system-ca next start -H 0.0.0.0",
     "prod": "npm run build && npm run start",
     "lint": "eslint",
-    "test:calc": "node --test scripts/test-calc.mjs"
+    "test:calc": "node --test scripts/test-calc.mjs",
+    "test:kitchen": "node --test scripts/test-kitchen.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
