@@ -97,7 +97,7 @@ export default async function ClientDetailPage({
   const profitNetSum = revenueNetSum - costsNetSum;
   const marginPctSum = revenueGrossSum > 0 ? (profitSum / revenueGrossSum) * 100 : null;
   // Netto / VAT pokazujemy tylko, gdy faktycznie różni się od brutto (VAT-owiec, zlecenie z fakturą).
-  const showNet = Math.abs(profitSum - profitNetSum) >= 0.01 || Math.abs(revenueGrossSum - revenueNetSum) >= 0.01;
+  const showNet = false; // na razie wszystko w brutto (netto ukryte, żeby nie mylić)
   const marginTone =
     marginPctSum === null ? "neutral" : marginPctSum >= 20 ? "ok" : marginPctSum >= 0 ? "accent" : "warn";
 

@@ -1,146 +1,107 @@
-import PageHeader from "@/components/PageHeader";
-import { Money } from "@/components/Money";
-import { getDashboardData, MONTH_NAMES_PL } from "@/lib/dao/dashboard";
-import { CATEGORY_COLORS } from "@/lib/dao/cost_lines.types";
+import Link from "next/link";
+import { PageContainer } from "@/components/ui";
+import MonthCarousel from "@/components/finance/MonthCarousel";
+import { BalanceRows, GrantSwitch, MonthBalance, Row } from "@/components/finance/MonthBalance";
+import { getYearDashboards, MONTH_NAMES_PL, type DashboardData } from "@/lib/dao/dashboard";
 import { fmtPLN } from "@/lib/format";
 import ExportMonthCard from "@/app/invoices/ExportMonthCard";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Raporty" };
 
-export default async function RaportyPage() {
-  const d = await getDashboardData();
+const SHORT = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
+
+export default async function RaportyPage({ searchParams }: { searchParams: Promise<{ rok?: string; dotacja?: string }> }) {
+  const { rok, dotacja } = await searchParams;
+  const without = dotacja === "bez";
+  const now = new Date();
+  const parsed = Number(rok);
+  const year =
+    Number.isInteger(parsed) && parsed >= 2020 && parsed <= now.getFullYear() + 1 ? parsed : now.getFullYear();
+  const months = await getYearDashboards(year);
+  const curIdx = year === now.getFullYear() ? now.getMonth() : year < now.getFullYear() ? 11 : 0;
+  const cur = months[curIdx];
+
+  return (
+    <PageContainer className="lv-home">
+      <header className="lf-hero">
+        <p className="lv-eyebrow">Raport miesięczny · brutto</p>
+        <h1 className="lf-hero-big ld-year">
+          <Link href={`/finanse/raporty?rok=${year - 1}${without ? "&dotacja=bez" : ""}`} aria-label={`Rok ${year - 1}`} className="ld-yarrow">
+            ‹
+          </Link>
+          {year}
+          <Link href={`/finanse/raporty?rok=${year + 1}${without ? "&dotacja=bez" : ""}`} aria-label={`Rok ${year + 1}`} className="ld-yarrow">
+            ›
+          </Link>
+        </h1>
+        <p className="lf-hero-sub">Przesuń palcem w lewo lub w prawo, żeby zmienić miesiąc.</p>
+      </header>
+
+      {cur.ytd.grantCostsGross > 0 && (
+        <GrantSwitch base="/finanse/raporty" params={{ rok: String(year) }} without={without} />
+      )}
+
+      <section>
+        <MonthCarousel
+          labels={SHORT}
+          initial={curIdx}
+          markers={year === now.getFullYear() ? { [now.getMonth()]: "dziś" } : undefined}
+        >
+          {months.map((d) => (
+            <ReportPanel key={d.month_index} d={d} withGrant={!without} />
+          ))}
+        </MonthCarousel>
+      </section>
+
+      <section className="space-y-2">
+        <p className="lv-eyebrow">Paczka dokumentów (dla ING / księgowej)</p>
+        <ExportMonthCard />
+      </section>
+
+      <section className="lv-card ld-box">
+        <h2 className="lc-h2">Cały rok {year} (brutto)</h2>
+        <div className="mt-3.5">
+          <BalanceRows t={cur.ytd} period="year" withGrant={!without} />
+        </div>
+        <div className="ld-rows" style={{ marginTop: 10 }}>
+          <Row label="Zaliczka PIT YTD (z faktur)" value={fmtPLN(cur.ytd.pit)} sub />
+        </div>
+      </section>
+    </PageContainer>
+  );
+}
+
+function ReportPanel({ d, withGrant }: { d: DashboardData; withGrant: boolean }) {
   const monthName = MONTH_NAMES_PL[d.month_index];
-
   return (
-    <main className="flex flex-1 flex-col px-4 py-6">
-      <div className="w-full max-w-md mx-auto space-y-4">
-        <PageHeader title="Raporty" back={{ href: "/finanse" }} />
-
-        <section className="rounded-2xl border border-[#ededea] bg-white overflow-hidden">
-          <header className="px-4 pt-4 pb-2">
-            <p className="text-[12px] font-semibold text-[#8d8a85]">
-              Raport miesięczny
-            </p>
-            <h2 className="text-sm font-semibold text-[#1f1d1b]">
-              LUVIANO · {monthName} {d.year}
-            </h2>
-          </header>
-          <div className="px-4 pb-4 space-y-2">
-            <ReportRow label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
-            {d.monthRevenueSplit && (
-              <>
-                <ReportRow label="— z faktur (podatkowy)" value={fmtPLN(d.monthRevenueSplit.invoicedNet)} sub />
-                <ReportRow label="— bez faktury (symulacja)" value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)} sub />
-              </>
-            )}
-            <ReportRow label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
-            <div className="h-px bg-[var(--surface-2)] my-1" />
-            <ReportRow
-              label="Wynik miesiąca"
-              value={fmtPLN(d.month.profit)}
-              tone={d.month.profit >= 0 ? "gold" : "negative"}
-              bold
-            />
-            <div className="h-px bg-[var(--surface-2)] my-1" />
-            <ReportRow label="Należności brutto (do zapłaty przez klientów)" value={fmtPLN(d.pendingRevenueGross)} sub />
-            <ReportRow label="Zaliczki otwarte brutto" value={fmtPLN(d.openDepositsTotal)} sub />
-            {d.vat &&
-              (d.vat.vatToReclaim > 0 ? (
-                <ReportRow
-                  label={`VAT do odzyskania (${d.vat.label})`}
-                  value={fmtPLN(d.vat.vatToReclaim)}
-                  tone="gold"
-                  sub
-                />
-              ) : (
-                <ReportRow label={`VAT do zapłaty (${d.vat.label})`} value={fmtPLN(d.vat.vatToPay)} sub />
-              ))}
-            <ReportRow label="Zaliczka PIT (miesiąc)" value={fmtPLN(d.pit.pitMonth)} sub />
-            <p className="text-[12px] text-[#8d8a85] pt-1 leading-relaxed">
-              PIT, VAT i ZUS liczone tylko z przychodu z faktur. „Bez faktury” to symulacja — poza podatkiem.
-            </p>
-          </div>
-
-          {d.costsByCategoryMonth.length > 0 && (
-            <div className="px-4 pb-4">
-              <p className="text-[12px] font-semibold text-[#8d8a85] mb-2">
-                Koszty wg kategorii
-              </p>
-              <ul className="space-y-1.5">
-                {d.costsByCategoryMonth.map((r) => (
-                  <li key={r.category} className="flex items-center justify-between gap-2 text-[13px]">
-                    <span className="flex items-center gap-1.5 text-[#3a3633] capitalize">
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: CATEGORY_COLORS[r.category] ?? "#8d8a85" }}
-                      />
-                      {r.category}
-                    </span>
-                    <Money className="tabular-nums text-[#6f6c66]">
-                      {fmtPLN(r.amountNet)}{" "}
-                      <span className="text-[#8d8a85]">· {Math.round(r.share * 100)}%</span>
-                    </Money>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-
-        <section className="space-y-2">
-          <p className="text-[12px] font-semibold text-[#8d8a85] px-1">
-            Paczka dokumentów (dla ING / księgowej)
-          </p>
-          <ExportMonthCard />
-        </section>
-
-        <section className="rounded-2xl border border-[#ededea] bg-white p-4">
-          <p className="text-[12px] font-semibold text-[#8d8a85] mb-2">
-            Rok {d.year}
-          </p>
-          <ReportRow label="Przychód netto YTD" value={fmtPLN(d.ytd.revenueNet)} />
-          <ReportRow label="Koszty netto YTD" value={fmtPLN(d.ytd.costsNet)} />
-          <ReportRow
-            label="Dochód YTD"
-            value={fmtPLN(d.ytd.profit)}
-            tone={d.ytd.profit >= 0 ? "gold" : "negative"}
-            bold
-          />
-          <ReportRow label="Zaliczka PIT YTD" value={fmtPLN(d.ytd.pit)} sub />
-        </section>
+    <article className="ld-panel" aria-label={`${monthName} ${d.year}`}>
+      <div className="ld-panel-head">
+        <h2>
+          {monthName} {d.year}
+        </h2>
       </div>
-    </main>
+
+      <MonthBalance d={d} withGrant={withGrant} />
+
+      <div className="lv-card ld-box">
+        <h3 className="ld-h3">Do zapłacenia i w drodze</h3>
+        <div className="ld-rows" style={{ marginTop: 14 }}>
+          <Row label="Należności (do zapłaty przez klientów)" value={fmtPLN(d.pendingRevenueGross)} />
+          <Row label="Zaliczki otwarte" value={fmtPLN(d.openDepositsTotal)} />
+          {d.vat &&
+            (d.vat.vatToReclaim > 0 ? (
+              <Row label={`VAT do odzyskania (${d.vat.label})`} value={fmtPLN(d.vat.vatToReclaim)} tone="gold" />
+            ) : (
+              <Row label={`VAT do zapłaty (${d.vat.label})`} value={fmtPLN(d.vat.vatToPay)} />
+            ))}
+          <Row label="Zaliczka PIT (miesiąc)" value={fmtPLN(d.pit.pitMonth)} />
+        </div>
+        <p className="ld-note">
+          PIT, VAT i ZUS liczone tylko z przychodu z faktur. „Bez faktury” to symulacja — poza podatkiem.
+        </p>
+      </div>
+    </article>
   );
 }
 
-function ReportRow({
-  label,
-  value,
-  tone = "neutral",
-  bold = false,
-  sub = false,
-}: {
-  label: string;
-  value: string;
-  tone?: "neutral" | "gold" | "negative";
-  bold?: boolean;
-  sub?: boolean;
-}) {
-  const color =
-    tone === "gold"
-      ? "text-[#a06f3f]"
-      : tone === "negative"
-        ? "text-[#b8523a]"
-        : sub
-          ? "text-[#8d8a85]"
-          : "text-[#3a3633]";
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className={`text-sm ${sub ? "text-[#8d8a85]" : "text-[#6f6c66]"}`}>{label}</span>
-      <Money className={`tabular-nums ${bold ? "text-base font-semibold" : "text-sm"} ${color}`}>
-        {value}
-      </Money>
-    </div>
-  );
-}

@@ -138,12 +138,10 @@ export default async function Home() {
   const agenda = agendaItems.slice(0, 6);
 
   const vatInfo = dash?.vat ?? null;
-  // Brutto najpierw; netto drobnym tylko, gdy faktycznie się różni (VAT-owiec).
-  const profitGross = dash ? dash.month.revenueGross - dash.month.costsGross : 0;
-  const showNet = dash
-    ? Math.abs(dash.month.revenueGross - dash.month.revenueNet) >= 0.01 ||
-      Math.abs(dash.month.costsGross - dash.month.costsNet) >= 0.01
-    : false;
+  // Wszystko w brutto, razem z zakupami z dotacji PUP (bez nich: Finanse → „Bez dotacji PUP”).
+  const grantGross = dash ? dash.month.grantCostsGross : 0;
+  const ownCostsGross = dash ? dash.month.costsGross : 0;
+  const profitGross = dash ? dash.month.revenueGross - ownCostsGross : 0;
 
   const recentJobs = [...jobs]
     .filter((j) => !CLOSED.has(j.status))
@@ -312,16 +310,14 @@ export default async function Home() {
             <StatCard
               label="Przychód brutto"
               value={fmtPLN(dash.month.revenueGross)}
-              hint={showNet ? `netto ${fmtPLN(dash.month.revenueNet)}` : undefined}
-              hintMoney
               tone="neutral"
               money
               href="/finanse"
             />
             <StatCard
               label="Koszty brutto"
-              value={fmtPLN(dash.month.costsGross)}
-              hint={showNet ? `netto ${fmtPLN(dash.month.costsNet)}` : undefined}
+              value={fmtPLN(ownCostsGross)}
+              hint={grantGross > 0 ? `w tym dotacja PUP ${fmtPLN(grantGross)}` : undefined}
               hintMoney
               tone="neutral"
               money
@@ -330,7 +326,7 @@ export default async function Home() {
             <StatCard
               label="Zostaje brutto"
               value={fmtPLN(profitGross)}
-              hint={showNet ? `netto ${fmtPLN(dash.month.profit)}` : undefined}
+              hint={grantGross > 0 ? `bez dotacji PUP ${fmtPLN(profitGross + grantGross)}` : undefined}
               hintMoney
               tone={profitGross >= 0 ? "ok" : "warn"}
               money

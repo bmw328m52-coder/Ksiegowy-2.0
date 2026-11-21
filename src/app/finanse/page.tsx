@@ -6,6 +6,7 @@ import { fmtPLN } from "@/lib/format";
 import { Money } from "@/components/Money";
 import PrivateModeToggle from "@/components/PrivateModeToggle";
 import { PageContainer, SectionHeading, StatCard } from "@/components/ui";
+import { GrantSwitch } from "@/components/finance/MonthBalance";
 import { AttentionList, FinCard } from "./fin-ui";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +19,23 @@ const ACTIONS = [
   { href: "/finanse/terminy", icon: "!", label: "Terminy ZUS, VAT i PIT", desc: "Co i kiedy zapłacić" },
 ];
 
-export default async function FinansePage() {
+export default async function FinansePage({ searchParams }: { searchParams: Promise<{ dotacja?: string }> }) {
+  const { dotacja } = await searchParams;
+  const without = dotacja === "bez";
   const [attention, d, est] = await Promise.all([
     getFinanceAttention(),
     getDashboardData(),
     getMonthEstimatedCost(),
   ]);
   const monthName = MONTH_NAMES_PL[d.month_index];
-  const estProfit = d.month.revenueNet - est.estCostNet;
+  const grant = d.month.grantCostsGross;
+  const ownCosts = d.month.costsGross - grant;
+  const profitOwn = d.month.revenueGross - ownCosts;
+  const profitAll = d.month.revenueGross - d.month.costsGross;
+  // Główny wynik: domyślnie razem (z zakupami z dotacji); „Bez dotacji PUP” je pomija.
+  const shownCosts = without ? ownCosts : d.month.costsGross;
+  const shownProfit = without ? profitOwn : profitAll;
+  const estProfit = d.month.revenueGross - est.estCostGross;
 
   return (
     <PageContainer className="lv-home">
@@ -35,24 +45,38 @@ export default async function FinansePage() {
             <p className="lv-eyebrow">
               Finanse · {monthName} {d.year}
             </p>
-            <p className="lf-hero-big" data-neg={d.month.profit < 0}>
-              <Money>{fmtPLN(d.month.profit)}</Money>
+            <p className="lf-hero-big" data-neg={shownProfit < 0}>
+              <Money>{fmtPLN(shownProfit)}</Money>
             </p>
-            <p className="lf-hero-sub">wynik księgowy miesiąca (netto, z faktur)</p>
+            <p className="lf-hero-sub">
+              wynik miesiąca (brutto{grant > 0 ? (without ? ", bez zakupów z dotacji PUP" : ", razem z dotacją PUP") : ""})
+            </p>
           </div>
           <PrivateModeToggle />
         </div>
         <dl className="lf-chips">
           <div>
-            <dt>Przychód netto</dt>
-            <dd><Money>{fmtPLN(d.month.revenueNet)}</Money></dd>
+            <dt>Przychód brutto</dt>
+            <dd><Money>{fmtPLN(d.month.revenueGross)}</Money></dd>
           </div>
           <div>
-            <dt>Koszty netto</dt>
-            <dd><Money>{fmtPLN(d.month.costsNet)}</Money></dd>
+            <dt>{grant > 0 && without ? "Koszty brutto (bez dotacji)" : "Koszty brutto"}</dt>
+            <dd><Money>{fmtPLN(shownCosts)}</Money></dd>
           </div>
+          {grant > 0 && (
+            <>
+              <div>
+                <dt>{without ? "Pominięte: zakupy z dotacji" : "w tym zakupy z dotacji PUP"}</dt>
+                <dd><Money>{fmtPLN(grant)}</Money></dd>
+              </div>
+              <div>
+                <dt>{without ? "Wynik z dotacją (razem)" : "Wynik bez dotacji PUP"}</dt>
+                <dd><Money>{fmtPLN(without ? profitAll : profitOwn)}</Money></dd>
+              </div>
+            </>
+          )}
           <div>
-            <dt>Wynik z wyceny</dt>
+            <dt>Wynik z wyceny (brutto)</dt>
             <dd><Money>{fmtPLN(estProfit)}</Money></dd>
           </div>
           {d.pendingRevenueGross > 0 && (
@@ -63,6 +87,8 @@ export default async function FinansePage() {
           )}
         </dl>
       </header>
+
+      {grant > 0 && <GrantSwitch base="/finanse" without={without} />}
 
       <AttentionList items={attention} />
 
@@ -89,8 +115,8 @@ export default async function FinansePage() {
           {d.monthRevenueSplit && (
             <>
               <StatCard
-                label="Przychód netto z faktur"
-                value={fmtPLN(d.monthRevenueSplit.invoicedNet)}
+                label="Przychód brutto z faktur"
+                value={fmtPLN(d.monthRevenueSplit.invoicedGross)}
                 tone="info"
                 money
                 hint={
@@ -100,8 +126,8 @@ export default async function FinansePage() {
                 }
               />
               <StatCard
-                label="Przychód netto bez FV"
-                value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)}
+                label="Przychód brutto bez FV"
+                value={fmtPLN(d.monthRevenueSplit.uninvoicedGross)}
                 tone="accent"
                 money
                 hint={
@@ -113,8 +139,8 @@ export default async function FinansePage() {
             </>
           )}
           <StatCard
-            label="Koszt netto (wycena)"
-            value={fmtPLN(est.estCostNet)}
+            label="Koszt brutto (wycena)"
+            value={fmtPLN(est.estCostGross)}
             tone="accent"
             money
             hint={est.count > 0 ? `z wyceny · ${est.count} zlec.` : "brak wycenionych zleceń"}

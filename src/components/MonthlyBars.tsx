@@ -33,7 +33,7 @@ function barPath(x: number, baseY: number, w: number, h: number): string {
 }
 
 /**
- * Przychód i koszty netto w skali roku.
+ * Przychód i koszty brutto w skali roku. Zakupy z dotacji (PUP) można wliczyć albo pominąć.
  * Kolory z tokenów --chart-1 / --chart-2 (zwalidowane pod kątem daltonizmu i kontrastu).
  * Odczyt wybranego miesiąca pod wykresem: dotyk, najechanie i klawiatura działają tak samo.
  */
@@ -46,6 +46,10 @@ export default function MonthlyBars({
 }) {
   const initial = highlightMonth !== undefined && data[highlightMonth] ? highlightMonth : data.length - 1;
   const [sel, setSel] = useState(initial);
+  // Domyślnie razem z zakupami z dotacji; checkbox pozwala je pominąć i zobaczyć wynik bez nich.
+  const [withGrant, setWithGrant] = useState(true);
+  const hasGrant = data.some((p) => p.grantGross > 0);
+  const costOf = (p: MonthlyPoint) => (withGrant ? p.costsGross : p.costsGross - p.grantGross);
 
   const W = 360;
   const H = 200;
@@ -57,22 +61,33 @@ export default function MonthlyBars({
   const chartW = W - padLeft - padRight;
   const baseY = padTop + chartH;
 
-  const top = niceMax(Math.max(1, ...data.map((p) => Math.max(p.revenueNet, p.costsNet))));
+  const top = niceMax(Math.max(1, ...data.map((p) => Math.max(p.revenueGross, costOf(p)))));
   const ticks = [0, top / 2, top];
   const slotW = chartW / data.length;
   const barW = Math.max(3, slotW * 0.34);
   const gap = 2;
 
   const cur = data[sel];
-  const result = cur ? cur.revenueNet - cur.costsNet : 0;
+  const result = cur ? cur.revenueGross - costOf(cur) : 0;
 
   return (
     <div className="w-full">
+      {hasGrant && (
+        <label className="mb-2 flex min-h-[44px] items-center gap-2 text-[13px] text-[var(--ink-2)]">
+          <input
+            type="checkbox"
+            checked={withGrant}
+            onChange={(e) => setWithGrant(e.target.checked)}
+            className="h-5 w-5"
+          />
+          Wlicz zakupy z dotacji PUP (odznacz, żeby je pominąć)
+        </label>
+      )}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto select-none"
         role="group"
-        aria-label="Przychód i koszty netto w poszczególnych miesiącach"
+        aria-label="Przychód i koszty brutto w poszczególnych miesiącach"
       >
         {ticks.map((t) => {
           const y = baseY - (t / top) * chartH;
@@ -103,8 +118,8 @@ export default function MonthlyBars({
 
         {data.map((p, i) => {
           const center = padLeft + i * slotW + slotW / 2;
-          const revH = (p.revenueNet / top) * chartH;
-          const costH = (p.costsNet / top) * chartH;
+          const revH = (p.revenueGross / top) * chartH;
+          const costH = (costOf(p) / top) * chartH;
           const active = i === sel;
           const op = active ? 1 : 0.78;
           return (
@@ -112,7 +127,7 @@ export default function MonthlyBars({
               key={i}
               role="button"
               tabIndex={0}
-              aria-label={`${MONTH_FULL[i]}: przychód ${fmtPLN(p.revenueNet)}, koszty ${fmtPLN(p.costsNet)}`}
+              aria-label={`${MONTH_FULL[i]}: przychód ${fmtPLN(p.revenueGross)}, koszty ${fmtPLN(costOf(p))}`}
               aria-pressed={active}
               onMouseEnter={() => setSel(i)}
               onFocus={() => setSel(i)}
@@ -157,14 +172,20 @@ export default function MonthlyBars({
           <dd className="contents">
             <span className="inline-flex items-center gap-2 text-[var(--ink-2)]">
               <span aria-hidden className="inline-block w-3 h-3 rounded-[3px]" style={{ background: "var(--chart-1)" }} />
-              Przychód netto
+              Przychód brutto
             </span>
-            <span className="money text-right font-semibold tabular-nums">{fmtPLN(cur.revenueNet)}</span>
+            <span className="money text-right font-semibold tabular-nums">{fmtPLN(cur.revenueGross)}</span>
             <span className="inline-flex items-center gap-2 text-[var(--ink-2)]">
               <span aria-hidden className="inline-block w-3 h-3 rounded-[3px]" style={{ background: "var(--chart-2)" }} />
-              Koszty netto
+              Koszty brutto{hasGrant ? (withGrant ? " (z dotacją)" : " (bez dotacji)") : ""}
             </span>
-            <span className="money text-right font-semibold tabular-nums">{fmtPLN(cur.costsNet)}</span>
+            <span className="money text-right font-semibold tabular-nums">{fmtPLN(costOf(cur))}</span>
+            {hasGrant && (
+              <>
+                <span className="pl-5 text-[12px] text-[var(--muted)]">Zakupy z dotacji PUP</span>
+                <span className="money text-right text-[12px] tabular-nums text-[var(--muted)]">{fmtPLN(cur.grantGross)}</span>
+              </>
+            )}
             <span className="col-span-2 mt-0.5 flex items-baseline justify-between border-t border-[var(--border)] pt-1.5">
               <span className="text-[var(--ink-2)]">Wynik</span>
               <span

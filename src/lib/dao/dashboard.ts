@@ -12,6 +12,8 @@ export type PeriodTotals = {
   costsNet: number;
   costsVat: number;
   costsGross: number;
+  // Część kosztów brutto, która pochodzi z zakupów sfinansowanych dotacją (PUP) — do pokazania osobno.
+  grantCostsGross: number;
   profit: number;
 };
 
@@ -44,6 +46,10 @@ export type MonthlyPoint = {
   revenueNet: number;
   costsNet: number;
   profit: number;
+  revenueGross: number;
+  costsGross: number;
+  /** Zakupy z dotacji (brutto) — wliczone w costsGross. */
+  grantGross: number;
 };
 
 export type UninvoicedSummary = {
@@ -170,6 +176,7 @@ function emptyTotals(): PeriodTotals {
     costsNet: 0,
     costsVat: 0,
     costsGross: 0,
+    grantCostsGross: 0,
     profit: 0,
   };
 }
@@ -195,6 +202,7 @@ function addCost(totals: PeriodTotals, c: CostRow, isVatPayer: boolean): void {
   // VAT naliczony = tylko część podlegająca odliczeniu (100% / 50% / 0%).
   const factor = (c.vat_deduction ?? 100) / 100;
   totals.costsGross += gross;
+  if (isGrantCost(c)) totals.grantCostsGross += gross;
   totals.costsVat += vat * factor;
   // Koszt PIT: dla paliwa 75% (samochód użyczony) i z nieodliczoną częścią VAT; reszta bez zmian.
   totals.costsNet += pitCostAmount({
@@ -434,21 +442,24 @@ function computeDashboard(raw: RawData, monthIdx: number): DashboardData {
     }
   }
 
-  const totalCatNet = Array.from(categoryAgg.values()).reduce((a, v) => a + v.net, 0);
+  const totalCatGross = Array.from(categoryAgg.values()).reduce((a, v) => a + v.gross, 0);
   const costsByCategoryMonth: CategoryBreakdownRow[] = Array.from(categoryAgg.entries())
     .map(([category, v]) => ({
       category,
       amountNet: v.net,
       amountGross: v.gross,
-      share: totalCatNet > 0 ? v.net / totalCatNet : 0,
+      share: totalCatGross > 0 ? v.gross / totalCatGross : 0,
     }))
-    .sort((a, b) => b.amountNet - a.amountNet);
+    .sort((a, b) => b.amountGross - a.amountGross);
 
   const monthlyTrend: MonthlyPoint[] = trend.map((t, i) => ({
     month: i,
     revenueNet: t.revenueNet,
     costsNet: t.costsNet,
     profit: t.revenueNet - t.costsNet,
+    revenueGross: t.revenueGross,
+    costsGross: t.costsGross,
+    grantGross: t.grantCostsGross,
   }));
 
   ytd.profit = ytd.revenueNet - ytd.costsNet;

@@ -16,7 +16,7 @@ export default async function RentownoscPage({
   searchParams: Promise<{ b?: string }>;
 }) {
   const { b } = await searchParams;
-  const basis: Basis = b === "gross" ? "gross" : "net";
+  const basis: Basis = b === "net" ? "net" : "gross"; // domyślnie brutto
   const { rows, isVatPayer } = await listJobProfitability();
 
   // Kwoty netto sensowne tylko dla VAT-owca; dla nie-VAT-owca netto = brutto.

@@ -4,7 +4,7 @@ import MonthCarousel from "@/components/finance/MonthCarousel";
 import { FinTrendChart } from "../finanse/fin-ui";
 import { Money } from "@/components/Money";
 import { getYearDashboards, MONTH_NAMES_PL, type DashboardData } from "@/lib/dao/dashboard";
-import { CATEGORY_COLORS } from "@/lib/dao/cost_lines.types";
+import { BalanceRows, GrantSwitch, MonthBalance, Row } from "@/components/finance/MonthBalance";
 import { fmtPLN, fmtDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +25,9 @@ function whenLabel(days: number): string {
   return `za ${days} dni`;
 }
 
-export default async function TaxPage({ searchParams }: { searchParams: Promise<{ rok?: string }> }) {
-  const { rok } = await searchParams;
+export default async function TaxPage({ searchParams }: { searchParams: Promise<{ rok?: string; dotacja?: string }> }) {
+  const { rok, dotacja } = await searchParams;
+  const without = dotacja === "bez";
   const now = new Date();
   const parsed = Number(rok);
   const year = Number.isInteger(parsed) && parsed >= 2020 && parsed <= now.getFullYear() + 1 ? parsed : now.getFullYear();
@@ -54,7 +55,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
     upcoming.sort((a, b) => a.days - b.days);
   }
 
-  const hasYearData = cur.ytd.revenueNet > 0 || cur.ytd.costsNet > 0;
+  const hasYearData = cur.ytd.revenueGross > 0 || cur.ytd.costsGross > 0;
   const hasCashAlerts =
     (cur.uninvoicedMonth && cur.uninvoicedMonth.count > 0) || cur.pendingRevenueGross > 0 || cur.openDepositsTotal > 0;
 
@@ -65,11 +66,11 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           <div className="min-w-0">
             <p className="lv-eyebrow">Podatki i ZUS</p>
             <h1 className="lf-hero-big ld-year">
-              <Link href={`/dashboard?rok=${year - 1}`} aria-label={`Rok ${year - 1}`} className="ld-yarrow">
+              <Link href={`/dashboard?rok=${year - 1}${without ? "&dotacja=bez" : ""}`} aria-label={`Rok ${year - 1}`} className="ld-yarrow">
                 ‹
               </Link>
               {year}
-              <Link href={`/dashboard?rok=${year + 1}`} aria-label={`Rok ${year + 1}`} className="ld-yarrow">
+              <Link href={`/dashboard?rok=${year + 1}${without ? "&dotacja=bez" : ""}`} aria-label={`Rok ${year + 1}`} className="ld-yarrow">
                 ›
               </Link>
             </h1>
@@ -95,6 +96,10 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
         )}
       </header>
 
+      {cur.ytd.grantCostsGross > 0 && (
+        <GrantSwitch base="/dashboard" params={{ rok: String(year) }} without={without} />
+      )}
+
       <section>
         <p className="ld-hint">Przesuń palcem w lewo lub w prawo, żeby zobaczyć kolejne miesiące.</p>
         <MonthCarousel
@@ -103,7 +108,7 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
           markers={year === now.getFullYear() ? { [now.getMonth()]: "dziś" } : undefined}
         >
           {months.map((d) => (
-            <MonthPanel key={d.month_index} d={d} isCurrent={year === now.getFullYear() && d.month_index === now.getMonth()} />
+            <MonthPanel key={d.month_index} d={d} withGrant={!without} isCurrent={year === now.getFullYear() && d.month_index === now.getMonth()} />
           ))}
         </MonthCarousel>
       </section>
@@ -115,11 +120,11 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
         ) : (
           <>
             <FinTrendChart data={cur.monthlyTrend} highlightMonth={year === now.getFullYear() ? now.getMonth() : undefined} />
-            <div className="ld-rows">
-              <Row label="Przychód netto od początku roku" value={fmtPLN(cur.ytd.revenueNet)} />
-              <Row label="Koszty netto od początku roku" value={fmtPLN(cur.ytd.costsNet)} />
-              <Row label="Dochód od początku roku" value={fmtPLN(cur.ytd.profit)} strong tone={cur.ytd.profit >= 0 ? "gold" : "neg"} />
-              <Row label="Zaliczki PIT razem (z faktur)" value={fmtPLN(cur.ytd.pit)} />
+            <div className="mt-3.5">
+              <BalanceRows t={cur.ytd} period="year" withGrant={!without} />
+            </div>
+            <div className="ld-rows" style={{ marginTop: 10 }}>
+              <Row label="Zaliczki PIT razem (z faktur)" value={fmtPLN(cur.ytd.pit)} sub />
             </div>
           </>
         )}
@@ -152,9 +157,9 @@ export default async function TaxPage({ searchParams }: { searchParams: Promise<
   );
 }
 
-function MonthPanel({ d, isCurrent }: { d: DashboardData; isCurrent: boolean }) {
+function MonthPanel({ d, isCurrent, withGrant }: { d: DashboardData; isCurrent: boolean; withGrant: boolean }) {
   const monthName = MONTH_NAMES_PL[d.month_index];
-  const empty = d.month.revenueNet === 0 && d.month.costsNet === 0;
+  const empty = d.month.revenueGross === 0 && d.month.costsGross === 0;
   const quarterly = d.settings.vat_period === "quarterly";
   const quarterEnd = d.month_index % 3 === 2;
   const vatSettledHere = !quarterly || quarterEnd;
@@ -229,34 +234,7 @@ function MonthPanel({ d, isCurrent }: { d: DashboardData; isCurrent: boolean }) 
         />
       </div>
 
-      <div className="lv-card ld-box">
-        <h3 className="ld-h3">Bilans miesiąca</h3>
-        <div className="ld-rows">
-          <Row label="Przychód netto" value={fmtPLN(d.month.revenueNet)} />
-          {d.monthRevenueSplit && (
-            <>
-              <Row
-                label={`z fakturą${d.monthRevenueSplit.invoicedCount > 0 ? ` (${d.monthRevenueSplit.invoicedCount})` : ""}`}
-                value={fmtPLN(d.monthRevenueSplit.invoicedNet)}
-                sub
-              />
-              <Row
-                label={`bez faktury${d.monthRevenueSplit.uninvoicedCount > 0 ? ` (${d.monthRevenueSplit.uninvoicedCount})` : ""}`}
-                value={fmtPLN(d.monthRevenueSplit.uninvoicedNet)}
-                sub
-              />
-            </>
-          )}
-          <Row label="Koszty netto" value={fmtPLN(d.month.costsNet)} />
-          <Row label="Dochód" value={fmtPLN(d.month.profit)} strong tone={d.month.profit >= 0 ? "gold" : "neg"} />
-        </div>
-        {d.costsByCategoryMonth.length > 0 && (
-          <div className="ld-cats">
-            <h3 className="ld-h3">Na co poszły koszty</h3>
-            <CategoryBars rows={d.costsByCategoryMonth} />
-          </div>
-        )}
-      </div>
+      <MonthBalance d={d} withGrant={withGrant} />
     </article>
   );
 }
@@ -310,27 +288,6 @@ function TaxCard({
   );
 }
 
-function Row({
-  label,
-  value,
-  sub,
-  strong,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: boolean;
-  strong?: boolean;
-  tone?: "gold" | "neg";
-}) {
-  return (
-    <div className="ld-row" data-sub={sub} data-strong={strong} data-tone={tone}>
-      <span>{label}</span>
-      <Money>{value}</Money>
-    </div>
-  );
-}
-
 function CashRow({ title, amount, hint }: { title: string; amount: number; hint: string }) {
   return (
     <div className="ld-cash">
@@ -340,30 +297,5 @@ function CashRow({ title, amount, hint }: { title: string; amount: number; hint:
       </div>
       <small>{hint}</small>
     </div>
-  );
-}
-
-function CategoryBars({ rows }: { rows: { category: string; amountNet: number; share: number }[] }) {
-  const max = rows[0]?.amountNet ?? 0;
-  return (
-    <ul className="space-y-2.5">
-      {rows.map((r) => {
-        const color = CATEGORY_COLORS[r.category] ?? "#8d8a85";
-        const w = max > 0 ? Math.max(2, (r.amountNet / max) * 100) : 0;
-        return (
-          <li key={r.category}>
-            <div className="flex items-baseline justify-between gap-2 text-[13.5px]">
-              <span className="capitalize">{r.category}</span>
-              <Money className="tabular-nums text-[var(--muted)]">
-                {fmtPLN(r.amountNet)} · {Math.round(r.share * 100)}%
-              </Money>
-            </div>
-            <div className="ld-bar">
-              <div style={{ width: `${w}%`, backgroundColor: color }} />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
   );
 }
