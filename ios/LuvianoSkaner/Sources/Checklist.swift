@@ -223,6 +223,8 @@ struct AutoLayoutSheet: View {
     @AppStorage("auto.lowerD") private var lowerD = 560.0
     @AppStorage("auto.upperD") private var upperD = 350.0
     @AppStorage("auto.maxW") private var maxW = 600.0
+    @AppStorage("auto.cornerLower") private var cornerLower = 900.0
+    @AppStorage("auto.cornerUpper") private var cornerUpper = 600.0
 
     var body: some View {
         NavigationStack {
@@ -247,6 +249,7 @@ struct AutoLayoutSheet: View {
                     Toggle("Szafki górne", isOn: $opt.upper)
                     Toggle("Zlew + zmywarka przy wodzie, płyta przy gazie / 400 V", isOn: $opt.appliances)
                     Toggle("Omijaj grzejniki, rury i piony (zamiast zabudować)", isOn: $opt.avoidFeatures)
+                    Toggle("Szafka narożna na styku ścian (układ L / U)", isOn: $opt.corners)
                 }
                 Section {
                     num("Wysokość blatu", $counter)
@@ -255,6 +258,10 @@ struct AutoLayoutSheet: View {
                     num("Głębokość dolnych", $lowerD)
                     num("Głębokość górnych", $upperD)
                     num("Najszerszy moduł", $maxW)
+                    if opt.corners {
+                        num("Narożna dolna (bok kwadratu)", $cornerLower)
+                        num("Narożna górna (bok kwadratu)", $cornerUpper)
+                    }
                 } header: { Text("Wymiary (mm)") } footer: {
                     Text("Wolne miejsce dzielę na równe moduły nie szersze niż „najszerszy moduł” — na wymiar, do mm. Resztki poniżej 15 cm (dół) / 25 cm (góra) zostają na blendę. Nad płytą zostawiam miejsce na okap.")
                 }
@@ -277,6 +284,7 @@ struct AutoLayoutSheet: View {
                         var o = opt
                         o.counterMm = counter; o.gapMm = gap; o.upperHeightMm = upperH
                         o.lowerDepthMm = lowerD; o.upperDepthMm = upperD; o.maxModuleMm = max(maxW, 300)
+                        o.cornerLowerMm = cornerLower; o.cornerUpperMm = cornerUpper
                         onRun(walls, o)
                         dismiss()
                     }

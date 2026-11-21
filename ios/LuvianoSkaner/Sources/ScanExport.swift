@@ -47,6 +47,8 @@ struct ScanObject: Codable {
     var rotationDeg: Double
     /// Szafka rozstawiona automatycznie przy tej ścianie (id) — ponowne rozstawienie ją podmienia.
     var autoWall: String? = nil
+    /// Odmiana szafki: "corner" = narożna (kwadrat L przy styku dwóch ścian).
+    var variant: String? = nil
 }
 
 /// Punkt instalacji na ścianie (woda, odpływ, gniazdko…), wskazany ręcznie.
@@ -91,7 +93,7 @@ struct ScanPayload: Codable {
 
 // Odczyt (zapis lokalny i skany z meble-app): pola dodane później mogą nie istnieć w starszych skanach.
 extension ScanObject {
-    private enum K: String, CodingKey { case id, category, cx, cy, widthMm, depthMm, heightMm, elevationMm, rotationDeg, autoWall }
+    private enum K: String, CodingKey { case id, category, cx, cy, widthMm, depthMm, heightMm, elevationMm, rotationDeg, autoWall, variant }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: K.self)
         id = try c.decode(String.self, forKey: .id)
@@ -104,6 +106,7 @@ extension ScanObject {
         elevationMm = try c.decodeIfPresent(Double.self, forKey: .elevationMm) ?? 0
         rotationDeg = try c.decode(Double.self, forKey: .rotationDeg)
         autoWall = try c.decodeIfPresent(String.self, forKey: .autoWall)
+        variant = try c.decodeIfPresent(String.self, forKey: .variant)
     }
 }
 

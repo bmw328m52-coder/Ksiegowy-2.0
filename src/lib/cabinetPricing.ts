@@ -510,6 +510,7 @@ type ScanObj = {
   height_mm: number;
   elevation_mm?: number;
   auto_wall?: string;
+  variant?: string;
 };
 
 export type ScanCab = {
@@ -527,6 +528,11 @@ const CAB_CATEGORIES = ["storage", "sink", "stove", "dishwasher", "oven", "refri
 function defaultKind(o: ScanObj): CabKind {
   const elev = o.elevation_mm ?? 0;
   if (o.category === "sink") return "sink";
+  if (o.variant === "corner") return elev >= 300 ? "upper_doors" : "lower_doors";
+  if (o.category === "storage" && elev < 50 && o.height_mm < 1500) {
+    if (o.variant === "drawers") return "lower_drawers";
+    if (o.variant === "doors") return "lower_doors";
+  }
   if (o.category === "dishwasher") return "appliance_front";
   if (o.category === "stove") return "lower_drawers";
   if (o.category === "refrigerator" || o.category === "oven") return "tall";
@@ -547,6 +553,11 @@ export function cabsFromScan(objects: ScanObj[], kinds: Record<string, CabKind> 
       // Zlew dodany ręcznie w Skanerze to sama komora (200 mm nad blatem) — szafka pod nim ma wysokość dolnych.
       const h = o.category === "sink" && !onFloor ? 720 : onFloor ? Math.max(o.height_mm - PLINTH_MM, 300) : o.height_mm;
       const d = o.category === "sink" && !onFloor ? 560 : o.depth_mm;
+      // Narożna L: dwa ramiona — szerokość zastępcza = front + ramię boczne, głębokość jak zwykłej szafki.
+      if (o.variant === "corner") {
+        const dd = onFloor ? 560 : 340;
+        return { id: o.id, category: o.category, planned, defaultKind: dk, kind, cab: { kind, w: o.width_mm + Math.max(o.depth_mm - dd, 0), h, d: dd, doors: 1 } };
+      }
       return { id: o.id, category: o.category, planned, defaultKind: dk, kind, cab: { kind, w: o.width_mm, h, d } };
     });
 }

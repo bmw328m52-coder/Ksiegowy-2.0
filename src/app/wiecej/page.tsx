@@ -50,6 +50,18 @@ const TOOLS: Tool[] = [
     ),
   },
   {
+    href: "/projektant",
+    label: "Projektant kuchni",
+    hint: "Szafki z biblioteki na ścianie + cena",
+    tone: "accent",
+    icon: (
+      <svg {...iconProps}>
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M3 9h18M3 15h18M12 3v6M9 15v6M15 15v6" />
+      </svg>
+    ),
+  },
+  {
     href: "/calculator",
     label: "Kalkulator",
     hint: "Szybka wycena na czysto",

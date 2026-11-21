@@ -21,6 +21,11 @@ enum AutoLayout {
         var maxModuleMm = 600.0
         /// Omijaj grzejniki, rury, piony (domyślnie szafki je zabudowują / zasłaniają).
         var avoidFeatures = false
+        /// Szafka narożna (kwadrat L) tam, gdzie dwie rozstawiane ściany schodzą się pod kątem prostym.
+        var corners = true
+        /// Bok narożnej dolnej (900 × 900) i górnej (600 × 600).
+        var cornerLowerMm = 900.0
+        var cornerUpperMm = 600.0
     }
 
     /// Najwęższy moduł; krótszy odcinek zostaje na blendę.
@@ -49,19 +54,47 @@ enum AutoLayout {
         for i in walls where scan.walls.indices.contains(i) {
             let m = PlanModel(scan)
             guard m.walls.indices.contains(i) else { continue }
-            added += layWall(&scan, m.walls[i], o)
+            added += layWall(&scan, m.walls[i], o, index: i, picked: Set(walls))
         }
         return added
     }
 
-    private static func layWall(_ scan: inout ScanPayload, _ g: PlanModel.Wall, _ o: Options) -> Int {
+    /// Narożniki obsługuje ściana o niższym numerze: sąsiad rozstawiany później jest zasłonięty przez narożną.
+    private static func cornerSides(_ scan: ScanPayload, _ g: PlanModel.Wall, index i: Int, picked: Set<Int>) -> (start: Bool, end: Bool) {
+        let m = PlanModel(scan)
+        func ok(_ j: Int?, end: Bool) -> Bool {
+            guard let j = j, j > i, picked.contains(j), m.walls.indices.contains(j) else { return false }
+            let d = m.walls[j].dir
+            // Kąt prosty i narożnik wewnętrzny (sąsiednia ściana biegnie w głąb pokoju).
+            guard abs(PlanGeom.dot(d, g.dir)) < 0.26 else { return false }
+            let k = PlanGeom.dot(d, g.inN)
+            return end ? k > 0.5 : k < -0.5
+        }
+        return (ok(g.prev, end: false), ok(g.next, end: true))
+    }
+
+    /// Wstawia narożną w wolny kwadrat [a, a + c] przy narożniku; zwraca, czy się udało (i odcina to miejsce).
+    private static func placeCorner(_ scan: inout ScanPayload, _ g: PlanModel.Wall, free: inout [Iv], atEnd: Bool,
+                                    side c: Double, z0: Double, h: Double) -> Bool {
+        let a = atEnd ? g.len - c : 0
+        guard c > 0, g.len > c + 300,
+              free.contains(where: { $0.a <= a + 0.5 && $0.b >= a + c - 0.5 }) else { return false }
+        add(&scan, g, "storage", a, a + c, z0: z0, h: h, depth: c, variant: "corner")
+        cut(&free, Iv(a: a, b: a + c))
+        return true
+    }
+
+    private static func layWall(_ scan: inout ScanPayload, _ g: PlanModel.Wall, _ o: Options, index: Int, picked: Set<Int>) -> Int {
         guard g.len > 300 else { return 0 }
         var added = 0
         var hoods: [Iv] = []
+        let cs = o.corners ? cornerSides(scan, g, index: index, picked: picked) : (start: false, end: false)
 
         if o.lower {
             let z1 = o.counterMm - 40
             var free = freeIntervals(scan, g, z0: 0, z1: z1, depth: o.lowerDepthMm, lower: true, o: o)
+            if cs.end, placeCorner(&scan, g, free: &free, atEnd: true, side: o.cornerLowerMm, z0: 0, h: z1) { added += 1 }
+            if cs.start, placeCorner(&scan, g, free: &free, atEnd: false, side: o.cornerLowerMm, z0: 0, h: z1) { added += 1 }
 
             if o.appliances {
                 let onWall = scan.markers.filter { $0.wallId == g.w.id }
@@ -95,6 +128,7 @@ enum AutoLayout {
                 }
             }
             for iv in free { added += fill(&scan, g, iv, min: minLower, max: o.maxModuleMm, z0: 0, h: z1, depth: o.lowerDepthMm) }
+            assignVariants(&scan, g, depth: o.lowerDepthMm)
         }
 
         // Okap nad płytą postawioną wcześniej ręcznie.
@@ -107,11 +141,29 @@ enum AutoLayout {
             let z1 = min(z0 + o.upperHeightMm, g.w.heightMm)
             if z1 - z0 >= 300 {
                 var free = freeIntervals(scan, g, z0: z0, z1: z1, depth: o.upperDepthMm, lower: false, o: o)
+                if cs.end, placeCorner(&scan, g, free: &free, atEnd: true, side: o.cornerUpperMm, z0: z0, h: z1 - z0) { added += 1 }
+                if cs.start, placeCorner(&scan, g, free: &free, atEnd: false, side: o.cornerUpperMm, z0: z0, h: z1 - z0) { added += 1 }
                 for h in hoods { cut(&free, Iv(a: h.a - 1, b: h.b + 1)) }
                 for iv in free { added += fill(&scan, g, iv, min: minUpper, max: o.maxModuleMm, z0: z0, h: z1 - z0, depth: o.upperDepthMm) }
             }
         }
         return added
+    }
+
+    /// Rodzaj frontu dolnych modułów (idzie do wyceny): przy płycie szuflady (garnki), przy zlewie drzwi
+    /// (kosz na odpady), reszta — wąskie (≤ 450 mm) na drzwi, szersze na szuflady.
+    private static func assignVariants(_ scan: inout ScanPayload, _ g: PlanModel.Wall, depth: Double) {
+        let mine = scan.objects.indices.filter { scan.objects[$0].autoWall == g.w.id && scan.objects[$0].elevationMm < 50 }
+        var spans: [Int: Iv] = [:]
+        for i in mine { if let s = span(scan.objects[i], g, depth: depth) { spans[i] = s } }
+        let sinks = mine.filter { scan.objects[$0].category == "sink" }.compactMap { spans[$0] }
+        let hobs = mine.filter { scan.objects[$0].category == "stove" }.compactMap { spans[$0] }
+        func touches(_ s: Iv, _ list: [Iv]) -> Bool { list.contains { abs($0.b - s.a) < 5 || abs(s.b - $0.a) < 5 } }
+        for i in mine where scan.objects[i].category == "storage" && scan.objects[i].variant == nil {
+            guard let s = spans[i] else { continue }
+            let w = scan.objects[i].widthMm
+            scan.objects[i].variant = touches(s, hobs) ? "drawers" : touches(s, sinks) ? "doors" : (w <= 450 ? "doors" : "drawers")
+        }
     }
 
     /// Wolne odcinki ściany w paśmie wysokości z0…z1 — bez otworów i stojących tam mebli.
@@ -217,11 +269,11 @@ enum AutoLayout {
     }
 
     private static func add(_ scan: inout ScanPayload, _ g: PlanModel.Wall, _ cat: String, _ t0: Double, _ t1: Double,
-                            z0: Double, h: Double, depth: Double) {
+                            z0: Double, h: Double, depth: Double, variant: String? = nil) {
         let c = g.w.a + g.dir * ((t0 + t1) / 2) + g.inN * (depth / 2)
         let deg = atan2(g.dir.y, g.dir.x) * 180 / .pi
         scan.objects.append(ScanObject(id: UUID().uuidString, category: cat, cx: c.x.rounded(), cy: c.y.rounded(),
                                        widthMm: (t1 - t0).rounded(), depthMm: depth, heightMm: h.rounded(),
-                                       elevationMm: z0.rounded(), rotationDeg: deg, autoWall: g.w.id))
+                                       elevationMm: z0.rounded(), rotationDeg: deg, autoWall: g.w.id, variant: variant))
     }
 }

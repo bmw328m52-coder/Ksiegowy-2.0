@@ -130,6 +130,8 @@ export type ScanObject = {
   rotation_deg: number;
   /** Szafka rozstawiona automatycznie przy ścianie (id). */
   auto_wall?: string;
+  /** Odmiana szafki: "corner" = narożna (kwadrat L). */
+  variant?: string;
 };
 
 /** Rodzaje punktów instalacji — zgodne z MarkerKind w ios/LuvianoSkaner/Sources/Markers.swift. */
